@@ -2,6 +2,8 @@
 
 ![](https://github.com/lundberg/responsex/workflows/test/badge.svg)
 [![codecov](https://codecov.io/gh/lundberg/responsex/branch/master/graph/badge.svg)](https://codecov.io/gh/lundberg/responsex)
+[![PyPi Version](https://img.shields.io/pypi/v/responsex.svg)](https://pypi.org/project/responsex/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/responsex.svg)](https://pypi.org/project/responsex/)
 
 A utility for mocking out the Python [httpx](https://github.com/encode/httpx) library.
 

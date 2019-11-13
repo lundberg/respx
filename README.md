@@ -1,5 +1,8 @@
 # responsex
 
+![](https://github.com/lundberg/responsex/workflows/test/badge.svg)
+[![codecov](https://codecov.io/gh/lundberg/responsex/branch/master/graph/badge.svg)](https://codecov.io/gh/lundberg/responsex)
+
 A utility for mocking out the Python [httpx](https://github.com/encode/httpx) library.
 
 ```py

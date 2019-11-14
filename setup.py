@@ -46,7 +46,9 @@ install_requires = [
 ]
 
 # Test requirements
-tests_require = []
+tests_require = [
+    "trio",
+]
 
 dependency_links = [
     # "git+https://github.com/encode/httpx.git@pull/511#egg=httpx-0.7.6",

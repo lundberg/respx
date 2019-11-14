@@ -2,6 +2,9 @@ import re
 
 import asynctest
 import httpx
+import trio
+from httpx.concurrency.base import ConcurrencyBackend
+from httpx.concurrency.trio import TrioBackend
 from httpx.exceptions import ConnectTimeout
 
 import responsex
@@ -165,7 +168,10 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.text, "foobar")
 
-    @asynctest.skip("not yet implemented in httpx")
+    @asynctest.skipIf(
+        not hasattr(ConcurrencyBackend, "open_uds_stream"),
+        "not yet implemented in httpx",
+    )
     async def test_uds(self):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
@@ -199,7 +205,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertIsNotNone(request)
             self.assertIsNone(response)
 
-    def test_stats(self):
+    async def test_stats(self, backend=None):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/1/"
             httpx_mock.add("GET", re.compile("http://some/url"))
@@ -212,8 +218,9 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(len(foobar1.call_args_list), 0)
             self.assertEqual(len(httpx_mock.calls), 0)
 
-            get_response = httpx.get(url)
-            del_response = httpx.delete(url)
+            async with httpx.AsyncClient(backend=backend) as client:
+                get_response = await client.get(url)
+                del_response = await client.delete(url)
 
             self.assertTrue(foobar1.called)
             self.assertTrue(foobar2.called)
@@ -249,3 +256,6 @@ class HTTPXMockTestCase(asynctest.TestCase):
             alias = httpx_mock.patterns["del_foobar"]
             self.assertEqual(alias, foobar2)
             self.assertEqual(alias.alias, foobar2.alias)
+
+    def test_trio_backend(self):
+        trio.run(self.test_stats, TrioBackend())

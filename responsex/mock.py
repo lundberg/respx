@@ -1,9 +1,9 @@
-import asyncio
 import io
 import json as jsonlib
 import re
 import ssl
 import typing
+from contextlib import contextmanager
 from functools import partial
 from unittest import mock
 
@@ -12,10 +12,11 @@ from httpx.client import BaseClient
 from httpx.config import TimeoutConfig
 from httpx.models import URL, AsyncRequest, Headers
 
+# TODO: Remove try-except once httpx.BaseSocketStream is released
 try:
-    from httpx.concurrency.asyncio import SocketStream
-except ImportError:
-    from httpx.concurrency.asyncio import TCPStream as SocketStream
+    from httpx import BaseSocketStream
+except ImportError:  # pragma: nocover
+    from httpx import BaseTCPStream as BaseSocketStream
 
 
 CRLF = "\r\n"
@@ -60,62 +61,24 @@ class HTTPXMock:
         self.stop()
 
     def start(self):
-        async def _get_response_spy(zelf, request: AsyncRequest, **kwargs):
-            # Match request with added patterns
-            url_match = self.match(request)
+        async def unbound_get_response(client, request: AsyncRequest, **kwargs):
+            return await self._get_response_spy(client, request, **kwargs)
 
-            # Replace request url with matched url for later pickup in backend
-            if url_match:
-                request.url = url_match
-
-            # Pass-through
-            try:
-                global _get_response
-                response = None
-                response = await _get_response(zelf, request, **kwargs)
-            except Exception as e:
-                raise e
-            finally:
-                # Update call stats
-                event = url_match.pattern if url_match is not None else mock.MagicMock()
-                event(request, response)
-                self.calls.append(event.call_args_list[-1])
-
-            return response
-
-        # Patch client._get_response
+        # Spy on client._get_response
         self.patchers.append(
             asynctest.mock.patch(
-                "httpx.client.BaseClient._get_response", new=_get_response_spy
+                "httpx.client.BaseClient._get_response", new=unbound_get_response
             )
         )
-
-        # Patch backend.open_uds_stream
-        self.patchers.append(
-            asynctest.mock.patch(
-                "httpx.concurrency.asyncio.AsyncioBackend.open_tcp_stream",
-                side_effect=self.mocked_open_tcp_stream,
-            )
-        )
-
-        # Patch backend.open_uds_stream
-        try:
-            self.patchers.append(
-                asynctest.mock.patch(
-                    "httpx.concurrency.asyncio.AsyncioBackend.open_uds_stream",
-                    side_effect=self.mocked_open_uds_stream,
-                )
-            )
-        except AttributeError:  # pragma: nocover
-            # TODO: Remove try-except once httpx uds support is released
-            pass
 
         # Start patching
         for patcher in self.patchers:
             patcher.start()
 
     def stop(self):
-        # Stop patching
+        """
+        Stops mocking httpx.
+        """
         while self.patchers:
             patcher = self.patchers.pop()
             patcher.stop()
@@ -130,6 +93,9 @@ class HTTPXMock:
         headers=None,
         alias=None,
     ):
+        """
+        Adds a request method and url pattern with given mocked response details.
+        """
         headers = Headers(headers)
         if content_type:
             headers["Content-Type"] = content_type
@@ -152,6 +118,9 @@ class HTTPXMock:
         return pattern
 
     def match(self, request):
+        """
+        Matches request method and url against added patterns.
+        """
         matched_pattern, url_kwargs = None, {}
 
         # Filter paterns by method
@@ -176,13 +145,74 @@ class HTTPXMock:
             match.url_kwargs = url_kwargs
             return match
 
+    async def _get_response_spy(self, client, request: AsyncRequest, **kwargs):
+        """
+        Spy method for BaseClient._get_response().
+
+        Patches request.url and attaches matched request/response details,
+        and mocks client backend open stream methods.
+        """
+        # Match request against added patterns
+        url_match = self.match(request)
+
+        # Patch request url with matched url for later pickup in mocked backend methods
+        if url_match:
+            request.url = url_match
+
+        # Mock client's backend open_X_stream methods and pass-through to _get_response
+        try:
+            global _get_response
+            with self._patch_backend_streams(client.concurrency_backend):
+                response = None
+                response = await _get_response(client, request, **kwargs)
+        except Exception as e:
+            raise e
+        finally:
+            # Update call stats
+            event = url_match.pattern if url_match is not None else mock.MagicMock()
+            event(request, response)
+            self.calls.append(event.call_args_list[-1])
+
+        return response
+
+    @contextmanager
+    def _patch_backend_streams(self, backend):
+        patchers = []
+
+        # Mock open_tcp_stream()
+        patchers.append(
+            asynctest.mock.patch.object(
+                backend, "open_tcp_stream", self.mocked_open_tcp_stream,
+            )
+        )
+
+        # Mock open_uds_stream()
+        # TODO: Remove if-statement once httpx uds support is released
+        if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+            patchers.append(
+                asynctest.mock.patch.object(
+                    backend, "open_uds_stream", self.mocked_open_uds_stream,
+                )
+            )
+
+        # Start patchers
+        for patcher in patchers:
+            patcher.start()
+
+        try:
+            yield
+        finally:
+            # Stop patchers
+            for patcher in patchers:
+                patcher.start()
+
     async def mocked_open_tcp_stream(
         self,
         hostname: str,
         port: int,
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
-    ) -> SocketStream:
+    ) -> BaseSocketStream:
         return await self.mocked_open_uds_stream(None, hostname, ssl_context, timeout)
 
     async def mocked_open_uds_stream(
@@ -191,13 +221,13 @@ class HTTPXMock:
         hostname: typing.Optional[str],
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
-    ):
+    ) -> BaseSocketStream:
         match = getattr(hostname, "match", None)  # Pickup attached match
-        return self.mock_socket_stream(match, timeout)
+        return await self.mock_socket_stream(match, timeout)
 
-    def mock_socket_stream(
+    async def mock_socket_stream(
         self, match: typing.Optional[MatchedURL], timeout: TimeoutConfig
-    ):
+    ) -> BaseSocketStream:
         if match is None:
             version = defaults.version
             status_code = defaults.status_code
@@ -235,13 +265,10 @@ class HTTPXMock:
         data += CRLF.encode("ascii") * 2
         data += content
 
-        # Mock stream reader with bytes read from data
-        stream_reader = asynctest.mock.Mock(asyncio.StreamReader)
-        stream_reader.read.side_effect = io.BytesIO(data).read
+        # Mock backend SocketStream with bytes read from data
+        reader = io.BytesIO(data)
+        socket_stream = asynctest.mock.Mock(BaseSocketStream)
+        socket_stream.read.side_effect = lambda n, *args, **kwargs: reader.read(n)
+        socket_stream.get_http_version.return_value = http_version
 
-        # Mock stream writer
-        stream_writer = asynctest.mock.Mock(asyncio.StreamWriter)
-
-        return SocketStream(
-            stream_reader=stream_reader, stream_writer=stream_writer, timeout=timeout
-        )
+        return socket_stream

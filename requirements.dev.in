@@ -7,3 +7,7 @@ flake8>=3.7
 autoflake>=1.3
 black>=19
 isort>=4.3
+mypy>=0.740
+
+# Pip
+pip-tools>=4.2<4.3

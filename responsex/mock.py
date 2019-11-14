@@ -9,20 +9,25 @@ from unittest import mock
 
 import asynctest
 from httpx.client import BaseClient
+from httpx.concurrency.base import ConcurrencyBackend
 from httpx.config import TimeoutConfig
-from httpx.models import URL, AsyncRequest, Headers
+from httpx.models import URL, AsyncRequest, AsyncResponse, Headers, HeaderTypes
 
 # TODO: Remove try-except once httpx.BaseSocketStream is released
 try:
-    from httpx import BaseSocketStream
+    from httpx import BaseSocketStream  # type: ignore
 except ImportError:  # pragma: nocover
     from httpx import BaseTCPStream as BaseSocketStream
 
 
-CRLF = "\r\n"
+Regex = type(re.compile(""))
+URLParams = typing.Dict[str, typing.Any]
+ContentDataTypes = typing.Union[bytes, str, typing.List, typing.Dict, typing.Callable]
 
 istype = lambda t, o: isinstance(o, t)
-isregex = partial(istype, type(re.compile("")))
+isregex = partial(istype, Regex)
+
+CRLF = "\r\n"
 
 defaults = mock.MagicMock(
     version=1.1, status_code=200, headers={"Content-Type": "text/plain"}, content=b""
@@ -31,19 +36,26 @@ defaults = mock.MagicMock(
 _get_response = BaseClient._get_response  # Pass-through reference
 
 
-class Hostname(str):
-    pass
-
-
 class MatchedURL(URL):
-    pattern = None
-    url_kwargs = None
+    def __init__(
+        self, url: URL, url_params: URLParams, pattern: mock.MagicMock
+    ) -> None:
+        super().__init__(url)
+        self.url_params = url_params
+        self.pattern = pattern
 
     @property
-    def host(self):
+    def host(self) -> "Hostname":
+        """
+        Returns host (str) with attached pattern match (self)
+        """
         hostname = Hostname(super().host)
         hostname.match = self
         return hostname
+
+
+class Hostname(str):
+    match: typing.Optional[MatchedURL] = None
 
 
 class HTTPXMock:
@@ -53,15 +65,17 @@ class HTTPXMock:
         self.patterns = {}
         self.calls = []
 
-    def __enter__(self):
+    def __enter__(self) -> "HTTPXMock":
         self.start()
         return self
 
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, *args: typing.Any) -> None:
         self.stop()
 
-    def start(self):
-        async def unbound_get_response(client, request: AsyncRequest, **kwargs):
+    def start(self) -> None:
+        async def unbound_get_response(
+            client: BaseClient, request: AsyncRequest, **kwargs: typing.Any
+        ) -> AsyncResponse:
             return await self._get_response_spy(client, request, **kwargs)
 
         # Spy on client._get_response
@@ -75,7 +89,7 @@ class HTTPXMock:
         for patcher in self.patchers:
             patcher.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stops mocking httpx.
         """
@@ -85,18 +99,18 @@ class HTTPXMock:
 
     def add(
         self,
-        method,
-        url,
-        status_code=None,
-        content=None,
-        content_type=None,
-        headers=None,
-        alias=None,
-    ):
+        method: str,
+        url: typing.Union[str, typing.Pattern],
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        alias: typing.Optional[str] = None,
+    ) -> mock.MagicMock:
         """
         Adds a request method and url pattern with given mocked response details.
         """
-        headers = Headers(headers)
+        headers = Headers(headers or {})
         if content_type:
             headers["Content-Type"] = content_type
 
@@ -117,11 +131,12 @@ class HTTPXMock:
 
         return pattern
 
-    def match(self, request):
+    def match(self, request: AsyncRequest) -> typing.Optional[MatchedURL]:
         """
         Matches request method and url against added patterns.
         """
-        matched_pattern, url_kwargs = None, {}
+        matched_pattern = None
+        url_params: URLParams = {}
 
         # Filter paterns by method
         patterns = filter(lambda pattern: pattern.method == request.method, self.mocks)
@@ -132,7 +147,7 @@ class HTTPXMock:
                 match = pattern.url.match(str(request.url))
                 if match:
                     matched_pattern = pattern
-                    url_kwargs = match.groupdict()
+                    url_params = match.groupdict()
                     break
 
             elif pattern.url == str(request.url):
@@ -140,12 +155,13 @@ class HTTPXMock:
                 break
 
         if matched_pattern is not None:
-            match = MatchedURL(request.url)
-            match.pattern = matched_pattern
-            match.url_kwargs = url_kwargs
-            return match
+            return MatchedURL(request.url, url_params, matched_pattern)
 
-    async def _get_response_spy(self, client, request: AsyncRequest, **kwargs):
+        return None
+
+    async def _get_response_spy(
+        self, client: BaseClient, request: AsyncRequest, **kwargs: typing.Any
+    ) -> AsyncResponse:
         """
         Spy method for BaseClient._get_response().
 
@@ -162,7 +178,7 @@ class HTTPXMock:
         # Mock client's backend open_X_stream methods and pass-through to _get_response
         try:
             global _get_response
-            with self._patch_backend_streams(client.concurrency_backend):
+            with self._patch_backend(client.concurrency_backend):
                 response = None
                 response = await _get_response(client, request, **kwargs)
         except Exception as e:
@@ -176,13 +192,13 @@ class HTTPXMock:
         return response
 
     @contextmanager
-    def _patch_backend_streams(self, backend):
+    def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
         patchers = []
 
         # Mock open_tcp_stream()
         patchers.append(
             asynctest.mock.patch.object(
-                backend, "open_tcp_stream", self.mocked_open_tcp_stream,
+                backend, "open_tcp_stream", self.mocked_open_tcp_stream
             )
         )
 
@@ -191,7 +207,7 @@ class HTTPXMock:
         if hasattr(backend, "open_uds_stream"):  # pragma: nocover
             patchers.append(
                 asynctest.mock.patch.object(
-                    backend, "open_uds_stream", self.mocked_open_uds_stream,
+                    backend, "open_uds_stream", self.mocked_open_uds_stream
                 )
             )
 
@@ -213,7 +229,7 @@ class HTTPXMock:
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        return await self.mocked_open_uds_stream(None, hostname, ssl_context, timeout)
+        return await self.mocked_open_uds_stream("", hostname, ssl_context, timeout)
 
     async def mocked_open_uds_stream(
         self,
@@ -245,7 +261,7 @@ class HTTPXMock:
             if isinstance(content, Exception):
                 raise content
             if callable(content):
-                content = content(**match.url_kwargs)
+                content = content(**(match.url_params if match is not None else {}))
             if isinstance(content, (list, dict)):
                 content = jsonlib.dumps(content)
                 if headers is not None and "Content-Type" not in headers:
@@ -254,7 +270,8 @@ class HTTPXMock:
 
         # Build headers and apply defaults
         all_headers = Headers(defaults.headers)
-        all_headers.update(headers)
+        if headers:
+            all_headers.update(headers)
 
         # Build raw bytes data
         http_version = f"HTTP/{version}"

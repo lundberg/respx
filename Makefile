@@ -15,6 +15,11 @@ lint:
 	flake8 responsex --exit-zero
 
 
+.PHONY: mypy
+mypy:
+	mypy responsex
+
+
 .PHONY: format
 format:
 	black responsex tests

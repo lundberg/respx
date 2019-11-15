@@ -92,6 +92,30 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertIsNotNone(request)
             self.assertIsNotNone(response)
 
+    def test_repeated_pattern(self):
+        with responsex.HTTPXMock() as httpx_mock:
+            url = "https://foo/bar/baz/"
+            one = httpx_mock.add("POST", url, status_code=201)
+            two = httpx_mock.add("POST", url, status_code=409)
+            response1 = httpx.post(url, json={})
+            response2 = httpx.post(url, json={})
+            response3 = httpx.post(url, json={})
+
+            self.assertEqual(response1.status_code, 201)
+            self.assertEqual(response2.status_code, 409)
+            self.assertEqual(response3.status_code, 409)
+            self.assertEqual(len(httpx_mock.calls), 3)
+
+            self.assertTrue(one.called)
+            self.assertTrue(len(one.calls), 1)
+            statuses = [response.status_code for _, response in one.calls]
+            self.assertListEqual(statuses, [201])
+
+            self.assertTrue(two.called)
+            self.assertTrue(len(two.calls), 2)
+            statuses = [response.status_code for _, response in two.calls]
+            self.assertListEqual(statuses, [409, 409])
+
     def test_status_code(self):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"

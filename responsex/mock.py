@@ -117,11 +117,25 @@ class HTTPXMock:
     ) -> typing.Tuple[
         typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
-        for pattern in self._patterns:
+        found_index: typing.Optional[int] = None
+        matched_pattern: typing.Optional[RequestPattern] = None
+        matched_response: typing.Optional[ResponseTemplate] = None
+
+        for i, pattern in enumerate(self._patterns):
             response = pattern.match(request)
-            if response:
-                return pattern, response
-        return None, None
+            if not response:
+                continue
+
+            if found_index is not None:
+                # Multiple matches found, drop and use the first one
+                self._patterns.pop(found_index)
+                break
+
+            found_index = i
+            matched_pattern = pattern
+            matched_response = response
+
+        return matched_pattern, matched_response
 
     @contextmanager
     def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:

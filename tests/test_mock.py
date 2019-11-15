@@ -11,6 +11,18 @@ import responsex
 
 
 class HTTPXMockTestCase(asynctest.TestCase):
+    def test_api(self):
+        url = "https://foo/bar/"
+        foobar = responsex.add("GET", url, status_code=202)
+
+        responsex.start()
+        response = httpx.get(url)
+        responsex.stop()
+
+        self.assertTrue(foobar.called)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.text, "")
+
     def test_string_url_pattern(self):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
@@ -187,8 +199,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
             foobar = httpx_mock.add("GET", url, alias="foobar")
-            self.assertIn("foobar", httpx_mock.patterns)
-            self.assertEqual(httpx_mock.patterns["foobar"].url, foobar.url)
+            self.assertIn("foobar", httpx_mock.aliases)
+            self.assertEqual(httpx_mock.aliases["foobar"].url, foobar.url)
 
     def test_exception(self):
         with responsex.HTTPXMock() as httpx_mock:
@@ -249,11 +261,11 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(httpx_mock.calls[0], foobar1.call_args_list[-1])
             self.assertEqual(httpx_mock.calls[1], foobar2.call_args_list[-1])
 
-            alias = httpx_mock.patterns["get_foobar"]
+            alias = httpx_mock.aliases["get_foobar"]
             self.assertEqual(alias, foobar1)
             self.assertEqual(alias.alias, foobar1.alias)
 
-            alias = httpx_mock.patterns["del_foobar"]
+            alias = httpx_mock["del_foobar"]
             self.assertEqual(alias, foobar2)
             self.assertEqual(alias.alias, foobar2.alias)
 

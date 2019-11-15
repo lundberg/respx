@@ -15,19 +15,36 @@ class HTTPXMockTestCase(asynctest.TestCase):
         url = "https://foo/bar/"
         foobar = responsex.add("GET", url, status_code=202)
 
+        self.assertEqual(len(responsex.calls), 0)
+
         responsex.start()
         response = httpx.get(url)
+        self.assertEqual(len(responsex.calls), 1)
         responsex.stop()
+
+        self.assertEqual(len(responsex.calls), 0)
 
         self.assertTrue(foobar.called)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.text, "")
 
     @responsex.activate
-    def test_decorator(self):
+    def test_activate_decorator(self):
         responsex.add("GET", "https://foo/bar/", status_code=202)
         response = httpx.get("https://foo/bar/")
         self.assertEqual(response.status_code, 202)
+
+    def test_activate_contextmanager(self):
+        self.assertEqual(len(responsex.calls), 0)
+
+        with responsex.activate():
+            responsex.add("GET", "https://foo/bar/", status_code=202)
+            response = httpx.get("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(len(responsex.calls), 1)
+
+        self.assertEqual(len(responsex.calls), 0)
 
     def test_string_url_pattern(self):
         with responsex.HTTPXMock() as httpx_mock:
@@ -49,6 +66,14 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.text, "whatever")
 
+    def test_invalid_url_pattern(self):
+        with responsex.HTTPXMock() as httpx_mock:
+            foobar = httpx_mock.add("GET", ["invalid"], content="whatever")
+            with self.assertRaises(ValueError):
+                httpx.get("https://foo/bar/")
+
+        self.assertFalse(foobar.called)
+
     def test_unknown_url(self):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
@@ -57,13 +82,13 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
             self.assertFalse(foobar.called)
             self.assertEqual(response.status_code, 200)
-            self.assertDictEqual(
-                dict(response.headers.items()), {"content-type": "text/plain"}
+            self.assertEqual(
+                response.headers, httpx.Headers({"Content-Type": "text/plain"})
             )
             self.assertEqual(response.text, "")
 
             self.assertEqual(len(httpx_mock.calls), 1)
-            (request, response), _ = httpx_mock.calls[-1]
+            request, response = httpx_mock.calls[-1]
             self.assertIsNotNone(request)
             self.assertIsNotNone(response)
 
@@ -149,14 +174,14 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 httpx.get(url)
 
         self.assertTrue(foobar.called)
-        (request, response), _ = foobar.call_args_list[-1]
+        request, response = foobar.calls[-1]
         self.assertIsNotNone(request)
         self.assertIsNone(response)
 
     def test_callable_content(self):
         with responsex.HTTPXMock() as httpx_mock:
             url_pattern = re.compile(r"https://foo/bar/(?P<id>\d+)/")
-            content = lambda id: f"foobar #{id}"
+            content = lambda request, id: f"foobar #{id}"
             foobar = httpx_mock.add("GET", url_pattern, content=content)
             response = httpx.get("https://foo/bar/123/")
 
@@ -219,9 +244,27 @@ class HTTPXMockTestCase(asynctest.TestCase):
                     httpx.get(url)
 
             self.assertEqual(len(httpx_mock.calls), 1)
-            (request, response), _ = httpx_mock.calls[-1]
+            request, response = httpx_mock.calls[-1]
             self.assertIsNotNone(request)
             self.assertIsNone(response)
+
+    def test_custom_matcher(self):
+        def matcher(request, response):
+            if request.url.host == "foo":
+                response.content = lambda request, id: f"foobar #{id}"
+                response.context["id"] = 123
+                return response
+
+        with responsex.HTTPXMock() as httpx_mock:
+            httpx_mock.add(matcher, status_code=202, headers={"X-Ham": "Spam"})
+            response = httpx.get("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(
+                response.headers,
+                httpx.Headers({"Content-Type": "text/plain", "X-Ham": "Spam"}),
+            )
+            self.assertEqual(response.text, "foobar #123")
 
     async def test_stats(self, backend=None):
         with responsex.HTTPXMock() as httpx_mock:
@@ -233,7 +276,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             foobar2 = httpx_mock.add("DELETE", url, status_code=200, alias="del_foobar")
 
             self.assertFalse(foobar1.called)
-            self.assertEqual(len(foobar1.call_args_list), 0)
+            self.assertEqual(len(foobar1.calls), 0)
             self.assertEqual(len(httpx_mock.calls), 0)
 
             async with httpx.AsyncClient(backend=backend) as client:
@@ -242,11 +285,10 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
             self.assertTrue(foobar1.called)
             self.assertTrue(foobar2.called)
-            self.assertEqual(len(foobar1.call_args_list), 1)
-            self.assertEqual(len(foobar2.call_args_list), 1)
+            self.assertEqual(len(foobar1.calls), 1)
+            self.assertEqual(len(foobar2.calls), 1)
 
-            get_call = foobar1.call_args_list[-1]
-            (_request, _response), _ = get_call
+            _request, _response = foobar1.calls[-1]
             self.assertIsNotNone(_request)
             self.assertIsNotNone(_response)
             self.assertEqual(_request.method, "GET")
@@ -254,8 +296,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(_response.status_code, 202)
             self.assertEqual(_response.status_code, get_response.status_code)
 
-            del_call = foobar2.call_args_list[-1]
-            (_request, _response), _ = del_call
+            _request, _response = foobar2.calls[-1]
             self.assertIsNotNone(_request)
             self.assertIsNotNone(_response)
             self.assertEqual(_request.method, "DELETE")
@@ -264,8 +305,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(_response.status_code, del_response.status_code)
 
             self.assertEqual(len(httpx_mock.calls), 2)
-            self.assertEqual(httpx_mock.calls[0], foobar1.call_args_list[-1])
-            self.assertEqual(httpx_mock.calls[1], foobar2.call_args_list[-1])
+            self.assertEqual(httpx_mock.calls[0], foobar1.calls[-1])
+            self.assertEqual(httpx_mock.calls[1], foobar2.calls[-1])
 
             alias = httpx_mock.aliases["get_foobar"]
             self.assertEqual(alias, foobar1)

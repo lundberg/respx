@@ -1,17 +1,16 @@
 import io
-import json as jsonlib
-import re
 import ssl
 import typing
 from contextlib import contextmanager
-from functools import partial, wraps
-from unittest import mock
+from functools import wraps
 
 import asynctest
 from httpx.client import BaseClient
 from httpx.concurrency.base import ConcurrencyBackend
 from httpx.config import TimeoutConfig
-from httpx.models import URL, AsyncRequest, AsyncResponse, Headers, HeaderTypes
+from httpx.models import AsyncRequest, AsyncResponse, Headers, HeaderTypes
+
+from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
 
 # TODO: Remove try-except once httpx.BaseSocketStream is released
 try:
@@ -19,54 +18,21 @@ try:
 except ImportError:  # pragma: nocover
     from httpx import BaseTCPStream as BaseSocketStream
 
-
-Regex = type(re.compile(""))
-URLParams = typing.Dict[str, typing.Any]
-ContentDataTypes = typing.Union[bytes, str, typing.List, typing.Dict, typing.Callable]
-
-istype = lambda t, o: isinstance(o, t)
-isregex = partial(istype, Regex)
-
-CRLF = "\r\n"
-
-defaults = mock.MagicMock(
-    version=1.1, status_code=200, headers={"Content-Type": "text/plain"}, content=b""
-)
-
 _get_response = BaseClient._get_response  # Pass-through reference
-
-
-class MatchedURL(URL):
-    def __init__(
-        self, url: URL, url_params: URLParams, pattern: mock.MagicMock
-    ) -> None:
-        super().__init__(url)
-        self.url_params = url_params
-        self.pattern = pattern
-
-    @property
-    def host(self) -> "Hostname":
-        """
-        Returns host (str) with attached pattern match (self)
-        """
-        hostname = Hostname(super().host)
-        hostname.match = self
-        return hostname
-
-
-class Hostname(str):
-    match: typing.Optional[MatchedURL] = None
 
 
 class HTTPXMock:
     def __init__(self):
-        self.clear()
-
-    def clear(self):
         self._patchers = []
         self._patterns = []
         self.aliases = {}
         self.calls = []
+
+    def clear(self):
+        self._patchers.clear()
+        self._patterns.clear()
+        self.aliases.clear()
+        self.calls.clear()
 
     def __enter__(self) -> "HTTPXMock":
         self.start()
@@ -75,12 +41,17 @@ class HTTPXMock:
     def __exit__(self, *args: typing.Any) -> None:
         self.stop()
 
-    def activate(self, func):
+    def activate(self, func=None):
+        """
+        Starts mocking and stops once wrapped function, or context, is executed.
+        """
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             with self:
                 return func(*args, **kwargs)
-        return wrapper
+
+        return wrapper if func else self
 
     def start(self) -> None:
         """
@@ -110,19 +81,18 @@ class HTTPXMock:
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
-
         self.clear()
 
     def add(
         self,
-        method: str,
-        url: typing.Union[str, typing.Pattern],
+        method: typing.Union[str, typing.Callable],
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
         status_code: typing.Optional[int] = None,
         content: typing.Optional[ContentDataTypes] = None,
         content_type: typing.Optional[str] = None,
         headers: typing.Optional[HeaderTypes] = None,
         alias: typing.Optional[str] = None,
-    ) -> mock.MagicMock:
+    ) -> RequestPattern:
         """
         Adds a request pattern and given mocked response details.
         """
@@ -130,16 +100,8 @@ class HTTPXMock:
         if content_type:
             headers["Content-Type"] = content_type
 
-        pattern = mock.MagicMock(
-            method=method,
-            url=url,
-            response=mock.MagicMock(
-                version=defaults.version,
-                status_code=status_code or defaults.status_code,
-                headers=headers,
-                content=content if content is not None else defaults.content,
-            ),
-        )
+        response = ResponseTemplate(status_code, headers, content)
+        pattern = RequestPattern(method, url, response, alias=alias)
 
         self._patterns.append(pattern)
         if alias:
@@ -147,36 +109,19 @@ class HTTPXMock:
 
         return pattern
 
-    def __getitem__(self, alias: str) -> typing.Optional[mock.MagicMock]:
+    def __getitem__(self, alias: str) -> typing.Optional[RequestPattern]:
         return self.aliases.get(alias)
 
-    def _match(self, request: AsyncRequest) -> typing.Optional[MatchedURL]:
-        """
-        Matches request method and url against added patterns.
-        """
-        matched_pattern = None
-        url_params: URLParams = {}
-
-        # Filter paterns by method
-        patterns = filter(lambda p: p.method == request.method, self._patterns)
-
-        # Match patterns against url
-        for pattern in patterns:
-            if isregex(pattern.url):
-                match = pattern.url.match(str(request.url))
-                if match:
-                    matched_pattern = pattern
-                    url_params = match.groupdict()
-                    break
-
-            elif pattern.url == str(request.url):
-                matched_pattern = pattern
-                break
-
-        if matched_pattern is not None:
-            return MatchedURL(request.url, url_params, matched_pattern)
-
-        return None
+    def _match(
+        self, request: AsyncRequest
+    ) -> typing.Tuple[
+        typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
+    ]:
+        for pattern in self._patterns:
+            response = pattern.match(request)
+            if response:
+                return pattern, response
+        return None, None
 
     @contextmanager
     def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
@@ -215,17 +160,16 @@ class HTTPXMock:
         """
         Spy method for BaseClient._get_response().
 
-        Patches request.url and attaches matched request/response details,
+        Patches request.url and attaches matched response template,
         and mocks client backend open stream methods.
         """
-        # Match request against added patterns
-        url_match = self._match(request)
+        # 1. Match request against added patterns
+        pattern, template = self._match(request)
 
-        # Patch request url with matched url for later pickup in mocked backend methods
-        if url_match:
-            request.url = url_match
+        # 2. Patch request url with response for later pickup in mocked backend methods
+        request.url = URLResponse(request.url, template or ResponseTemplate())
 
-        # Mock client's backend open_X_stream methods and pass-through to _get_response
+        # 3. Patch client's backend and pass-through to _get_response
         try:
             global _get_response
             with self._patch_backend(client.concurrency_backend):
@@ -234,10 +178,10 @@ class HTTPXMock:
         except Exception as e:
             raise e
         finally:
-            # Update call stats
-            event = url_match.pattern if url_match is not None else mock.MagicMock()
-            event(request, response)
-            self.calls.append(event.call_args_list[-1])
+            # 4. Update stats
+            if pattern:
+                pattern(request, response)
+            self.calls.append((request, response))
 
         return response
 
@@ -257,48 +201,22 @@ class HTTPXMock:
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        match = getattr(hostname, "match", None)  # Pickup attached match
-        return await self._mock_socket_stream(match, timeout)
+        response = getattr(hostname, "attachment")  # Pickup attached response template
+        return await self._mock_socket_stream(response)
 
-    async def _mock_socket_stream(
-        self, match: typing.Optional[MatchedURL], timeout: TimeoutConfig
-    ) -> BaseSocketStream:
-        if match is None:
-            version = defaults.version
-            status_code = defaults.status_code
-            headers = None
-            content = defaults.content
-        else:
-            template = match.pattern.response
-            version = template.version
-            status_code = template.status_code
-            headers = template.headers
-            content = template.content
-
-        # Build and encode content
-        if not isinstance(content, bytes):
-            if isinstance(content, Exception):
-                raise content
-            if callable(content):
-                content = content(**(match.url_params if match is not None else {}))
-            if isinstance(content, (list, dict)):
-                content = jsonlib.dumps(content)
-                if headers is not None and "Content-Type" not in headers:
-                    headers["Content-Type"] = "application/json"
-            content = content.encode("utf-8")  # TODO: Respect charset
-
-        # Build headers and apply defaults
-        all_headers = Headers(defaults.headers)
-        if headers:
-            all_headers.update(headers)
+    async def _mock_socket_stream(self, response: ResponseTemplate) -> BaseSocketStream:
+        content = response.content
+        headers = response.headers
 
         # Build raw bytes data
-        http_version = f"HTTP/{version}"
-        status_line = f"{http_version} {status_code} MOCK"  # TODO: Handle http version
+        http_version = f"HTTP/{response.http_version}"
+        status_line = f"{http_version} {response.status_code} MOCK"
         lines = [status_line]
-        lines.extend([f"{key.title()}: {value}" for key, value in all_headers.items()])
-        data = CRLF.join(lines).encode("ascii")
-        data += CRLF.encode("ascii") * 2
+        lines.extend([f"{key.title()}: {value}" for key, value in headers.items()])
+
+        CRLF = b"\r\n"
+        data = CRLF.join((line.encode("ascii") for line in lines))
+        data += CRLF * 2
         data += content
 
         # Mock backend SocketStream with bytes read from data

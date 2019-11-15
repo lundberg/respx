@@ -4,7 +4,7 @@ import re
 import ssl
 import typing
 from contextlib import contextmanager
-from functools import partial
+from functools import partial, wraps
 from unittest import mock
 
 import asynctest
@@ -74,6 +74,13 @@ class HTTPXMock:
 
     def __exit__(self, *args: typing.Any) -> None:
         self.stop()
+
+    def activate(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            with self:
+                return func(*args, **kwargs)
+        return wrapper
 
     def start(self) -> None:
         """

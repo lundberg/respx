@@ -23,6 +23,12 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.text, "")
 
+    @responsex.activate
+    def test_decorator(self):
+        responsex.add("GET", "https://foo/bar/", status_code=202)
+        response = httpx.get("https://foo/bar/")
+        self.assertEqual(response.status_code, 202)
+
     def test_string_url_pattern(self):
         with responsex.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"

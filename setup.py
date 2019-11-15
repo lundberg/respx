@@ -51,7 +51,7 @@ tests_require = [
 ]
 
 dependency_links = [
-    # "git+https://github.com/encode/httpx.git@pull/511#egg=httpx-0.7.6",
+    # "git+https://github.com/encode/httpx.git@refs/pull/511/head#egg=httpx-0.7.6",
 ]
 
 setup(

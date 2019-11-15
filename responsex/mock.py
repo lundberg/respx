@@ -4,7 +4,7 @@ import re
 import ssl
 import typing
 from contextlib import contextmanager
-from functools import partial
+from functools import partial, wraps
 from unittest import mock
 
 import asynctest
@@ -60,9 +60,12 @@ class Hostname(str):
 
 class HTTPXMock:
     def __init__(self):
-        self.patchers = []
-        self.mocks = []
-        self.patterns = {}
+        self.clear()
+
+    def clear(self):
+        self._patchers = []
+        self._patterns = []
+        self.aliases = {}
         self.calls = []
 
     def __enter__(self) -> "HTTPXMock":
@@ -72,30 +75,43 @@ class HTTPXMock:
     def __exit__(self, *args: typing.Any) -> None:
         self.stop()
 
+    def activate(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            with self:
+                return func(*args, **kwargs)
+        return wrapper
+
     def start(self) -> None:
+        """
+        Starts mocking httpx.
+        """
+        # Unbound -> bound spy version of client._get_response
         async def unbound_get_response(
             client: BaseClient, request: AsyncRequest, **kwargs: typing.Any
         ) -> AsyncResponse:
             return await self._get_response_spy(client, request, **kwargs)
 
         # Spy on client._get_response
-        self.patchers.append(
+        self._patchers.append(
             asynctest.mock.patch(
                 "httpx.client.BaseClient._get_response", new=unbound_get_response
             )
         )
 
         # Start patching
-        for patcher in self.patchers:
+        for patcher in self._patchers:
             patcher.start()
 
     def stop(self) -> None:
         """
         Stops mocking httpx.
         """
-        while self.patchers:
-            patcher = self.patchers.pop()
+        while self._patchers:
+            patcher = self._patchers.pop()
             patcher.stop()
+
+        self.clear()
 
     def add(
         self,
@@ -108,7 +124,7 @@ class HTTPXMock:
         alias: typing.Optional[str] = None,
     ) -> mock.MagicMock:
         """
-        Adds a request method and url pattern with given mocked response details.
+        Adds a request pattern and given mocked response details.
         """
         headers = Headers(headers or {})
         if content_type:
@@ -125,13 +141,16 @@ class HTTPXMock:
             ),
         )
 
-        self.mocks.append(pattern)
+        self._patterns.append(pattern)
         if alias:
-            self.patterns[alias] = pattern  # TODO: rename to requests?
+            self.aliases[alias] = pattern
 
         return pattern
 
-    def match(self, request: AsyncRequest) -> typing.Optional[MatchedURL]:
+    def __getitem__(self, alias: str) -> typing.Optional[mock.MagicMock]:
+        return self.aliases.get(alias)
+
+    def _match(self, request: AsyncRequest) -> typing.Optional[MatchedURL]:
         """
         Matches request method and url against added patterns.
         """
@@ -139,7 +158,7 @@ class HTTPXMock:
         url_params: URLParams = {}
 
         # Filter paterns by method
-        patterns = filter(lambda pattern: pattern.method == request.method, self.mocks)
+        patterns = filter(lambda p: p.method == request.method, self._patterns)
 
         # Match patterns against url
         for pattern in patterns:
@@ -159,6 +178,37 @@ class HTTPXMock:
 
         return None
 
+    @contextmanager
+    def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
+        patchers = []
+
+        # Mock open_tcp_stream()
+        patchers.append(
+            asynctest.mock.patch.object(
+                backend, "open_tcp_stream", self._open_tcp_stream_mock
+            )
+        )
+
+        # Mock open_uds_stream()
+        # TODO: Remove if-statement once httpx uds support is released
+        if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+            patchers.append(
+                asynctest.mock.patch.object(
+                    backend, "open_uds_stream", self._open_uds_stream_mock
+                )
+            )
+
+        # Start patchers
+        for patcher in patchers:
+            patcher.start()
+
+        try:
+            yield
+        finally:
+            # Stop patchers
+            for patcher in patchers:
+                patcher.start()
+
     async def _get_response_spy(
         self, client: BaseClient, request: AsyncRequest, **kwargs: typing.Any
     ) -> AsyncResponse:
@@ -169,7 +219,7 @@ class HTTPXMock:
         and mocks client backend open stream methods.
         """
         # Match request against added patterns
-        url_match = self.match(request)
+        url_match = self._match(request)
 
         # Patch request url with matched url for later pickup in mocked backend methods
         if url_match:
@@ -191,47 +241,16 @@ class HTTPXMock:
 
         return response
 
-    @contextmanager
-    def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
-        patchers = []
-
-        # Mock open_tcp_stream()
-        patchers.append(
-            asynctest.mock.patch.object(
-                backend, "open_tcp_stream", self.mocked_open_tcp_stream
-            )
-        )
-
-        # Mock open_uds_stream()
-        # TODO: Remove if-statement once httpx uds support is released
-        if hasattr(backend, "open_uds_stream"):  # pragma: nocover
-            patchers.append(
-                asynctest.mock.patch.object(
-                    backend, "open_uds_stream", self.mocked_open_uds_stream
-                )
-            )
-
-        # Start patchers
-        for patcher in patchers:
-            patcher.start()
-
-        try:
-            yield
-        finally:
-            # Stop patchers
-            for patcher in patchers:
-                patcher.start()
-
-    async def mocked_open_tcp_stream(
+    async def _open_tcp_stream_mock(
         self,
         hostname: str,
         port: int,
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        return await self.mocked_open_uds_stream("", hostname, ssl_context, timeout)
+        return await self._open_uds_stream_mock("", hostname, ssl_context, timeout)
 
-    async def mocked_open_uds_stream(
+    async def _open_uds_stream_mock(
         self,
         path: str,
         hostname: typing.Optional[str],
@@ -239,9 +258,9 @@ class HTTPXMock:
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
         match = getattr(hostname, "match", None)  # Pickup attached match
-        return await self.mock_socket_stream(match, timeout)
+        return await self._mock_socket_stream(match, timeout)
 
-    async def mock_socket_stream(
+    async def _mock_socket_stream(
         self, match: typing.Optional[MatchedURL], timeout: TimeoutConfig
     ) -> BaseSocketStream:
         if match is None:

@@ -55,7 +55,7 @@ dependency_links = [
 ]
 
 setup(
-    name="responsex",
+    name="respx",
     version=version,
     author="Jonas Lundberg",
     author_email="jonas@5monkeys.se",

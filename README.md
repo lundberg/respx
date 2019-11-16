@@ -11,14 +11,16 @@ A utility for mocking out the Python [httpx](https://github.com/encode/httpx) li
 import httpx
 import respx
 
-with respx.activate():
-    respx.add("GET", "https://foo.bar/", content={"foo": "bar"})
-    response = httpx.get("https://foo.bar/")
-    assert response.json() == {"foo": "bar"}
-
 @respx.activate
 def test_something():
-    respx.add("POST", "https://foo.bar/baz/", status_code=201)
+    request = respx.post("https://foo.bar/baz/", status_code=201)
     response = httpx.post("https://foo.bar/baz/")
+    assert request.called
     assert response.status_code == 201
+
+with respx.activate():
+    request = respx.get("https://foo.bar/", content={"foo": "bar"})
+    response = httpx.get("https://foo.bar/")
+    assert request.called
+    assert response.json() == {"foo": "bar"}
 ```

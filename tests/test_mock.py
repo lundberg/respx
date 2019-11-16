@@ -13,7 +13,7 @@ import respx
 class HTTPXMockTestCase(asynctest.TestCase):
     def test_api(self):
         url = "https://foo/bar/"
-        foobar = respx.add("GET", url, status_code=202)
+        request = respx.request("GET", url, status_code=202)
 
         self.assertEqual(len(respx.calls), 0)
 
@@ -24,13 +24,13 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
         self.assertEqual(len(respx.calls), 0)
 
-        self.assertTrue(foobar.called)
+        self.assertTrue(request.called)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.text, "")
 
     @respx.activate
     def test_activate_decorator(self):
-        respx.add("GET", "https://foo/bar/", status_code=202)
+        respx.get("https://foo/bar/", status_code=202)
         response = httpx.get("https://foo/bar/")
         self.assertEqual(response.status_code, 202)
 
@@ -38,7 +38,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(len(respx.calls), 0)
 
         with respx.activate():
-            respx.add("GET", "https://foo/bar/", status_code=202)
+            respx.get("https://foo/bar/", status_code=202)
             response = httpx.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
@@ -46,10 +46,39 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
         self.assertEqual(len(respx.calls), 0)
 
+    def test_http_methods(self):
+        with respx.HTTPXMock() as httpx_mock:
+            url = "https://foo/bar/"
+            m = httpx_mock.get(url, status_code=404)
+            httpx_mock.post(url, status_code=201)
+            httpx_mock.put(url, status_code=202)
+            httpx_mock.patch(url, status_code=500)
+            httpx_mock.delete(url, status_code=204)
+            httpx_mock.head(url, status_code=405)
+            httpx_mock.options(url, status_code=501)
+
+            response = httpx.get(url)
+            self.assertEqual(response.status_code, 404)
+            response = httpx.post(url)
+            self.assertEqual(response.status_code, 201)
+            response = httpx.put(url)
+            self.assertEqual(response.status_code, 202)
+            response = httpx.patch(url)
+            self.assertEqual(response.status_code, 500)
+            response = httpx.delete(url)
+            self.assertEqual(response.status_code, 204)
+            response = httpx.head(url)
+            self.assertEqual(response.status_code, 405)
+            response = httpx.options(url)
+            self.assertEqual(response.status_code, 501)
+
+            self.assertTrue(m.called)
+            self.assertEqual(len(httpx_mock.calls), 7)
+
     def test_string_url_pattern(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content="foobar")
+            foobar = httpx_mock.get(url, content="foobar")
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -59,7 +88,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_regex_url_pattern(self):
         with respx.HTTPXMock() as httpx_mock:
             url_pattern = re.compile("^https://foo/.*$")
-            foobar = httpx_mock.add("GET", url_pattern, content="whatever")
+            foobar = httpx_mock.get(url_pattern, content="whatever")
             response = httpx.get("https://foo/bar/")
 
         self.assertTrue(foobar.called)
@@ -68,7 +97,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
     def test_invalid_url_pattern(self):
         with respx.HTTPXMock() as httpx_mock:
-            foobar = httpx_mock.add("GET", ["invalid"], content="whatever")
+            foobar = httpx_mock.get(["invalid"], content="whatever")
             with self.assertRaises(ValueError):
                 httpx.get("https://foo/bar/")
 
@@ -77,7 +106,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_unknown_url(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("POST", url)  # Non-matching method
+            foobar = httpx_mock.post(url)  # Non-matching method
             response = httpx.get(url)
 
             self.assertFalse(foobar.called)
@@ -95,8 +124,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_repeated_pattern(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/baz/"
-            one = httpx_mock.add("POST", url, status_code=201)
-            two = httpx_mock.add("POST", url, status_code=409)
+            one = httpx_mock.post(url, status_code=201)
+            two = httpx_mock.post(url, status_code=409)
             response1 = httpx.post(url, json={})
             response2 = httpx.post(url, json={})
             response3 = httpx.post(url, json={})
@@ -119,7 +148,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_status_code(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, status_code=404)
+            foobar = httpx_mock.get(url, status_code=404)
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -128,7 +157,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_content_type(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content_type="foo/bar")
+            foobar = httpx_mock.get(url, content_type="foo/bar")
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -138,7 +167,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
             headers = {"Content-Type": "foo/bar", "X-Foo": "bar; baz"}
-            foobar = httpx_mock.add("GET", url, headers=headers)
+            foobar = httpx_mock.get(url, headers=headers)
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -148,9 +177,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             url = "https://foo/bar/"
             headers = {"Content-Type": "foo/bar", "X-Foo": "bar; baz"}
             content_type = "ham/spam"
-            foobar = httpx_mock.add(
-                "GET", url, content_type=content_type, headers=headers
-            )
+            foobar = httpx_mock.get(url, content_type=content_type, headers=headers)
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -161,7 +188,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_raw_content(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("POST", url, content=b"raw content")
+            foobar = httpx_mock.post(url, content=b"raw content")
             response = httpx.post(url)
 
         self.assertTrue(foobar.called)
@@ -172,7 +199,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             url = "https://foo/bar/"
             headers = {"Content-Type": "application/json"}
             content = {"foo": "bar"}
-            foobar = httpx_mock.add("GET", url, content=content)  # Headers not passed
+            foobar = httpx_mock.get(url, content=content)  # Headers not passed
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -183,7 +210,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             url = "https://foo/bar/"
             headers = {"Content-Type": "application/json; charset=utf-8"}
             content = ["foo", "bar"]
-            foobar = httpx_mock.add("GET", url, headers=headers, content=content)
+            foobar = httpx_mock.get(url, headers=headers, content=content)
             response = httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -193,7 +220,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_raising_content(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content=ConnectTimeout())
+            foobar = httpx_mock.get(url, content=ConnectTimeout())
             with self.assertRaises(ConnectTimeout):
                 httpx.get(url)
 
@@ -206,7 +233,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         with respx.HTTPXMock() as httpx_mock:
             url_pattern = re.compile(r"https://foo/bar/(?P<id>\d+)/")
             content = lambda request, id: f"foobar #{id}"
-            foobar = httpx_mock.add("GET", url_pattern, content=content)
+            foobar = httpx_mock.get(url_pattern, content=content)
             response = httpx.get("https://foo/bar/123/")
 
         self.assertTrue(foobar.called)
@@ -216,7 +243,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_sync_client(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content="foobar")
+            foobar = httpx_mock.get(url, content="foobar")
             with httpx.Client() as client:
                 response = client.get(url)
 
@@ -227,7 +254,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     async def test_async_client(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content="foobar")
+            foobar = httpx_mock.get(url, content="foobar")
             async with httpx.AsyncClient() as client:
                 response = await client.get(url)
 
@@ -242,7 +269,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     async def test_uds(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, content="foobar")
+            foobar = httpx_mock.get(url, content="foobar")
             async with httpx.AsyncClient(uds="/var/run/foobar.sock") as client:
                 response = await client.get(url)
 
@@ -253,7 +280,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_alias(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.add("GET", url, alias="foobar")
+            foobar = httpx_mock.get(url, alias="foobar")
             self.assertIn("foobar", httpx_mock.aliases)
             self.assertEqual(httpx_mock.aliases["foobar"].url, foobar.url)
 
@@ -280,7 +307,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 return response
 
         with respx.HTTPXMock() as httpx_mock:
-            httpx_mock.add(matcher, status_code=202, headers={"X-Ham": "Spam"})
+            httpx_mock.request(matcher, status_code=202, headers={"X-Ham": "Spam"})
             response = httpx.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
@@ -293,11 +320,11 @@ class HTTPXMockTestCase(asynctest.TestCase):
     async def test_stats(self, backend=None):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/1/"
-            httpx_mock.add("GET", re.compile("http://some/url"))
-            httpx_mock.add("DELETE", "http://some/url")
+            httpx_mock.get(re.compile("http://some/url"))
+            httpx_mock.delete("http://some/url")
 
-            foobar1 = httpx_mock.add("GET", url, status_code=202, alias="get_foobar")
-            foobar2 = httpx_mock.add("DELETE", url, status_code=200, alias="del_foobar")
+            foobar1 = httpx_mock.get(url, status_code=202, alias="get_foobar")
+            foobar2 = httpx_mock.delete(url, status_code=200, alias="del_foobar")
 
             self.assertFalse(foobar1.called)
             self.assertEqual(len(foobar1.calls), 0)

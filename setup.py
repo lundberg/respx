@@ -5,7 +5,7 @@ from os import path
 from setuptools import setup
 
 
-VERSION = (0, 3, 1, "final", 0)
+VERSION = (0, 4, 0, "final", 0)
 
 
 def get_version(version=None):

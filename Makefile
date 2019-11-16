@@ -12,19 +12,19 @@ coverage:
 
 .PHONY: lint
 lint:
-	flake8 responsex --exit-zero
+	flake8 respx --exit-zero
 
 
 .PHONY: mypy
 mypy:
-	mypy responsex
+	mypy respx
 
 
 .PHONY: format
 format:
-	black responsex tests
-	autoflake -r -i --remove-all-unused-imports responsex tests
-	isort -rc responsex tests
+	black respx tests
+	autoflake -r -i --remove-all-unused-imports respx tests
+	isort -rc respx tests
 
 
 .PHONY: clean

@@ -59,7 +59,7 @@ setup(
     version=version,
     author="Jonas Lundberg",
     author_email="jonas@5monkeys.se",
-    url="https://github.com/lundberg/responsex",
+    url="https://github.com/lundberg/respx",
     license="MIT",
     keywords=[
         "httpx",
@@ -84,7 +84,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    packages=["responsex"],
+    packages=["respx"],
     install_requires=install_requires,
     tests_require=tests_require,
     dependency_links=dependency_links,

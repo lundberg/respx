@@ -76,12 +76,19 @@ class RequestPattern:
         response: ResponseTemplate,
         alias: typing.Optional[str] = None,
     ) -> None:
-        self.method = method
-        self.url = url
+        self._match_func: typing.Optional[typing.Callable] = None
+
+        if callable(method):
+            self.method = None
+            self.url = None
+            self._match_func = method
+        else:
+            self.method = method
+            self.url = url
+
         self.response = response
         self.alias = alias
 
-        self._match_func = method if callable(method) else None
         self._stats = mock.MagicMock()
 
     @property
@@ -116,7 +123,11 @@ class RequestPattern:
                     matches = True
                     url_params = match.groupdict()
             else:
-                raise ValueError("Request url pattern must be str or compiled regex")
+                raise ValueError(
+                    "Request url pattern must be str or compiled regex, got {}.".format(
+                        type(self.url).__name__
+                    )
+                )
 
             if matches:
                 return self.response.clone(context={"request": request, **url_params})

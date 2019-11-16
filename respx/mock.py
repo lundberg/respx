@@ -2,7 +2,7 @@ import io
 import ssl
 import typing
 from contextlib import contextmanager
-from functools import wraps
+from functools import partialmethod, wraps
 
 import asynctest
 from httpx.client import BaseClient
@@ -83,7 +83,12 @@ class HTTPXMock:
             patcher.stop()
         self.clear()
 
-    def add(
+    def add(self, pattern: RequestPattern, alias: typing.Optional[str] = None) -> None:
+        self._patterns.append(pattern)
+        if alias:
+            self.aliases[alias] = pattern
+
+    def request(
         self,
         method: typing.Union[str, typing.Callable],
         url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
@@ -94,7 +99,7 @@ class HTTPXMock:
         alias: typing.Optional[str] = None,
     ) -> RequestPattern:
         """
-        Adds a request pattern and given mocked response details.
+        Creates and adds a request pattern with given mocked response details.
         """
         headers = Headers(headers or {})
         if content_type:
@@ -103,11 +108,17 @@ class HTTPXMock:
         response = ResponseTemplate(status_code, headers, content)
         pattern = RequestPattern(method, url, response, alias=alias)
 
-        self._patterns.append(pattern)
-        if alias:
-            self.aliases[alias] = pattern
+        self.add(pattern, alias=alias)
 
         return pattern
+
+    get = partialmethod(request, "GET")
+    post = partialmethod(request, "POST")
+    put = partialmethod(request, "PUT")
+    patch = partialmethod(request, "PATCH")
+    delete = partialmethod(request, "DELETE")
+    head = partialmethod(request, "HEAD")
+    options = partialmethod(request, "OPTIONS")
 
     def __getitem__(self, alias: str) -> typing.Optional[RequestPattern]:
         return self.aliases.get(alias)

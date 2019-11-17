@@ -319,6 +319,29 @@ class HTTPXMockTestCase(asynctest.TestCase):
             )
             self.assertEqual(response.text, "foobar #123")
 
+    def test_assert(self):
+        with self.assertRaises(AssertionError):
+            with respx.HTTPXMock(assert_all_called=True) as httpx_mock:
+                request1 = httpx_mock.get("https://foo/bar/1/", status_code=404)
+                request2 = httpx_mock.post("https://foo/bar/", status_code=201)
+
+                response = httpx.get("https://foo/bar/1/")
+
+                self.assertEqual(response.status_code, 404)
+                self.assertTrue(request1.called)
+                self.assertFalse(request2.called)
+
+        with respx.HTTPXMock(assert_all_called=True) as httpx_mock:
+            request1 = httpx_mock.get("https://foo/bar/1/", status_code=404)
+            request2 = httpx_mock.post("https://foo/bar/", status_code=201)
+
+            response = httpx.get("https://foo/bar/1/")
+            response = httpx.post("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(request1.called)
+            self.assertTrue(request2.called)
+
     async def test_stats(self, backend=None):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/1/"

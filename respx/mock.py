@@ -40,6 +40,7 @@ class HTTPXMock:
 
     def __exit__(self, *args: typing.Any) -> None:
         self.stop()
+        self.clear()
 
     def activate(self, func=None):
         """
@@ -81,7 +82,6 @@ class HTTPXMock:
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
-        self.clear()
 
     def add(self, pattern: RequestPattern, alias: typing.Optional[str] = None) -> None:
         self._patterns.append(pattern)

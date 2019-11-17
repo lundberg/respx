@@ -19,14 +19,16 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
         respx.start()
         response = httpx.get(url)
-        self.assertEqual(len(respx.calls), 1)
-        respx.stop()
-
-        self.assertEqual(len(respx.calls), 0)
-
         self.assertTrue(request.called)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.text, "")
+        self.assertEqual(len(respx.calls), 1)
+
+        respx.stop()
+        self.assertEqual(len(respx.calls), 1)
+
+        respx.clear()
+        self.assertEqual(len(respx.calls), 0)
 
     @respx.activate
     def test_activate_decorator(self):

@@ -5,7 +5,7 @@ from os import path
 from setuptools import setup
 
 
-VERSION = (0, 5, 0, "final", 0)
+VERSION = (0, 6, 0, "final", 0)
 
 
 def get_version(version=None):
@@ -70,7 +70,7 @@ setup(
         "http",
         "client",
     ],
-    description="A utility for mocking out the Python httpx library.",
+    description="A utility for mocking out the Python HTTPX library.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     classifiers=[

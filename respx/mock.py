@@ -22,11 +22,14 @@ _get_response = BaseClient._get_response  # Pass-through reference
 
 
 class HTTPXMock:
-    def __init__(self):
-        self._patchers = []
-        self._patterns = []
-        self.aliases = {}
-        self.calls = []
+    def __init__(self, assert_all_called: bool = True) -> None:
+        self._assert_all_called = assert_all_called
+        self._patchers: typing.List[asynctest.mock._patch] = []
+        self._patterns: typing.List[RequestPattern] = []
+        self.aliases: typing.Dict[str, RequestPattern] = {}
+        self.calls: typing.List[
+            typing.Tuple[AsyncRequest, typing.Optional[AsyncResponse]]
+        ] = []
 
     def clear(self):
         self._patchers.clear()
@@ -40,6 +43,9 @@ class HTTPXMock:
 
     def __exit__(self, *args: typing.Any) -> None:
         self.stop()
+        if self._assert_all_called:
+            self.assert_all_called()
+        self.clear()
 
     def activate(self, func=None):
         """
@@ -81,7 +87,11 @@ class HTTPXMock:
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
-        self.clear()
+
+    def assert_all_called(self):
+        assert all(
+            (pattern.called for pattern in self._patterns)
+        ), "not all requests called"
 
     def add(self, pattern: RequestPattern, alias: typing.Optional[str] = None) -> None:
         self._patterns.append(pattern)

@@ -1,3 +1,7 @@
+.PHONY: all
+all: format lint mypy coverage
+
+
 .PHONY: test
 test:
 	python setup.py test $(test)

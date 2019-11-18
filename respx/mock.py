@@ -20,6 +20,8 @@ except ImportError:  # pragma: nocover
 
 _get_response = BaseClient._get_response  # Pass-through reference
 
+__all__ = ["HTTPXMock"]
+
 
 class HTTPXMock:
     def __init__(self, assert_all_called: bool = True) -> None:
@@ -47,7 +49,7 @@ class HTTPXMock:
             self.assert_all_called()
         self.clear()
 
-    def activate(self, func=None):
+    def mock(self, func=None):
         """
         Starts mocking and stops once wrapped function, or context, is executed.
         """

@@ -210,8 +210,6 @@ class HTTPXMock:
             with self._patch_backend(client.concurrency_backend):
                 response = None
                 response = await _get_response(client, request, **kwargs)
-        except Exception as e:
-            raise e
         finally:
             # 4. Update stats
             if pattern:

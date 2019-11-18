@@ -5,7 +5,7 @@
 [![PyPi Version](https://img.shields.io/pypi/v/respx.svg)](https://pypi.org/project/respx/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/respx.svg)](https://pypi.org/project/respx/)
 
-A utility for mocking out the Python [httpx](https://github.com/encode/httpx) library.
+A utility for mocking out the Python [HTTPX](https://github.com/encode/httpx) library.
 
 ```py
 import httpx

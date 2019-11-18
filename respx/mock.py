@@ -22,7 +22,7 @@ _get_response = BaseClient._get_response  # Pass-through reference
 
 
 class HTTPXMock:
-    def __init__(self, assert_all_called: bool = False) -> None:
+    def __init__(self, assert_all_called: bool = True) -> None:
         self._assert_all_called = assert_all_called
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []

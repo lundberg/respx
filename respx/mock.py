@@ -20,6 +20,8 @@ except ImportError:  # pragma: nocover
 
 _get_response = BaseClient._get_response  # Pass-through reference
 
+__all__ = ["HTTPXMock"]
+
 
 class HTTPXMock:
     def __init__(self, assert_all_called: bool = True) -> None:
@@ -47,7 +49,7 @@ class HTTPXMock:
             self.assert_all_called()
         self.clear()
 
-    def activate(self, func=None):
+    def mock(self, func=None):
         """
         Starts mocking and stops once wrapped function, or context, is executed.
         """
@@ -210,8 +212,6 @@ class HTTPXMock:
             with self._patch_backend(client.concurrency_backend):
                 response = None
                 response = await _get_response(client, request, **kwargs)
-        except Exception as e:
-            raise e
         finally:
             # 4. Update stats
             if pattern:

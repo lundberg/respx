@@ -30,16 +30,16 @@ class HTTPXMockTestCase(asynctest.TestCase):
         respx.clear()
         self.assertEqual(len(respx.calls), 0)
 
-    @respx.activate
-    def test_activate_decorator(self):
+    @respx.mock
+    def test_mock_decorator(self):
         respx.get("https://foo/bar/", status_code=202)
         response = httpx.get("https://foo/bar/")
         self.assertEqual(response.status_code, 202)
 
-    def test_activate_contextmanager(self):
+    def test_mock_contextmanager(self):
         self.assertEqual(len(respx.calls), 0)
 
-        with respx.activate():
+        with respx.mock():
             respx.get("https://foo/bar/", status_code=202)
             response = httpx.get("https://foo/bar/")
 
@@ -98,7 +98,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.text, "whatever")
 
     def test_invalid_url_pattern(self):
-        with respx.activate():
+        with respx.mock():
             foobar = respx.get(["invalid"], content="whatever")
             with self.assertRaises(ValueError):
                 httpx.get("https://foo/bar/")
@@ -106,7 +106,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertFalse(foobar.called)
 
     def test_unknown_url(self):
-        with respx.activate():
+        with respx.mock():
             url = "https://foo/bar/"
             foobar = respx.post(url)  # Non-matching method
             response = httpx.get(url)
@@ -280,7 +280,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.text, "foobar")
 
     def test_alias(self):
-        with respx.activate() as m:
+        with respx.mock() as m:
             url = "https://foo/bar/"
             foobar = respx.get(url, alias="foobar")
             self.assertIn("foobar", respx.aliases)
@@ -356,7 +356,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request2.called)
 
     async def test_stats(self, backend=None):
-        with respx.activate():
+        with respx.mock():
             url = "https://foo/bar/1/"
             respx.get(re.compile("http://some/url"))
             respx.delete("http://some/url")

@@ -1,4 +1,4 @@
-# respx
+# RESPX
 
 ![](https://github.com/lundberg/respx/workflows/test/badge.svg)
 [![codecov](https://codecov.io/gh/lundberg/respx/branch/master/graph/badge.svg)](https://codecov.io/gh/lundberg/respx)

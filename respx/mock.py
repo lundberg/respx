@@ -146,29 +146,29 @@ class HTTPXMock:
     ) -> typing.Tuple[
         typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
-        found_index: typing.Optional[int] = None
         matched_pattern: typing.Optional[RequestPattern] = None
-        matched_response: typing.Optional[ResponseTemplate] = None
+        matched_pattern_index: typing.Optional[int] = None
+        response: typing.Optional[ResponseTemplate] = None
 
         for i, pattern in enumerate(self._patterns):
             match = pattern.match(request)
             if not match:
                 continue
 
-            if found_index is not None:
+            if matched_pattern_index is not None:
                 # Multiple matches found, drop and use the first one
-                self._patterns.pop(found_index)
+                self._patterns.pop(matched_pattern_index)
                 break
 
-            found_index = i
             matched_pattern = pattern
+            matched_pattern_index = i
 
             if isinstance(match, ResponseTemplate):
                 # Mock response
-                matched_response = match
+                response = match
             elif isinstance(match, AsyncRequest):
                 # Pass-through request
-                matched_response = None
+                response = None
             else:
                 raise ValueError(
                     (
@@ -177,7 +177,17 @@ class HTTPXMock:
                     ).format(type(match))
                 )
 
-        return matched_pattern, matched_response
+        # Assert we always get a pattern match, if check is enabled
+        assert (
+            not self._assert_all_mocked
+            or self._assert_all_mocked
+            and matched_pattern is not None
+        ), f"RESPX: {request!r} not mocked!"
+
+        if matched_pattern is None:
+            response = ResponseTemplate()
+
+        return matched_pattern, response
 
     @contextmanager
     def _patch_backend(
@@ -229,22 +239,11 @@ class HTTPXMock:
         and mocks client backend open stream methods.
         """
         # 1. Match request against added patterns
-        pattern, template = self._match(request)
-
-        # Assert we always get a pattern match, if feature enabled
-        assert (
-            not self._assert_all_mocked
-            or self._assert_all_mocked
-            and pattern is not None
-        ), f"RESPX: {request!r} not mocked!"
-
-        if pattern is None:
-            template = ResponseTemplate()
+        pattern, _response = self._match(request)
 
         # 2. Patch client's backend and continue to original _get_response
         try:
-            global _get_response
-            with self._patch_backend(client.concurrency_backend, request, template):
+            with self._patch_backend(client.concurrency_backend, request, _response):
                 response = None
                 response = await _get_response(client, request, **kwargs)
         finally:

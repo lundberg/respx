@@ -106,9 +106,11 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertFalse(foobar.called)
 
     def test_unknown_url(self):
-        with respx.mock():
+        with respx.HTTPXMock(
+            assert_all_called=False, assert_all_mocked=False
+        ) as httpx_mock:
             url = "https://foo/bar/"
-            foobar = respx.post(url)  # Non-matching method
+            foobar = httpx_mock.post(url)  # Non-matching method
             response = httpx.get(url)
 
             self.assertFalse(foobar.called)
@@ -118,8 +120,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
             )
             self.assertEqual(response.text, "")
 
-            self.assertEqual(len(respx.calls), 1)
-            request, response = respx.calls[-1]
+            self.assertEqual(len(httpx_mock.calls), 1)
+            request, response = httpx_mock.calls[-1]
             self.assertIsNotNone(request)
             self.assertIsNotNone(response)
 
@@ -294,6 +296,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 side_effect=ValueError("mock"),
             ):
                 url = "https://foo/bar/1/"
+                httpx_mock.get(url)
                 with self.assertRaises(ValueError):
                     httpx.get(url)
 
@@ -310,7 +313,9 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 return response
 
         with respx.HTTPXMock(assert_all_called=False) as httpx_mock:
-            request = httpx_mock.request(matcher, status_code=202, headers={"X-Ham": "Spam"})
+            request = httpx_mock.request(
+                matcher, status_code=202, headers={"X-Ham": "Spam"}
+            )
             response = httpx.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
@@ -360,6 +365,20 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(response.status_code, 201)
             self.assertTrue(request1.called)
             self.assertTrue(request2.called)
+
+    def test_assert_all_mocked_fail(self):
+        with self.assertRaises(AssertionError):
+            with respx.HTTPXMock(assert_all_mocked=True) as httpx_mock:
+                httpx.get("https://foo/bar/")
+
+        self.assertEqual(len(httpx_mock.calls), 0)
+
+    def test_assert_all_mocked_disabled(self):
+        with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:
+            response = httpx.get("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(httpx_mock.calls), 1)
 
     def test_pass_through_with_arg(self):
         with respx.mock():

@@ -24,8 +24,11 @@ __all__ = ["HTTPXMock"]
 
 
 class HTTPXMock:
-    def __init__(self, assert_all_called: bool = True) -> None:
+    def __init__(
+        self, assert_all_called: bool = True, assert_all_mocked: bool = True
+    ) -> None:
         self._assert_all_called = assert_all_called
+        self._assert_all_mocked = assert_all_mocked
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
@@ -93,7 +96,7 @@ class HTTPXMock:
     def assert_all_called(self):
         assert all(
             (pattern.called for pattern in self._patterns)
-        ), "not all requests called"
+        ), "RESPX: some mocked requests were not called!"
 
     def add(self, pattern: RequestPattern, alias: typing.Optional[str] = None) -> None:
         self._patterns.append(pattern)
@@ -227,6 +230,13 @@ class HTTPXMock:
         """
         # 1. Match request against added patterns
         pattern, template = self._match(request)
+
+        # Assert we always get a pattern match, if feature enabled
+        assert (
+            not self._assert_all_mocked
+            or self._assert_all_mocked
+            and pattern is not None
+        ), f"RESPX: {request!r} not mocked!"
 
         if pattern is None:
             template = ResponseTemplate()

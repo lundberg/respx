@@ -5,7 +5,6 @@ import httpx
 import trio
 from httpx.concurrency.base import ConcurrencyBackend
 from httpx.concurrency.trio import TrioBackend
-from httpx.exceptions import ConnectTimeout
 
 import respx
 
@@ -15,20 +14,20 @@ class HTTPXMockTestCase(asynctest.TestCase):
         url = "https://foo/bar/"
         request = respx.request("GET", url, status_code=202)
 
-        self.assertEqual(len(respx.calls), 0)
+        self.assertEqual(respx.stats.call_count, 0)
 
         respx.start()
         response = httpx.get(url)
         self.assertTrue(request.called)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.text, "")
-        self.assertEqual(len(respx.calls), 1)
+        self.assertEqual(respx.stats.call_count, 1)
+
+        respx.stop(reset=False)
+        self.assertEqual(respx.stats.call_count, 1)
 
         respx.stop()
-        self.assertEqual(len(respx.calls), 1)
-
-        respx.clear()
-        self.assertEqual(len(respx.calls), 0)
+        self.assertEqual(respx.stats.call_count, 0)
 
     @respx.mock
     def test_mock_decorator(self):
@@ -37,16 +36,16 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.status_code, 202)
 
     def test_mock_contextmanager(self):
-        self.assertEqual(len(respx.calls), 0)
+        self.assertEqual(respx.stats.call_count, 0)
 
         with respx.mock():
             respx.get("https://foo/bar/", status_code=202)
             response = httpx.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
-            self.assertEqual(len(respx.calls), 1)
+            self.assertEqual(respx.stats.call_count, 1)
 
-        self.assertEqual(len(respx.calls), 0)
+        self.assertEqual(respx.stats.call_count, 0)
 
     def test_http_methods(self):
         with respx.HTTPXMock() as httpx_mock:
@@ -75,7 +74,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(response.status_code, 501)
 
             self.assertTrue(m.called)
-            self.assertEqual(len(httpx_mock.calls), 7)
+            self.assertEqual(httpx_mock.stats.call_count, 7)
 
     def test_string_url_pattern(self):
         with respx.HTTPXMock() as httpx_mock:
@@ -120,7 +119,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             )
             self.assertEqual(response.text, "")
 
-            self.assertEqual(len(httpx_mock.calls), 1)
+            self.assertEqual(httpx_mock.stats.call_count, 1)
             request, response = httpx_mock.calls[-1]
             self.assertIsNotNone(request)
             self.assertIsNotNone(response)
@@ -137,15 +136,15 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(response1.status_code, 201)
             self.assertEqual(response2.status_code, 409)
             self.assertEqual(response3.status_code, 409)
-            self.assertEqual(len(httpx_mock.calls), 3)
+            self.assertEqual(httpx_mock.stats.call_count, 3)
 
             self.assertTrue(one.called)
-            self.assertTrue(len(one.calls), 1)
+            self.assertTrue(one.call_count, 1)
             statuses = [response.status_code for _, response in one.calls]
             self.assertListEqual(statuses, [201])
 
             self.assertTrue(two.called)
-            self.assertTrue(len(two.calls), 2)
+            self.assertTrue(two.call_count, 2)
             statuses = [response.status_code for _, response in two.calls]
             self.assertListEqual(statuses, [409, 409])
 
@@ -224,8 +223,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_raising_content(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
-            foobar = httpx_mock.get(url, content=ConnectTimeout())
-            with self.assertRaises(ConnectTimeout):
+            foobar = httpx_mock.get(url, content=httpx.ConnectTimeout())
+            with self.assertRaises(httpx.ConnectTimeout):
                 httpx.get(url)
 
         self.assertTrue(foobar.called)
@@ -300,7 +299,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 with self.assertRaises(ValueError):
                     httpx.get(url)
 
-            self.assertEqual(len(httpx_mock.calls), 1)
+            self.assertEqual(httpx_mock.stats.call_count, 1)
             request, response = httpx_mock.calls[-1]
             self.assertIsNotNone(request)
             self.assertIsNone(response)
@@ -371,7 +370,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             with respx.HTTPXMock(assert_all_mocked=True) as httpx_mock:
                 httpx.get("https://foo/bar/")
 
-        self.assertEqual(len(httpx_mock.calls), 0)
+        self.assertEqual(httpx_mock.stats.call_count, 0)
 
     def test_assert_all_mocked_disabled(self):
         with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:
@@ -411,7 +410,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertIsNone(request.pass_through)
 
     async def test_async_stats(self, backend=None):
-        with respx.mock():
+        with respx.mock() as m:
             url = "https://foo/bar/1/"
             respx.get(re.compile("http://some/url"))
             respx.delete("http://some/url")
@@ -420,8 +419,10 @@ class HTTPXMockTestCase(asynctest.TestCase):
             foobar2 = respx.delete(url, status_code=200, alias="del_foobar")
 
             self.assertFalse(foobar1.called)
-            self.assertEqual(len(foobar1.calls), 0)
-            self.assertEqual(len(respx.calls), 0)
+            self.assertEqual(foobar1.call_count, len(foobar1.calls))
+            self.assertEqual(foobar1.call_count, 0)
+            self.assertEqual(m.stats.call_count, len(respx.calls))
+            self.assertEqual(m.stats.call_count, 0)
 
             async with httpx.AsyncClient(backend=backend) as client:
                 get_response = await client.get(url)
@@ -429,8 +430,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
             self.assertTrue(foobar1.called)
             self.assertTrue(foobar2.called)
-            self.assertEqual(len(foobar1.calls), 1)
-            self.assertEqual(len(foobar2.calls), 1)
+            self.assertEqual(foobar1.call_count, 1)
+            self.assertEqual(foobar2.call_count, 1)
 
             _request, _response = foobar1.calls[-1]
             self.assertIsInstance(_request, httpx.AsyncRequest)
@@ -452,7 +453,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(_response.content, del_response.content)
             self.assertEqual(id(_response), id(del_response))
 
-            self.assertEqual(len(respx.calls), 2)
+            self.assertEqual(respx.stats.call_count, 2)
             self.assertEqual(respx.calls[0], foobar1.calls[-1])
             self.assertEqual(respx.calls[1], foobar2.calls[-1])
 

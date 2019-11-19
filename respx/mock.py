@@ -108,6 +108,7 @@ class HTTPXMock:
         content: typing.Optional[ContentDataTypes] = None,
         content_type: typing.Optional[str] = None,
         headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
         alias: typing.Optional[str] = None,
     ) -> RequestPattern:
         """
@@ -118,7 +119,9 @@ class HTTPXMock:
             headers["Content-Type"] = content_type
 
         response = ResponseTemplate(status_code, headers, content)
-        pattern = RequestPattern(method, url, response, alias=alias)
+        pattern = RequestPattern(
+            method, url, response, pass_through=pass_through, alias=alias
+        )
 
         self.add(pattern, alias=alias)
 
@@ -145,8 +148,8 @@ class HTTPXMock:
         matched_response: typing.Optional[ResponseTemplate] = None
 
         for i, pattern in enumerate(self._patterns):
-            response = pattern.match(request)
-            if not response:
+            match = pattern.match(request)
+            if not match:
                 continue
 
             if found_index is not None:
@@ -156,38 +159,60 @@ class HTTPXMock:
 
             found_index = i
             matched_pattern = pattern
-            matched_response = response
+
+            if isinstance(match, ResponseTemplate):
+                # Mock response
+                matched_response = match
+            elif isinstance(match, AsyncRequest):
+                # Pass-through request
+                matched_response = None
+            else:
+                raise ValueError(
+                    (
+                        "Matched request pattern must return either a "
+                        'ResponseTemplate or an AsyncResponse, got "{}"'
+                    ).format(type(match))
+                )
 
         return matched_pattern, matched_response
 
     @contextmanager
-    def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
+    def _patch_backend(
+        self,
+        backend: ConcurrencyBackend,
+        request: AsyncRequest,
+        response: typing.Optional[ResponseTemplate],
+    ) -> typing.Iterator[None]:
         patchers = []
 
-        # Mock open_tcp_stream()
-        patchers.append(
-            asynctest.mock.patch.object(
-                backend, "open_tcp_stream", self._open_tcp_stream_mock
-            )
-        )
+        if response is not None:
+            # 1. Patch request url with response for later pickup in patched backend
+            request.url = URLResponse(request.url, response)
 
-        # Mock open_uds_stream()
-        # TODO: Remove if-statement once httpx uds support is released
-        if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+            # Mock open_tcp_stream()
             patchers.append(
                 asynctest.mock.patch.object(
-                    backend, "open_uds_stream", self._open_uds_stream_mock
+                    backend, "open_tcp_stream", self._open_tcp_stream_mock
                 )
             )
 
-        # Start patchers
+            # Mock open_uds_stream()
+            # TODO: Remove if-statement once httpx uds support is released
+            if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+                patchers.append(
+                    asynctest.mock.patch.object(
+                        backend, "open_uds_stream", self._open_uds_stream_mock
+                    )
+                )
+
+        # 2. Start patchers
         for patcher in patchers:
             patcher.start()
 
         try:
             yield
         finally:
-            # Stop patchers
+            # 3. Stop patchers
             for patcher in patchers:
                 patcher.start()
 
@@ -203,17 +228,17 @@ class HTTPXMock:
         # 1. Match request against added patterns
         pattern, template = self._match(request)
 
-        # 2. Patch request url with response for later pickup in mocked backend methods
-        request.url = URLResponse(request.url, template or ResponseTemplate())
+        if pattern is None:
+            template = ResponseTemplate()
 
-        # 3. Patch client's backend and pass-through to _get_response
+        # 2. Patch client's backend and continue to original _get_response
         try:
             global _get_response
-            with self._patch_backend(client.concurrency_backend):
+            with self._patch_backend(client.concurrency_backend, request, template):
                 response = None
                 response = await _get_response(client, request, **kwargs)
         finally:
-            # 4. Update stats
+            # 3. Update stats
             if pattern:
                 pattern(request, response)
             self.calls.append((request, response))

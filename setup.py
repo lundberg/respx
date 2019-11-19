@@ -5,7 +5,7 @@ from os import path
 from setuptools import setup
 
 
-VERSION = (0, 6, 0, "final", 0)
+VERSION = (0, 7, 0, "final", 0)
 
 
 def get_version(version=None):
@@ -64,7 +64,7 @@ setup(
     keywords=[
         "httpx",
         "mock",
-        "responses"
+        "responses",
         "requests",
         "async",
         "http",

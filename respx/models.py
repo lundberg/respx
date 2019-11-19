@@ -82,13 +82,14 @@ class RequestPattern:
         if callable(method):
             self.method = None
             self.url = None
+            self.pass_through = None
             self._match_func = method
         else:
             self.method = method
             self.url = url
+            self.pass_through = pass_through
 
         self.response = response
-        self.pass_through = pass_through
         self.alias = alias
 
         self._stats = mock.MagicMock()
@@ -108,9 +109,21 @@ class RequestPattern:
     ) -> None:
         self._stats(request, response)
 
-    def match(self, request: AsyncRequest) -> typing.Optional[ResponseTemplate]:
+    def match(
+        self, request: AsyncRequest
+    ) -> typing.Optional[typing.Union[AsyncRequest, ResponseTemplate]]:
+        """
+        Matches request with configured pattern;
+        custom matcher function or http method + url pattern.
+
+        Returns None for a non-matching pattern, mocked response for a match,
+        or input request for pass-through.
+        """
         matches = False
         url_params: Kwargs = {}
+
+        if self.pass_through:
+            return request
 
         if self._match_func:
             response = self.response.clone(context={"request": request})

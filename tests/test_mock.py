@@ -309,8 +309,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 response.context["id"] = 123
                 return response
 
-        with respx.HTTPXMock() as httpx_mock:
-            httpx_mock.request(matcher, status_code=202, headers={"X-Ham": "Spam"})
+        with respx.HTTPXMock(assert_all_called=False) as httpx_mock:
+            request = httpx_mock.request(matcher, status_code=202, headers={"X-Ham": "Spam"})
             response = httpx.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
@@ -319,6 +319,12 @@ class HTTPXMockTestCase(asynctest.TestCase):
                 httpx.Headers({"Content-Type": "text/plain", "X-Ham": "Spam"}),
             )
             self.assertEqual(response.text, "foobar #123")
+            self.assertTrue(request.called)
+            self.assertFalse(request.pass_through)
+
+            with self.assertRaises(ValueError):
+                httpx_mock.request(lambda req, res: "invalid")
+                httpx.get("https://ham/spam/")
 
     def test_assert_all_called_fail(self):
         with self.assertRaises(AssertionError):
@@ -355,20 +361,35 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request1.called)
             self.assertTrue(request2.called)
 
-    def test_pass_through(self):
+    def test_pass_through_with_arg(self):
         with respx.mock():
             request = respx.get("https://www.example.org/", pass_through=True)
 
             with asynctest.mock.patch(
                 "asyncio.open_connection",
-                side_effect=ConnectionRefusedError("External request blocked"),
-            ) as open_tcp_stream:
+                side_effect=ConnectionRefusedError("test request blocked"),
+            ) as open_connection:
                 with self.assertRaises(ConnectionRefusedError):
                     httpx.get("https://www.example.org/")
 
-            self.assertTrue(open_tcp_stream.called)
+            self.assertTrue(open_connection.called)
             self.assertTrue(request.called)
             self.assertTrue(request.pass_through)
+
+    def test_pass_through_with_custom_matcher(self):
+        with respx.mock():
+            request = respx.request(lambda request, response: request)
+
+            with asynctest.mock.patch(
+                "asyncio.open_connection",
+                side_effect=ConnectionRefusedError("test request blocked"),
+            ) as open_connection:
+                with self.assertRaises(ConnectionRefusedError):
+                    httpx.get("https://www.example.org/")
+
+            self.assertTrue(open_connection.called)
+            self.assertTrue(request.called)
+            self.assertIsNone(request.pass_through)
 
     async def test_stats(self, backend=None):
         with respx.mock():

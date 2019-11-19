@@ -108,6 +108,7 @@ class HTTPXMock:
         content: typing.Optional[ContentDataTypes] = None,
         content_type: typing.Optional[str] = None,
         headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
         alias: typing.Optional[str] = None,
     ) -> RequestPattern:
         """
@@ -118,7 +119,9 @@ class HTTPXMock:
             headers["Content-Type"] = content_type
 
         response = ResponseTemplate(status_code, headers, content)
-        pattern = RequestPattern(method, url, response, alias=alias)
+        pattern = RequestPattern(
+            method, url, response, pass_through=pass_through, alias=alias
+        )
 
         self.add(pattern, alias=alias)
 
@@ -161,24 +164,27 @@ class HTTPXMock:
         return matched_pattern, matched_response
 
     @contextmanager
-    def _patch_backend(self, backend: ConcurrencyBackend) -> typing.Iterator[None]:
+    def _patch_backend(
+        self, backend: ConcurrencyBackend, pattern: typing.Optional[RequestPattern]
+    ) -> typing.Iterator[None]:
         patchers = []
 
-        # Mock open_tcp_stream()
-        patchers.append(
-            asynctest.mock.patch.object(
-                backend, "open_tcp_stream", self._open_tcp_stream_mock
-            )
-        )
-
-        # Mock open_uds_stream()
-        # TODO: Remove if-statement once httpx uds support is released
-        if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+        if pattern is None or not pattern.pass_through:
+            # Mock open_tcp_stream()
             patchers.append(
                 asynctest.mock.patch.object(
-                    backend, "open_uds_stream", self._open_uds_stream_mock
+                    backend, "open_tcp_stream", self._open_tcp_stream_mock
                 )
             )
+
+            # Mock open_uds_stream()
+            # TODO: Remove if-statement once httpx uds support is released
+            if hasattr(backend, "open_uds_stream"):  # pragma: nocover
+                patchers.append(
+                    asynctest.mock.patch.object(
+                        backend, "open_uds_stream", self._open_uds_stream_mock
+                    )
+                )
 
         # Start patchers
         for patcher in patchers:
@@ -209,7 +215,7 @@ class HTTPXMock:
         # 3. Patch client's backend and pass-through to _get_response
         try:
             global _get_response
-            with self._patch_backend(client.concurrency_backend):
+            with self._patch_backend(client.concurrency_backend, pattern):
                 response = None
                 response = await _get_response(client, request, **kwargs)
         finally:

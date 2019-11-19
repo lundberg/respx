@@ -74,6 +74,7 @@ class RequestPattern:
         method: typing.Union[str, typing.Callable],
         url: typing.Optional[typing.Union[str, typing.Pattern]],
         response: ResponseTemplate,
+        pass_through: bool = False,
         alias: typing.Optional[str] = None,
     ) -> None:
         self._match_func: typing.Optional[typing.Callable] = None
@@ -87,6 +88,7 @@ class RequestPattern:
             self.url = url
 
         self.response = response
+        self.pass_through = pass_through
         self.alias = alias
 
         self._stats = mock.MagicMock()

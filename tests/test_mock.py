@@ -355,6 +355,21 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request1.called)
             self.assertTrue(request2.called)
 
+    def test_pass_through(self):
+        with respx.mock():
+            request = respx.get("https://www.example.org/", pass_through=True)
+
+            with asynctest.mock.patch(
+                "asyncio.open_connection",
+                side_effect=ConnectionRefusedError("External request blocked"),
+            ) as open_tcp_stream:
+                with self.assertRaises(ConnectionRefusedError):
+                    httpx.get("https://www.example.org/")
+
+            self.assertTrue(open_tcp_stream.called)
+            self.assertTrue(request.called)
+            self.assertTrue(request.pass_through)
+
     async def test_stats(self, backend=None):
         with respx.mock():
             url = "https://foo/bar/1/"

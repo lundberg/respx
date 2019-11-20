@@ -410,7 +410,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request.called)
             self.assertIsNone(request.pass_through)
 
-    async def test_stats(self, backend=None):
+    async def test_async_stats(self, backend=None):
         with respx.mock():
             url = "https://foo/bar/1/"
             respx.get(re.compile("http://some/url"))
@@ -433,20 +433,24 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(len(foobar2.calls), 1)
 
             _request, _response = foobar1.calls[-1]
-            self.assertIsNotNone(_request)
-            self.assertIsNotNone(_response)
+            self.assertIsInstance(_request, httpx.AsyncRequest)
+            self.assertIsInstance(_response, httpx.AsyncResponse)
             self.assertEqual(_request.method, "GET")
             self.assertEqual(_request.url, url)
             self.assertEqual(_response.status_code, 202)
             self.assertEqual(_response.status_code, get_response.status_code)
+            self.assertEqual(_response.content, get_response.content)
+            self.assertEqual(id(_response), id(get_response))
 
             _request, _response = foobar2.calls[-1]
-            self.assertIsNotNone(_request)
-            self.assertIsNotNone(_response)
+            self.assertIsInstance(_request, httpx.AsyncRequest)
+            self.assertIsInstance(_response, httpx.AsyncResponse)
             self.assertEqual(_request.method, "DELETE")
             self.assertEqual(_request.url, url)
             self.assertEqual(_response.status_code, 200)
             self.assertEqual(_response.status_code, del_response.status_code)
+            self.assertEqual(_response.content, del_response.content)
+            self.assertEqual(id(_response), id(del_response))
 
             self.assertEqual(len(respx.calls), 2)
             self.assertEqual(respx.calls[0], foobar1.calls[-1])
@@ -460,5 +464,37 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(alias, foobar2)
             self.assertEqual(alias.alias, foobar2.alias)
 
+    def test_sync_stats(self, backend=None):
+        with respx.mock():
+            url = "https://foo/bar/1/"
+            foobar1 = respx.get(url, status_code=202, alias="get_foobar")
+            foobar2 = respx.delete(url, status_code=200, alias="del_foobar")
+
+            with httpx.Client(backend=backend) as client:
+                get_response = client.get(url)
+                del_response = client.delete(url)
+
+            self.assertTrue(foobar1.called)
+            self.assertTrue(foobar2.called)
+            self.assertEqual(len(foobar1.calls), 1)
+            self.assertEqual(len(foobar2.calls), 1)
+            self.assertEqual(len(respx.calls), 2)
+            self.assertEqual(respx.calls[0], foobar1.calls[-1])
+            self.assertEqual(respx.calls[1], foobar2.calls[-1])
+
+            _request, _response = foobar1.calls[-1]
+            self.assertIsInstance(_request, httpx.AsyncRequest)
+            self.assertIsInstance(_response, httpx.Response)
+            self.assertEqual(_response.content, get_response.content)
+            self.assertEqual(id(_response), id(get_response))
+            self.assertEqual(id(_response.request), id(_request))
+
+            _request, _response = foobar2.calls[-1]
+            self.assertIsInstance(_request, httpx.AsyncRequest)
+            self.assertIsInstance(_response, httpx.Response)
+            self.assertEqual(_response.content, del_response.content)
+            self.assertEqual(id(_response), id(del_response))
+            self.assertEqual(id(_response.request), id(_request))
+
     def test_trio_backend(self):
-        trio.run(self.test_stats, TrioBackend())
+        trio.run(self.test_async_stats, TrioBackend())

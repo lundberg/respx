@@ -4,7 +4,7 @@ import typing
 from functools import partial
 from unittest import mock
 
-from httpx.models import URL, AsyncRequest, AsyncResponse, Headers, HeaderTypes
+from httpx.models import URL, AsyncRequest, BaseResponse, Headers, HeaderTypes
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
@@ -105,7 +105,7 @@ class RequestPattern:
         ]
 
     def __call__(
-        self, request: AsyncRequest, response: typing.Optional[AsyncResponse]
+        self, request: AsyncRequest, response: typing.Optional[BaseResponse]
     ) -> None:
         self._stats(request, response)
 

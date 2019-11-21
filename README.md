@@ -54,7 +54,7 @@ import respx
 with respx.HTTPXMock() as respx_mock:
     request = respx_mock.get("https://foo.bar/", content={"foo": "bar"})
     response = httpx.get("https://foo.bar/")
-    assert len(respx_mock.calls) == 1
+    assert request.called
     assert response.json() == {"foo": "bar"}
 ```
 
@@ -67,7 +67,7 @@ To mock a response, define the *request pattern* to match and the *response deta
 
 For regular and simple use, use the HTTP method shorthands:
 
-**`respx.get`**(*url=None, status_code=None, content=None, content_type=None, headers=None, pass_through=False, alias=None*)
+**`respx.get`**(*url=None, status_code=None, content=None, content_type=None, headers=None, pass_through=False, alias=None*) -> RequestPattern
 
 **`respx.options`**(*url=None, ...*)
 
@@ -83,13 +83,13 @@ For regular and simple use, use the HTTP method shorthands:
 
 For advanced use:
 
-**`respx.request`**(*method, url=None, status_code=None, content=None, content_type=None, headers=None, pass_through=False, alias=None*)
+**`respx.request`**(*method, url=None, status_code=None, content=None, content_type=None, headers=None, pass_through=False, alias=None*) -> RequestPattern
 
 ### Parameters
 
 > * **method** - *str | callable*  
 >   * Request HTTP method to match - GET, OPTIONS, HEAD, POST, PUT, PATCH or DELETE.
->   * Request match callback. *See [Custom request matcher](#custom-request-matcher).*
+>   * Request match callback. *See [Custom request matching](#custom-request-matching).*
 > * **url** - *(optional) str | pattern*  
 >   * Request URL exact string to match.
 >   * Request URL pattern to match. *See [URL pattern matching](#url-pattern-matching).*
@@ -185,7 +185,7 @@ def test_something():
 ```
 
 
-## Custom request matcher
+## Custom request matching
 
 For full control of what to *match* and what response to *mock*, pass a callback function as the `method` parameter.
 
@@ -228,7 +228,7 @@ def test_something():
     
     response = httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "token"})
     assert response.status_code == 201
-    assert len(custom_request.calls) == 2
+    assert custom_request.call_count == 2
 ```
 
 
@@ -273,16 +273,17 @@ When using the low-level `respx.HTTPXMock` context manager, both checks is **ena
 
 ```py
 with respx.HTTPXMock(assert_all_called=False, assert_all_mocked=False) as respx_mock:
-    response = httpx.get("https://foo.bar/")  # Will not raise AssersionError, and instead auto mock.
+    response = httpx.get("https://foo.bar/")  # Will not raise AssersionError, but instead auto mock.
     assert response.status_code == 200
-    assert len(respx_mock.calls) == 1
+    assert respx_mock.stats.call_count == 1
 ```
 
 
 ## Call stats
 
-The global `respx` api has a `.calls` list, containing captured (`requests`, `responses`) tuples.  
-Each mocked request pattern has its own `.calls` list and `.called` check.
+The global `respx` api has a `.calls` list, containing captured (`request`, `response`) tuples. On top of that there's also a *MagicMock* `.stats` object with all its bells and whistles, i.e. `call_count`, `assert_called_once` etc.
+
+Request patterns has their own `.calls` and `.stats`, along with shortcuts to stats`.called` and `.call_count`.
 
 ```py
 import httpx
@@ -298,17 +299,17 @@ def test_something():
     httpx.get("https://foo.bar/")
     index_request = respx.aliases["index"]  # Alias
     assert index_request.called
-    assert len(index_request.calls) == 1
+    assert index_request.call_count == 1
 
     httpx.post("https://foo.bar/baz/")
     assert create_request.called
-    assert len(create_request.calls) == 1
+    assert create_request.call_count == 1
 
     httpx.put("https://foo.bar/baz/123/")
     assert put_request.called
-    assert len(put_request.calls) == 1
+    assert put_request.call_count == 1
     
-    assert len(respx.calls) == 3
+    assert respx.stats.call_count == 3
     
     request, response = respx.calls[-1]
     assert request.method == "PUT"

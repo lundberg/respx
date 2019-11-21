@@ -2,9 +2,9 @@ import json as jsonlib
 import re
 import typing
 from functools import partial
-from unittest import mock
 
-from httpx.models import URL, AsyncRequest, BaseResponse, Headers, HeaderTypes
+import asynctest
+from httpx.models import URL, AsyncRequest, Headers, HeaderTypes
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
@@ -35,7 +35,8 @@ class ResponseTemplate:
             headers.update(self._headers)
         return headers
 
-    def get_content(self) -> bytes:
+    @property
+    def content(self) -> bytes:
         content = self._content
 
         if isinstance(content, Exception):
@@ -57,10 +58,9 @@ class ResponseTemplate:
 
         return content
 
-    def set_content(self, content: ContentDataTypes) -> None:
+    @content.setter
+    def content(self, content: ContentDataTypes) -> None:
         self._content = content
-
-    content = property(get_content, set_content)
 
     def clone(self, context: typing.Optional[Kwargs] = None) -> "ResponseTemplate":
         return ResponseTemplate(
@@ -91,23 +91,21 @@ class RequestPattern:
 
         self.response = response
         self.alias = alias
-
-        self._stats = mock.MagicMock()
+        self.stats = asynctest.mock.MagicMock()
 
     @property
     def called(self):
-        return self._stats.called
+        return self.stats.called
+
+    @property
+    def call_count(self):
+        return self.stats.call_count
 
     @property
     def calls(self):
         return [
-            (request, response) for (request, response), _ in self._stats.call_args_list
+            (request, response) for (request, response), _ in self.stats.call_args_list
         ]
-
-    def __call__(
-        self, request: AsyncRequest, response: typing.Optional[BaseResponse]
-    ) -> None:
-        self._stats(request, response)
 
     def match(
         self, request: AsyncRequest

@@ -42,25 +42,21 @@ class HTTPXMock:
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
+        self.stats = asynctest.mock.MagicMock()
         self.calls: typing.List[
             typing.Tuple[AsyncRequest, typing.Optional[BaseResponse]]
         ] = []
-
-    def clear(self):
-        self._patchers.clear()
-        self._patterns.clear()
-        self.aliases.clear()
-        self.calls.clear()
 
     def __enter__(self) -> "HTTPXMock":
         self.start()
         return self
 
     def __exit__(self, *args: typing.Any) -> None:
-        self.stop()
-        if self._assert_all_called:
-            self.assert_all_called()
-        self.clear()
+        try:
+            if self._assert_all_called:
+                self.assert_all_called()
+        finally:
+            self.stop()
 
     def mock(self, func=None):
         """
@@ -100,13 +96,23 @@ class HTTPXMock:
             patcher.start()
             self._patchers.append(patcher)
 
-    def stop(self) -> None:
+    def stop(self, reset: bool = True) -> None:
         """
         Stops mocking httpx.
         """
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
+
+        if reset:
+            self.reset()
+
+    def reset(self):
+        self._patchers.clear()
+        self._patterns.clear()
+        self.aliases.clear()
+        self.calls.clear()
+        self.stats.reset_mock()
 
     def assert_all_called(self):
         assert all(
@@ -214,9 +220,14 @@ class HTTPXMock:
         Captures request and response calls for statistics.
         """
         if pattern:
-            pattern(request, response)
+            pattern.stats(request, response)
 
-        self.calls.append((request, response))
+        self.stats(request, response)
+
+        # Copy stats due to unwanted use of property refs in the high-level api
+        self.calls[:] = (
+            (request, response) for (request, response), _ in self.stats.call_args_list
+        )
 
     @contextmanager
     def _patch_backend(

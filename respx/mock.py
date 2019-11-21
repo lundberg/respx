@@ -1,3 +1,4 @@
+import inspect
 import io
 import ssl
 import typing
@@ -68,13 +69,24 @@ class HTTPXMock:
         """
         Starts mocking and stops once wrapped function, or context, is executed.
         """
+        # Context Manager
+        if func is None:
+            return self
 
+        # Async Decorator
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        async def async_decorator(*args, **kwargs):
+            async with self:
+                return await func(*args, **kwargs)
+
+        # Sync Decorator
+        @wraps(func)
+        def sync_decorator(*args, **kwargs):
             with self:
                 return func(*args, **kwargs)
 
-        return wrapper if func else self
+        # Dispatch depening on decorated function
+        return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def start(self) -> None:
         """
@@ -329,7 +341,7 @@ class HTTPXMock:
         return await self._mock_socket_stream(response)
 
     async def _mock_socket_stream(self, response: ResponseTemplate) -> BaseSocketStream:
-        content = response.content
+        content = await response.content
         headers = response.headers
 
         # Build raw bytes data

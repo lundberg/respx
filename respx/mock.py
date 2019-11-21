@@ -51,12 +51,18 @@ class HTTPXMock:
         self.start()
         return self
 
+    async def __aenter__(self) -> "HTTPXMock":
+        return self.__enter__()
+
     def __exit__(self, *args: typing.Any) -> None:
         try:
             if self._assert_all_called:
                 self.assert_all_called()
         finally:
             self.stop()
+
+    async def __aexit__(self, *args: typing.Any) -> None:
+        self.__exit__(*args)
 
     def mock(self, func=None):
         """

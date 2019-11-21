@@ -47,6 +47,19 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
         self.assertEqual(respx.stats.call_count, 0)
 
+    async def test_mock_contextmanager_async(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        async with respx.mock():
+            respx.get("https://foo/bar/", status_code=202)
+            async with httpx.AsyncClient() as client:
+                response = await client.get("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 1)
+
+        self.assertEqual(respx.stats.call_count, 0)
+
     def test_http_methods(self):
         with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"

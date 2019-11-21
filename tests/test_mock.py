@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import asynctest
@@ -35,12 +36,35 @@ class HTTPXMockTestCase(asynctest.TestCase):
         response = httpx.get("https://foo/bar/")
         self.assertEqual(response.status_code, 202)
 
+    @respx.mock
+    async def test_mock_decorator_async(self):
+        respx.get("https://foo/bar/", status_code=202)
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://foo/bar/")
+        self.assertEqual(response.status_code, 202)
+
+    def foo(self):
+        pass
+
     def test_mock_contextmanager(self):
         self.assertEqual(respx.stats.call_count, 0)
 
         with respx.mock():
             respx.get("https://foo/bar/", status_code=202)
             response = httpx.get("https://foo/bar/")
+
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 1)
+
+        self.assertEqual(respx.stats.call_count, 0)
+
+    async def test_mock_contextmanager_async(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        async with respx.mock():
+            respx.get("https://foo/bar/", status_code=202)
+            async with httpx.AsyncClient() as client:
+                response = await client.get("https://foo/bar/")
 
             self.assertEqual(response.status_code, 202)
             self.assertEqual(respx.stats.call_count, 1)
@@ -412,61 +436,61 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request.called)
             self.assertIsNone(request.pass_through)
 
+    @respx.mock
     async def test_async_stats(self, backend=None):
-        with respx.mock() as m:
-            url = "https://foo/bar/1/"
-            respx.get(re.compile("http://some/url"))
-            respx.delete("http://some/url")
+        url = "https://foo/bar/1/"
+        respx.get(re.compile("http://some/url"))
+        respx.delete("http://some/url")
 
-            foobar1 = respx.get(url, status_code=202, alias="get_foobar")
-            foobar2 = respx.delete(url, status_code=200, alias="del_foobar")
+        foobar1 = respx.get(url, status_code=202, alias="get_foobar")
+        foobar2 = respx.delete(url, status_code=200, alias="del_foobar")
 
-            self.assertFalse(foobar1.called)
-            self.assertEqual(foobar1.call_count, len(foobar1.calls))
-            self.assertEqual(foobar1.call_count, 0)
-            self.assertEqual(m.stats.call_count, len(respx.calls))
-            self.assertEqual(m.stats.call_count, 0)
+        self.assertFalse(foobar1.called)
+        self.assertEqual(foobar1.call_count, len(foobar1.calls))
+        self.assertEqual(foobar1.call_count, 0)
+        self.assertEqual(respx.stats.call_count, len(respx.calls))
+        self.assertEqual(respx.stats.call_count, 0)
 
-            async with httpx.AsyncClient(backend=backend) as client:
-                get_response = await client.get(url)
-                del_response = await client.delete(url)
+        async with httpx.AsyncClient(backend=backend) as client:
+            get_response = await client.get(url)
+            del_response = await client.delete(url)
 
-            self.assertTrue(foobar1.called)
-            self.assertTrue(foobar2.called)
-            self.assertEqual(foobar1.call_count, 1)
-            self.assertEqual(foobar2.call_count, 1)
+        self.assertTrue(foobar1.called)
+        self.assertTrue(foobar2.called)
+        self.assertEqual(foobar1.call_count, 1)
+        self.assertEqual(foobar2.call_count, 1)
 
-            _request, _response = foobar1.calls[-1]
-            self.assertIsInstance(_request, httpx.AsyncRequest)
-            self.assertIsInstance(_response, httpx.AsyncResponse)
-            self.assertEqual(_request.method, "GET")
-            self.assertEqual(_request.url, url)
-            self.assertEqual(_response.status_code, 202)
-            self.assertEqual(_response.status_code, get_response.status_code)
-            self.assertEqual(_response.content, get_response.content)
-            self.assertEqual(id(_response), id(get_response))
+        _request, _response = foobar1.calls[-1]
+        self.assertIsInstance(_request, httpx.AsyncRequest)
+        self.assertIsInstance(_response, httpx.AsyncResponse)
+        self.assertEqual(_request.method, "GET")
+        self.assertEqual(_request.url, url)
+        self.assertEqual(_response.status_code, 202)
+        self.assertEqual(_response.status_code, get_response.status_code)
+        self.assertEqual(_response.content, get_response.content)
+        self.assertEqual(id(_response), id(get_response))
 
-            _request, _response = foobar2.calls[-1]
-            self.assertIsInstance(_request, httpx.AsyncRequest)
-            self.assertIsInstance(_response, httpx.AsyncResponse)
-            self.assertEqual(_request.method, "DELETE")
-            self.assertEqual(_request.url, url)
-            self.assertEqual(_response.status_code, 200)
-            self.assertEqual(_response.status_code, del_response.status_code)
-            self.assertEqual(_response.content, del_response.content)
-            self.assertEqual(id(_response), id(del_response))
+        _request, _response = foobar2.calls[-1]
+        self.assertIsInstance(_request, httpx.AsyncRequest)
+        self.assertIsInstance(_response, httpx.AsyncResponse)
+        self.assertEqual(_request.method, "DELETE")
+        self.assertEqual(_request.url, url)
+        self.assertEqual(_response.status_code, 200)
+        self.assertEqual(_response.status_code, del_response.status_code)
+        self.assertEqual(_response.content, del_response.content)
+        self.assertEqual(id(_response), id(del_response))
 
-            self.assertEqual(respx.stats.call_count, 2)
-            self.assertEqual(respx.calls[0], foobar1.calls[-1])
-            self.assertEqual(respx.calls[1], foobar2.calls[-1])
+        self.assertEqual(respx.stats.call_count, 2)
+        self.assertEqual(respx.calls[0], foobar1.calls[-1])
+        self.assertEqual(respx.calls[1], foobar2.calls[-1])
 
-            alias = respx.aliases["get_foobar"]
-            self.assertEqual(alias, foobar1)
-            self.assertEqual(alias.alias, foobar1.alias)
+        alias = respx.aliases["get_foobar"]
+        self.assertEqual(alias, foobar1)
+        self.assertEqual(alias.alias, foobar1.alias)
 
-            alias = respx.aliases["del_foobar"]
-            self.assertEqual(alias, foobar2)
-            self.assertEqual(alias.alias, foobar2.alias)
+        alias = respx.aliases["del_foobar"]
+        self.assertEqual(alias, foobar2)
+        self.assertEqual(alias.alias, foobar2.alias)
 
     def test_sync_stats(self, backend=None):
         with respx.mock():
@@ -502,3 +526,23 @@ class HTTPXMockTestCase(asynctest.TestCase):
 
     def test_trio_backend(self):
         trio.run(self.test_async_stats, TrioBackend())
+
+    @respx.mock
+    async def test_parallel_requests(self):
+        async def content(request, page):
+            await asyncio.sleep(0.2 if page == "one" else 0.1)
+            return page
+
+        url_pattern = re.compile(r"https://foo/(?P<page>[a-z]+)/$")
+        respx.get(url_pattern, content=content)
+
+        async with httpx.AsyncClient() as client:
+            responses = await asyncio.gather(
+                client.get("https://foo/one/"), client.get("https://foo/two/")
+            )
+            response_one, response_two = responses
+
+            self.assertEqual(response_one.text, "one")
+            self.assertEqual(response_two.text, "two")
+
+        self.assertEqual(respx.stats.call_count, 2)

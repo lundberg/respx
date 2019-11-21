@@ -1,3 +1,4 @@
+import inspect
 import json as jsonlib
 import re
 import typing
@@ -37,17 +38,20 @@ class ResponseTemplate:
         return self._headers
 
     @property
-    def content(self) -> bytes:
+    async def content(self) -> bytes:
         content = self._content
+
+        if callable(content):
+            if inspect.iscoroutinefunction(content):
+                content = await content(**self.context)
+            else:
+                content = content(**self.context)
 
         if isinstance(content, Exception):
             raise content
 
         if isinstance(content, bytes):
             return content
-
-        if callable(content):
-            content = content(**self.context)
 
         if isinstance(content, (list, dict)):
             content = jsonlib.dumps(content)

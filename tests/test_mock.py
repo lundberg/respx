@@ -307,6 +307,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
     def test_custom_matcher(self):
         def matcher(request, response):
             if request.url.host == "foo":
+                response.headers["X-Foo"] = "Bar"
                 response.content = lambda request, id: f"foobar #{id}"
                 response.context["id"] = 123
                 return response
@@ -320,7 +321,9 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(response.status_code, 202)
             self.assertEqual(
                 response.headers,
-                httpx.Headers({"Content-Type": "text/plain", "X-Ham": "Spam"}),
+                httpx.Headers(
+                    {"Content-Type": "text/plain", "X-Ham": "Spam", "X-Foo": "Bar"}
+                ),
             )
             self.assertEqual(response.text, "foobar #123")
             self.assertTrue(request.called)

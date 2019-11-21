@@ -8,7 +8,9 @@ from httpx.models import URL, AsyncRequest, Headers, HeaderTypes
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
-ContentDataTypes = typing.Union[bytes, str, typing.List, typing.Dict, typing.Callable]
+ContentDataTypes = typing.Union[
+    bytes, str, typing.List, typing.Dict, typing.Callable, Exception,
+]
 
 istype = lambda t, o: isinstance(o, t)
 isregex = partial(istype, Regex)
@@ -30,10 +32,9 @@ class ResponseTemplate:
 
     @property
     def headers(self) -> Headers:
-        headers = Headers({"Content-Type": "text/plain"})
-        if self._headers:
-            headers.update(self._headers)
-        return headers
+        if "Content-Type" not in self._headers:
+            self._headers["Content-Type"] = "text/plain"
+        return self._headers
 
     @property
     def content(self) -> bytes:

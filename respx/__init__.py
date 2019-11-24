@@ -1,10 +1,10 @@
 # type: ignore
 from .mock import HTTPXMock
 
-__all__ = ["HTTPXMock"]
-
 # Expose mock api
-__httpx_mock = HTTPXMock(assert_all_called=False)
-__api_methods = list(filter(lambda m: not m.startswith("_"), dir(__httpx_mock)))
-__all__.extend(__api_methods)
-globals().update({method: getattr(__httpx_mock, method) for method in __api_methods})
+mock = HTTPXMock(assert_all_called=False, local=False)
+__api__ = list(filter(lambda m: not m.startswith("_"), dir(mock)))
+
+__all__ = ["HTTPXMock", "mock"]
+__all__.extend(__api__)
+globals().update({method: getattr(mock, method) for method in __api__})

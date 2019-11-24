@@ -25,34 +25,33 @@ def test_something():
     response = httpx.post("https://foo.bar/baz/")
     assert request.called
     assert response.status_code == 201
+
+
+@respx.mock(assert_all_mocked=False)
+def test_something(httpx_mock):
+    response = httpx.post("https://foo.bar/baz/")
+    assert response.status_code == 200
+
 ```
 
 
 ## Context Manager
 
-Using the high-level api:
-
 ```py
 import httpx
 import respx
 
 
-with respx.mock():
+with respx.mock:
     request = respx.get("https://foo.bar/", content={"foo": "bar"})
     response = httpx.get("https://foo.bar/")
     assert request.called
     assert response.json() == {"foo": "bar"}
-```
-
-Using the low-level api:
-
-```py
-import httpx
-import respx
 
 
-with respx.HTTPXMock() as respx_mock:
-    request = respx_mock.get("https://foo.bar/", content={"foo": "bar"})
+with respx.mock(assert_all_called=False) as httpx_mock:
+    httpx_mock.get("https://ham.spam/")
+    request = httpx_mock.get("https://foo.bar/", content={"foo": "bar"})
     response = httpx.get("https://foo.bar/")
     assert request.called
     assert response.json() == {"foo": "bar"}

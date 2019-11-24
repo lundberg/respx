@@ -267,14 +267,14 @@ RESPX has the following build-in assertion checks:
 > * **assert_all_called**  
 >   Asserts that all mocked request patterns were called.
 
-When using the high-level `respx.mock` decorator/manager, `assert_all_called` is **disabled**.  
-When using the low-level `respx.HTTPXMock` context manager, both checks is **enabled** by default.  
+When using the *global* `respx.mock` decorator/manager, `assert_all_called` is **disabled**.  
+When using the *local* `respx.mock(...)` decorator/manager, both checks is, by default, **enabled**.
 
 ```py
-with respx.HTTPXMock(assert_all_called=False, assert_all_mocked=False) as respx_mock:
+with respx.mock(assert_all_called=False, assert_all_mocked=False) as httpx_mock:
     response = httpx.get("https://foo.bar/")  # Will not raise AssersionError, but instead auto mock.
     assert response.status_code == 200
-    assert respx_mock.stats.call_count == 1
+    assert httpx_mock.stats.call_count == 1
 ```
 
 

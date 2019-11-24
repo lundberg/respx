@@ -36,8 +36,12 @@ __all__ = ["HTTPXMock"]
 
 class HTTPXMock:
     def __init__(
-        self, assert_all_called: bool = True, assert_all_mocked: bool = True
+        self,
+        assert_all_called: bool = True,
+        assert_all_mocked: bool = True,
+        local: bool = True,
     ) -> None:
+        self._is_local = local
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._patchers: typing.List[asynctest.mock._patch] = []
@@ -47,6 +51,50 @@ class HTTPXMock:
         self.calls: typing.List[
             typing.Tuple[AsyncRequest, typing.Optional[BaseResponse]]
         ] = []
+
+    def __call__(
+        self,
+        func: typing.Optional[typing.Callable] = None,
+        assert_all_called: typing.Optional[bool] = None,
+        assert_all_mocked: typing.Optional[bool] = None,
+    ):
+        """
+        Decorator or Context Manager.
+
+        Use decorator/manager with parantheses for local state, or without parantheses
+        for global state, i.e. shared patterns added outside of scope.
+        """
+        if func is None:
+            # A. First stage of "local" decorator, WITH parentheses.
+            # B. Only stage of "local" context manager, WITH parantheses,
+            #    "global" context maanager hits __enter__ directly.
+            settings = {}
+            if assert_all_called is not None:
+                settings["assert_all_called"] = assert_all_called
+            if assert_all_mocked is not None:
+                settings["assert_all_mocked"] = assert_all_mocked
+            return self.__class__(**settings)
+
+        # Async Decorator
+        @wraps(func)
+        async def async_decorator(*args, **kwargs):
+            if self._is_local:
+                kwargs["httpx_mock"] = self
+            async with self:
+                return await func(*args, **kwargs)
+
+        # Sync Decorator
+        @wraps(func)
+        def sync_decorator(*args, **kwargs):
+            if self._is_local:
+                kwargs["httpx_mock"] = self
+            with self:
+                return func(*args, **kwargs)
+
+        # Dispatch async/sync decorator, depening on decorated function
+        # A. Second stage of "local" decorator, WITH parantheses.
+        # A. Only stage of "global" decorator, WITHOUT parantheses.
+        return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def __enter__(self) -> "HTTPXMock":
         self.start()
@@ -64,29 +112,6 @@ class HTTPXMock:
 
     async def __aexit__(self, *args: typing.Any) -> None:
         self.__exit__(*args)
-
-    def mock(self, func=None):
-        """
-        Starts mocking and stops once wrapped function, or context, is executed.
-        """
-        # Context Manager
-        if func is None:
-            return self
-
-        # Async Decorator
-        @wraps(func)
-        async def async_decorator(*args, **kwargs):
-            async with self:
-                return await func(*args, **kwargs)
-
-        # Sync Decorator
-        @wraps(func)
-        def sync_decorator(*args, **kwargs):
-            with self:
-                return func(*args, **kwargs)
-
-        # Dispatch depening on decorated function
-        return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def start(self) -> None:
         """

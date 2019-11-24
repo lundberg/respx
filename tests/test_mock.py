@@ -11,65 +11,151 @@ import respx
 
 
 class HTTPXMockTestCase(asynctest.TestCase):
-    def test_api(self):
+    @respx.mock
+    def test_sync_global_decorator(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        request = respx.get("https://foo/bar/", status_code=202)
+        response = httpx.get("https://foo/bar/")
+
+        self.assertTrue(request.called)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(respx.stats.call_count, 1)
+
+    @respx.mock
+    async def test_async_global_decorator(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        request = respx.get("https://foo/bar/", status_code=202)
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://foo/bar/")
+
+        self.assertTrue(request.called)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(respx.stats.call_count, 1)
+
+    @respx.mock()
+    def test_sync_local_decorator(self, httpx_mock):
+        self.assertEqual(respx.stats.call_count, 0)
+        self.assertEqual(httpx_mock.stats.call_count, 0)
+
+        request = httpx_mock.get("https://foo/bar/", status_code=202)
+        response = httpx.get("https://foo/bar/")
+
+        self.assertTrue(request.called)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(respx.stats.call_count, 0)
+        self.assertEqual(httpx_mock.stats.call_count, 1)
+
+    @respx.mock()
+    async def test_async_local_decorator(self, httpx_mock):
+        self.assertEqual(respx.stats.call_count, 0)
+        self.assertEqual(httpx_mock.stats.call_count, 0)
+
+        async with httpx.AsyncClient() as client:
+            request = httpx_mock.get("https://foo/bar/", status_code=202)
+            response = await client.get("https://foo/bar/")
+
+        self.assertTrue(request.called)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(respx.stats.call_count, 0)
+        self.assertEqual(httpx_mock.stats.call_count, 1)
+
+    def test_sync_global_contextmanager(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        with respx.mock:
+            request = respx.get("https://foo/bar/", status_code=202)
+            response = httpx.get("https://foo/bar/")
+
+            self.assertTrue(request.called)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 1)
+
+        self.assertEqual(respx.stats.call_count, 0)
+
+    async def test_async_global_contextmanager(self):
+        self.assertEqual(respx.stats.call_count, 0)
+
+        async with respx.mock:
+            async with httpx.AsyncClient() as client:
+                request = respx.get("https://foo/bar/", status_code=202)
+                response = await client.get("https://foo/bar/")
+
+            self.assertTrue(request.called)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 1)
+
+        self.assertEqual(respx.stats.call_count, 0)
+
+    def test_sync_local_contextmanager(self):
+        with respx.mock() as httpx_mock:
+            self.assertEqual(respx.stats.call_count, 0)
+            self.assertEqual(httpx_mock.stats.call_count, 0)
+
+            request = httpx_mock.get("https://foo/bar/", status_code=202)
+            response = httpx.get("https://foo/bar/")
+
+            self.assertTrue(request.called)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 0)
+            self.assertEqual(httpx_mock.stats.call_count, 1)
+
+        self.assertEqual(httpx_mock.stats.call_count, 0)
+
+    async def test_async_local_contextmanager(self):
+        async with respx.mock() as httpx_mock:
+            self.assertEqual(respx.stats.call_count, 0)
+            self.assertEqual(httpx_mock.stats.call_count, 0)
+
+            async with httpx.AsyncClient() as client:
+                request = httpx_mock.get("https://foo/bar/", status_code=202)
+                response = await client.get("https://foo/bar/")
+
+            self.assertTrue(request.called)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(respx.stats.call_count, 0)
+            self.assertEqual(httpx_mock.stats.call_count, 1)
+
+        self.assertEqual(httpx_mock.stats.call_count, 0)
+
+    @respx.mock(assert_all_called=False, assert_all_mocked=False)
+    def test_decorator_with_settings(self, httpx_mock):
+        request = httpx_mock.get("https://ham/spam/", status_code=202)
+        response = httpx.get("https://foo/bar/")
+
+        self.assertFalse(request.called)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(httpx_mock.stats.call_count, 1)
+
+    def test_contextmanager_with_settings(self):
+        pass
+
+    def test_start_stop(self):
         url = "https://foo/bar/"
         request = respx.request("GET", url, status_code=202)
 
         self.assertEqual(respx.stats.call_count, 0)
 
-        respx.start()
-        response = httpx.get(url)
-        self.assertTrue(request.called)
-        self.assertEqual(response.status_code, 202)
-        self.assertEqual(response.text, "")
-        self.assertEqual(respx.stats.call_count, 1)
+        try:
+            respx.start()
+            response = httpx.get(url)
 
-        respx.stop(reset=False)
-        self.assertEqual(respx.stats.call_count, 1)
-
-        respx.stop()
-        self.assertEqual(respx.stats.call_count, 0)
-
-    @respx.mock
-    def test_mock_decorator(self):
-        respx.get("https://foo/bar/", status_code=202)
-        response = httpx.get("https://foo/bar/")
-        self.assertEqual(response.status_code, 202)
-
-    @respx.mock
-    async def test_mock_decorator_async(self):
-        respx.get("https://foo/bar/", status_code=202)
-        async with httpx.AsyncClient() as client:
-            response = await client.get("https://foo/bar/")
-        self.assertEqual(response.status_code, 202)
-
-    def foo(self):
-        pass
-
-    def test_mock_contextmanager(self):
-        self.assertEqual(respx.stats.call_count, 0)
-
-        with respx.mock():
-            respx.get("https://foo/bar/", status_code=202)
-            response = httpx.get("https://foo/bar/")
-
+            self.assertTrue(request.called)
             self.assertEqual(response.status_code, 202)
+            self.assertEqual(response.text, "")
             self.assertEqual(respx.stats.call_count, 1)
 
-        self.assertEqual(respx.stats.call_count, 0)
-
-    async def test_mock_contextmanager_async(self):
-        self.assertEqual(respx.stats.call_count, 0)
-
-        async with respx.mock():
-            respx.get("https://foo/bar/", status_code=202)
-            async with httpx.AsyncClient() as client:
-                response = await client.get("https://foo/bar/")
-
-            self.assertEqual(response.status_code, 202)
+            respx.stop(reset=False)
             self.assertEqual(respx.stats.call_count, 1)
 
-        self.assertEqual(respx.stats.call_count, 0)
+            respx.stop()
+            self.assertEqual(respx.stats.call_count, 0)
+
+        except Exception:  # pragma: nocover
+            # Cleanup global state on error, to not affect other tests
+            respx.stop()
+            raise
 
     def test_http_methods(self):
         with respx.HTTPXMock() as httpx_mock:
@@ -121,8 +207,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.text, "whatever")
 
     def test_invalid_url_pattern(self):
-        with respx.mock():
-            foobar = respx.get(["invalid"], content="whatever")
+        with respx.HTTPXMock(assert_all_called=False) as httpx_mock:
+            foobar = httpx_mock.get(["invalid"], content="whatever")
             with self.assertRaises(ValueError):
                 httpx.get("https://foo/bar/")
 
@@ -279,7 +365,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.text, "foobar")
 
     async def test_async_client(self):
-        with respx.HTTPXMock() as httpx_mock:
+        async with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
             foobar = httpx_mock.get(url, content="foobar")
             async with httpx.AsyncClient() as client:
@@ -293,8 +379,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
         not hasattr(ConcurrencyBackend, "open_uds_stream"),
         "not yet implemented in httpx",
     )
-    async def test_uds(self):
-        with respx.HTTPXMock() as httpx_mock:
+    async def test_uds(self):  # pragma: nocover
+        async with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/"
             foobar = httpx_mock.get(url, content="foobar")
             async with httpx.AsyncClient(uds="/var/run/foobar.sock") as client:
@@ -305,12 +391,13 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(response.text, "foobar")
 
     def test_alias(self):
-        with respx.mock() as m:
+        with respx.HTTPXMock(assert_all_called=False) as httpx_mock:
             url = "https://foo/bar/"
-            foobar = respx.get(url, alias="foobar")
-            self.assertIn("foobar", respx.aliases)
-            self.assertEqual(respx.aliases["foobar"].url, foobar.url)
-            self.assertEqual(m["foobar"].url, foobar.url)
+            foobar = httpx_mock.get(url, alias="foobar")
+            self.assertNotIn("foobar", respx.aliases)
+            self.assertIn("foobar", httpx_mock.aliases)
+            self.assertEqual(httpx_mock.aliases["foobar"].url, foobar.url)
+            self.assertEqual(httpx_mock["foobar"].url, foobar.url)
 
     def test_exception(self):
         with respx.HTTPXMock() as httpx_mock:
@@ -407,8 +494,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertEqual(len(httpx_mock.calls), 1)
 
     def test_pass_through_with_arg(self):
-        with respx.mock():
-            request = respx.get("https://www.example.org/", pass_through=True)
+        with respx.HTTPXMock() as httpx_mock:
+            request = httpx_mock.get("https://www.example.org/", pass_through=True)
 
             with asynctest.mock.patch(
                 "asyncio.open_connection",
@@ -422,8 +509,8 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(request.pass_through)
 
     def test_pass_through_with_custom_matcher(self):
-        with respx.mock():
-            request = respx.request(lambda request, response: request)
+        with respx.HTTPXMock() as httpx_mock:
+            request = httpx_mock.request(lambda request, response: request)
 
             with asynctest.mock.patch(
                 "asyncio.open_connection",
@@ -493,10 +580,10 @@ class HTTPXMockTestCase(asynctest.TestCase):
         self.assertEqual(alias.alias, foobar2.alias)
 
     def test_sync_stats(self, backend=None):
-        with respx.mock():
+        with respx.HTTPXMock() as httpx_mock:
             url = "https://foo/bar/1/"
-            foobar1 = respx.get(url, status_code=202, alias="get_foobar")
-            foobar2 = respx.delete(url, status_code=200, alias="del_foobar")
+            foobar1 = httpx_mock.get(url, status_code=202, alias="get_foobar")
+            foobar2 = httpx_mock.delete(url, status_code=200, alias="del_foobar")
 
             with httpx.Client(backend=backend) as client:
                 get_response = client.get(url)
@@ -506,9 +593,10 @@ class HTTPXMockTestCase(asynctest.TestCase):
             self.assertTrue(foobar2.called)
             self.assertEqual(len(foobar1.calls), 1)
             self.assertEqual(len(foobar2.calls), 1)
-            self.assertEqual(len(respx.calls), 2)
-            self.assertEqual(respx.calls[0], foobar1.calls[-1])
-            self.assertEqual(respx.calls[1], foobar2.calls[-1])
+            self.assertEqual(len(respx.calls), 0)
+            self.assertEqual(len(httpx_mock.calls), 2)
+            self.assertEqual(httpx_mock.calls[0], foobar1.calls[-1])
+            self.assertEqual(httpx_mock.calls[1], foobar2.calls[-1])
 
             _request, _response = foobar1.calls[-1]
             self.assertIsInstance(_request, httpx.AsyncRequest)
@@ -533,7 +621,7 @@ class HTTPXMockTestCase(asynctest.TestCase):
             await asyncio.sleep(0.2 if page == "one" else 0.1)
             return page
 
-        url_pattern = re.compile(r"https://foo/(?P<page>[a-z]+)/$")
+        url_pattern = re.compile(r"https://foo/(?P<page>\w+)/$")
         respx.get(url_pattern, content=content)
 
         async with httpx.AsyncClient() as client:

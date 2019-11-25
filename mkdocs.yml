@@ -1,0 +1,19 @@
+site_name: RESPX
+site_description: A utility for mocking out the Python HTTPX library.
+
+theme:
+  name: "material"
+
+repo_name: lundberg/respx
+repo_url: https://github.com/lundberg/respx
+edit_uri: ""
+
+nav:
+  - Introduction: "index.md"
+  - QuickStart: "quickstart.md"
+  - Developer Interface: "api.md"
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - mkautodoc

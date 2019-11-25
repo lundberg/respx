@@ -2,11 +2,19 @@ import nox
 
 nox.options.stop_on_first_error = True
 nox.options.reuse_existing_virtualenvs = True
-nox.options.keywords = "not lint and not watch_docs"
+nox.options.keywords = "test + check"
 
 source_files = ("respx", "tests", "setup.py", "noxfile.py")
 lint_requirements = ("flake8", "black", "isort")
 docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
+
+
+@nox.session
+def test(session):
+    session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
+    session.install("-e", ".")
+
+    session.run("pytest", "-v", *session.posargs)
 
 
 @nox.session

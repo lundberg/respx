@@ -1,5 +1,5 @@
 # type: ignore
-from .mock import HTTPXMock
+from .api import HTTPXMock
 
 # Expose mock api
 mock = HTTPXMock(assert_all_called=False, local=False)

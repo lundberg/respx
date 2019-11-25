@@ -61,12 +61,12 @@ class HTTPXMock:
         """
         Decorator or Context Manager.
 
-        Use decorator/manager with parantheses for local state, or without parantheses
+        Use decorator/manager with parentheses for local state, or without parentheses
         for global state, i.e. shared patterns added outside of scope.
         """
         if func is None:
             # A. First stage of "local" decorator, WITH parentheses.
-            # B. Only stage of "local" context manager, WITH parantheses,
+            # B. Only stage of "local" context manager, WITH parentheses,
             #    "global" context maanager hits __enter__ directly.
             settings = {}
             if assert_all_called is not None:
@@ -92,8 +92,8 @@ class HTTPXMock:
                 return func(*args, **kwargs)
 
         # Dispatch async/sync decorator, depening on decorated function
-        # A. Second stage of "local" decorator, WITH parantheses.
-        # A. Only stage of "global" decorator, WITHOUT parantheses.
+        # A. Second stage of "local" decorator, WITH parentheses.
+        # A. Only stage of "global" decorator, WITHOUT parentheses.
         return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def __enter__(self) -> "HTTPXMock":
@@ -362,7 +362,7 @@ class HTTPXMock:
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        response = getattr(hostname, "attachment")  # Pickup attached response template
+        response = getattr(hostname, "attachment", None)  # Pickup attached response
         return await self._mock_socket_stream(response)
 
     async def _mock_socket_stream(self, response: ResponseTemplate) -> BaseSocketStream:

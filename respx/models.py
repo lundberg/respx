@@ -132,6 +132,7 @@ class RequestPattern:
             response = self.response.clone(context={"request": request})
             return self._match_func(request, response)
 
+        # TODO: Split method and url test
         if self.method == request.method and self.url:
             if isinstance(self.url, str):
                 matches = self.url == str(request.url)

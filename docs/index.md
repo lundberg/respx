@@ -26,7 +26,7 @@ def test_something():
     assert response.status_code == 201
 ```
 
-## Documentation
+## Usage
 
 The [QuickStart](#quickstart) section covers the basics. Continue reading in detail on how [Mocking HTTPX](mocking.md) is done, or head over to the [Developer Interface](api.md) for a complete guide on how to mock your responses.
 

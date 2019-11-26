@@ -10,7 +10,7 @@ edit_uri: ""
 
 nav:
   - Introduction: "index.md"
-  - QuickStart: "quickstart.md"
+  - Mocking HTTPX: "mocking.md"
   - Developer Interface: "api.md"
 
 markdown_extensions:

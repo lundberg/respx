@@ -43,11 +43,13 @@ def docs(session):
     session.install("--upgrade", *docs_requirements)
     session.install("-e", ".")
 
-    session.run("mkdocs", "build")
+    args = session.posargs if session.posargs else ["build"]
+    session.run("mkdocs", *args)
 
 
 @nox.session(reuse_venv=True)
 def watch_docs(session):
     session.install("--upgrade", *docs_requirements)
     session.install("-e", ".")
+
     session.run("mkdocs", "serve")

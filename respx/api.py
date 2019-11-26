@@ -181,7 +181,7 @@ class HTTPXMock:
         alias: typing.Optional[str] = None,
     ) -> RequestPattern:
         """
-        Creates and adds a request pattern with given mocked response details.
+        Adds a request pattern with given mocked response details.
         """
         headers = Headers(headers or {})
         if content_type:

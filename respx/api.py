@@ -6,26 +6,16 @@ from contextlib import contextmanager
 from functools import partial, partialmethod, wraps
 
 import asynctest
-from httpx import AsyncClient, BaseSocketStream, Client
-from httpx.client import BaseClient
+from httpx import BaseSocketStream, Client
 from httpx.concurrency.base import ConcurrencyBackend
 from httpx.config import TimeoutConfig
-from httpx.models import (
-    AsyncRequest,
-    AsyncResponse,
-    BaseResponse,
-    Headers,
-    HeaderTypes,
-    Response,
-)
+from httpx.models import Headers, HeaderTypes, Request, Response
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
 
-_get_response = BaseClient._get_response  # Pass-through reference
-_send = Client.send  # Pass-through reference
-_async_send = AsyncClient.send  # Pass-through reference
-
 __all__ = ["HTTPXMock"]
+
+_send = Client.send  # Pass-through reference
 
 
 class HTTPXMock:
@@ -42,9 +32,7 @@ class HTTPXMock:
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
         self.stats = asynctest.mock.MagicMock()
-        self.calls: typing.List[
-            typing.Tuple[AsyncRequest, typing.Optional[BaseResponse]]
-        ] = []
+        self.calls: typing.List[typing.Tuple[Request, typing.Optional[Response]]] = []
 
     def __call__(
         self,
@@ -113,27 +101,17 @@ class HTTPXMock:
         """
         Starts mocking httpx.
         """
-        # Unbound -> bound spy version of AsyncClient.send
-        async def unbound_async_send(
-            client: AsyncClient, request: AsyncRequest, **kwargs: typing.Any
-        ) -> AsyncResponse:
-            return await self._async_send_spy(client, request, **kwargs)
-
         # Unbound -> bound spy version of Client.send
-        def unbound_send(
-            client: Client, request: AsyncRequest, **kwargs: typing.Any
+        async def unbound_send(
+            client: Client, request: Request, **kwargs: typing.Any
         ) -> Response:
-            return self._sync_send_spy(client, request, **kwargs)
+            return await self._send_spy(client, request, **kwargs)
 
-        # Start patching
-        mockers = (
-            ("httpx.client.AsyncClient.send", unbound_async_send),
-            ("httpx.client.Client.send", unbound_send),
-        )
-        for target, mocker in mockers:
-            patcher = asynctest.mock.patch(target, new=mocker)
-            patcher.start()
-            self._patchers.append(patcher)
+        # Patch Client.send
+        patcher = asynctest.mock.patch("httpx.client.Client.send", new=unbound_send)
+        patcher.start()
+
+        self._patchers.append(patcher)
 
     def stop(self, reset: bool = True) -> None:
         """
@@ -202,7 +180,7 @@ class HTTPXMock:
         return self.aliases.get(alias)
 
     def _match(
-        self, request: AsyncRequest
+        self, request: Request
     ) -> typing.Tuple[
         typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
@@ -226,14 +204,14 @@ class HTTPXMock:
             if isinstance(match, ResponseTemplate):
                 # Mock response
                 response = match
-            elif isinstance(match, AsyncRequest):
+            elif isinstance(match, Request):
                 # Pass-through request
                 response = None
             else:
                 raise ValueError(
                     (
                         "Matched request pattern must return either a "
-                        'ResponseTemplate or an AsyncRequest, got "{}"'
+                        'ResponseTemplate or an Request, got "{}"'
                     ).format(type(match))
                 )
 
@@ -251,8 +229,8 @@ class HTTPXMock:
 
     def _capture(
         self,
-        request: AsyncRequest,
-        response: typing.Optional[BaseResponse],
+        request: Request,
+        response: typing.Optional[Response],
         pattern: typing.Optional[RequestPattern] = None,
     ) -> None:
         """
@@ -270,7 +248,7 @@ class HTTPXMock:
 
     @contextmanager
     def _patch_backend(
-        self, backend: ConcurrencyBackend, request: AsyncRequest
+        self, backend: ConcurrencyBackend, request: Request
     ) -> typing.Iterator[typing.Callable]:
         patchers = []
 
@@ -281,25 +259,15 @@ class HTTPXMock:
             # 2. Patch request url with response for later pickup in patched backend
             request.url = URLResponse(request.url, response)
 
-            # Mock open_tcp_stream()
-            patchers.append(
-                asynctest.mock.patch.object(
-                    backend, "open_tcp_stream", self._open_tcp_stream_mock
-                )
+            # 3. Start patching open_tcp_stream() and open_uds_stream()
+            mockers = (
+                ("open_tcp_stream", self._open_tcp_stream_mock),
+                ("open_uds_stream", self._open_uds_stream_mock),
             )
-
-            # Mock open_uds_stream()
-            # TODO: Remove if-statement once httpx uds support is released
-            if hasattr(backend, "open_uds_stream"):  # pragma: nocover
-                patchers.append(
-                    asynctest.mock.patch.object(
-                        backend, "open_uds_stream", self._open_uds_stream_mock
-                    )
-                )
-
-            # 3. Start patchers
-            for patcher in patchers:
+            for target, mocker in mockers:
+                patcher = asynctest.mock.patch.object(backend, target, mocker)
                 patcher.start()
+                patchers.append(patcher)
 
         try:
             yield partial(self._capture, pattern=pattern)
@@ -308,28 +276,11 @@ class HTTPXMock:
             for patcher in patchers:
                 patcher.stop()
 
-    async def _async_send_spy(
-        self, client: AsyncClient, request: AsyncRequest, **kwargs: typing.Any
-    ) -> AsyncResponse:
-        """
-        Spy for async AsyncClient.send().
-
-        Patches request.url and attaches matched response template,
-        and mocks client backend open stream methods.
-        """
-        with self._patch_backend(client.concurrency_backend, request) as capture:
-            try:
-                response = None
-                response = await _async_send(client, request, **kwargs)
-                return response
-            finally:
-                capture(request, response)
-
-    def _sync_send_spy(
-        self, client: Client, request: AsyncRequest, **kwargs: typing.Any
+    async def _send_spy(
+        self, client: Client, request: Request, **kwargs: typing.Any
     ) -> Response:
         """
-        Spy for sync Client.send().
+        Spy for Client.send().
 
         Patches request.url and attaches matched response template,
         and mocks client backend open stream methods.
@@ -337,7 +288,7 @@ class HTTPXMock:
         with self._patch_backend(client.concurrency_backend, request) as capture:
             try:
                 response = None
-                response = _send(client, request, **kwargs)
+                response = await _send(client, request, **kwargs)
                 return response
             finally:
                 capture(request, response)

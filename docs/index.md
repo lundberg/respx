@@ -19,9 +19,9 @@ import respx
 
 
 @respx.mock
-def test_something():
+async def test_something():
     request = respx.post("https://foo.bar/baz/", status_code=201)
-    response = httpx.post("https://foo.bar/baz/")
+    response = await httpx.post("https://foo.bar/baz/")
     assert request.called
     assert response.status_code == 201
 ```
@@ -38,4 +38,4 @@ Install with pip:
 $ pip install respx
 ```
 
-See `HTTPX`'s documentation on [Installation](https://www.encode.io/httpx/#installation) for requirements.
+Requires Python 3.6+ and HTTPX 0.8+

@@ -5,7 +5,7 @@ import typing
 from functools import partial
 
 import asynctest
-from httpx.models import URL, AsyncRequest, Headers, HeaderTypes
+from httpx.models import URL, Headers, HeaderTypes, Request
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
@@ -113,8 +113,8 @@ class RequestPattern:
         ]
 
     def match(
-        self, request: AsyncRequest
-    ) -> typing.Optional[typing.Union[AsyncRequest, ResponseTemplate]]:
+        self, request: Request
+    ) -> typing.Optional[typing.Union[Request, ResponseTemplate]]:
         """
         Matches request with configured pattern;
         custom matcher function or http method + url pattern.

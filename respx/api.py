@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from functools import partial, partialmethod, wraps
 
 import asynctest
-from httpx import AsyncClient, Client
+from httpx import AsyncClient, BaseSocketStream, Client
 from httpx.client import BaseClient
 from httpx.concurrency.base import ConcurrencyBackend
 from httpx.config import TimeoutConfig
@@ -20,12 +20,6 @@ from httpx.models import (
 )
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
-
-# TODO: Remove try-except once httpx.BaseSocketStream is released
-try:
-    from httpx import BaseSocketStream  # type: ignore
-except ImportError:  # pragma: nocover
-    from httpx import BaseTCPStream as BaseSocketStream
 
 _get_response = BaseClient._get_response  # Pass-through reference
 _send = Client.send  # Pass-through reference

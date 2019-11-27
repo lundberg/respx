@@ -20,6 +20,7 @@ def test(session):
 @nox.session
 def check(session):
     session.install("--upgrade", "flake8-bugbear", "mypy", *lint_requirements)
+    session.install("-e", ".")
 
     session.run("black", "--check", "--diff", "--target-version=py36", *source_files)
     session.run("isort", "--check", "--diff", "--project=respx", "-rc", *source_files)

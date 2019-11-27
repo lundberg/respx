@@ -1,54 +1,18 @@
 .PHONY: all
-all: format lint mypy coverage
+all: test
 
 
 .PHONY: test
 test:
-	python setup.py test $(test)
-
-
-.PHONY: coverage
-coverage:
-	coverage run setup.py test
-	coverage report
-	coverage xml
-
-
-.PHONY: lint
-lint:
-	flake8 respx --exit-zero
-
-
-.PHONY: mypy
-mypy:
-	mypy respx
-
-
-.PHONY: format
-format:
-	black respx tests
-	autoflake -r -i --remove-all-unused-imports respx tests
-	isort -rc respx tests
+	nox
 
 
 .PHONY: clean
 clean:
-	rm -rf dist
-	rm -rf *.egg-info
+	rm -rf dist *.egg-info
 
 
-.PHONY: publish
-publish: clean
+.PHONY: release
+release: clean
 	python setup.py sdist bdist_wheel
 	python -m twine upload dist/*
-
-
-.PHONY: requirements
-requirements:
-	pip-compile \
-		--upgrade --pre --generate-hashes \
-		--output-file requirements.dev.txt \
-		requirements.dev.in
-	chown \
-		--reference requirements.dev.in \
-		requirements.dev.txt

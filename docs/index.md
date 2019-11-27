@@ -5,7 +5,13 @@
 [![PyPi Version](https://img.shields.io/pypi/v/respx.svg)](https://pypi.org/project/respx/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/respx.svg)](https://pypi.org/project/respx/)
 
-A utility for mocking out the Python [HTTPX](https://github.com/encode/httpx) library.
+A utility for mocking out the Python [HTTPX](https://www.encode.io/httpx/) library.
+
+---
+
+## QuickStart
+
+Start by mocking out `HTTPX`, using `respx.mock`, and then add desired request patterns to mock your responses.
 
 ``` python
 import httpx
@@ -20,6 +26,16 @@ def test_something():
     assert response.status_code == 201
 ```
 
-## Documentation
+## Usage
 
-Full documentation is available at [lundberg.github.io/respx](https://lundberg.github.io/respx/)
+The [QuickStart](#quickstart) section covers the basics. Continue reading in detail on how [Mocking HTTPX](mocking.md) is done, or head over to the [Developer Interface](api.md) for a complete guide on how to mock your responses.
+
+## Installation
+
+Install with pip:
+
+``` console
+$ pip install respx
+```
+
+See `HTTPX`'s documentation on [Installation](https://www.encode.io/httpx/#installation) for requirements.

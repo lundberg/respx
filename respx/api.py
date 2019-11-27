@@ -57,7 +57,7 @@ class HTTPXMock:
         func: typing.Optional[typing.Callable] = None,
         assert_all_called: typing.Optional[bool] = None,
         assert_all_mocked: typing.Optional[bool] = None,
-    ):
+    ) -> typing.Union["HTTPXMock", typing.Callable]:
         """
         Decorator or Context Manager.
 
@@ -78,6 +78,7 @@ class HTTPXMock:
         # Async Decorator
         @wraps(func)
         async def async_decorator(*args, **kwargs):
+            assert func is not None
             if self._is_local:
                 kwargs["httpx_mock"] = self
             async with self:
@@ -86,6 +87,7 @@ class HTTPXMock:
         # Sync Decorator
         @wraps(func)
         def sync_decorator(*args, **kwargs):
+            assert func is not None
             if self._is_local:
                 kwargs["httpx_mock"] = self
             with self:
@@ -179,7 +181,7 @@ class HTTPXMock:
         alias: typing.Optional[str] = None,
     ) -> RequestPattern:
         """
-        Creates and adds a request pattern with given mocked response details.
+        Adds a request pattern with given mocked response details.
         """
         headers = Headers(headers or {})
         if content_type:
@@ -274,7 +276,7 @@ class HTTPXMock:
 
     @contextmanager
     def _patch_backend(
-        self, backend: ConcurrencyBackend, request: AsyncRequest,
+        self, backend: ConcurrencyBackend, request: AsyncRequest
     ) -> typing.Iterator[typing.Callable]:
         patchers = []
 

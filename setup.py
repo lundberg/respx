@@ -4,7 +4,6 @@ from os import path
 
 from setuptools import setup
 
-
 VERSION = (0, 7, 4, "final", 0)
 
 
@@ -61,15 +60,7 @@ setup(
     author_email="jonas@5monkeys.se",
     url="https://github.com/lundberg/respx",
     license="MIT",
-    keywords=[
-        "httpx",
-        "mock",
-        "responses",
-        "requests",
-        "async",
-        "http",
-        "client",
-    ],
+    keywords=["httpx", "mock", "responses", "requests", "async", "http", "client"],
     description="A utility for mocking out the Python HTTPX library.",
     long_description=long_description,
     long_description_content_type="text/markdown",

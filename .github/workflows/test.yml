@@ -32,7 +32,7 @@ jobs:
           ${{ runner.os }}-nox
     - name: Test
       run: |
-        pip install nox
+        pip install --upgrade nox
         nox -s test-${{ matrix.python-version }}
     - name: Upload report
       uses: codecov/codecov-action@v1.0.3
@@ -41,14 +41,14 @@ jobs:
         name: Python ${{ matrix.python-version }}
 
   lint:
-    name: Check linting
+    name: Check Linting
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v1
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.6
     - name: Pip cache
       uses: actions/cache@v1
       with:
@@ -65,5 +65,5 @@ jobs:
           ${{ runner.os }}-nox
     - name: Lint
       run: |
-        pip install nox
+        pip install --upgrade nox
         nox -s check

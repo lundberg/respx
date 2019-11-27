@@ -12,7 +12,7 @@ docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
 @nox.session(python=["3.6", "3.7", "3.8"])
 def test(session):
     session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
-    session.install("--force-reinstall", "-e", ".")
+    session.install("-e", ".")
 
     session.run("pytest", "-v", *session.posargs)
 
@@ -20,7 +20,7 @@ def test(session):
 @nox.session
 def check(session):
     session.install("--upgrade", "flake8-bugbear", "mypy", *lint_requirements)
-    session.install("--force-reinstall", "-e", ".")
+    session.install("-e", ".")
 
     session.run("black", "--check", "--diff", "--target-version=py36", *source_files)
     session.run("isort", "--check", "--diff", "--project=respx", "-rc", *source_files)
@@ -42,7 +42,7 @@ def lint(session):
 @nox.session
 def docs(session):
     session.install("--upgrade", *docs_requirements)
-    session.install("--force-reinstall", "-e", ".")
+    session.install("-e", ".")
 
     args = session.posargs if session.posargs else ["build"]
     session.run("mkdocs", *args)
@@ -51,6 +51,6 @@ def docs(session):
 @nox.session(reuse_venv=True)
 def watch(session):
     session.install("--upgrade", *docs_requirements)
-    session.install("--force-reinstall", "-e", ".")
+    session.install("-e", ".")
 
     session.run("mkdocs", "serve")

@@ -75,21 +75,20 @@ def test_something():
 
 ### Request callback
 
-For full control of what request to **match** and what response to **mock**, pass a callback function as the request `method` parameter.
+For full control of what request to **match** and what response to **mock**,
+pass a *callback* function as the `request(method, ...)` parameter.
+The callback's response argument will be pre-populated with any additional response parameters.
 
 ``` python
 import httpx
 import respx
 
 
-def custom_matcher(request, response):
+def match_and_mock(request, response):
     """
-    Response argument is pre-populated with any given
-    response parameters from the respx.request(...) call.
-
     Return `None` to not match the request.
-    Return the response to match and mock this request.
-    Return the request for pass-through behaviour.
+    Return the `response` to match and mock this request.
+    Return the `request` for pass-through behaviour.
     """
     if request.method != "POST":
         return None
@@ -104,7 +103,7 @@ def custom_matcher(request, response):
 
 @respx.mock
 def test_something():
-    custom_request = respx.request(custom_matcher, status_code=201)
+    custom_request = respx.request(match_and_mock, status_code=201)
     respx.get("https://foo.bar/baz/")
 
     response = httpx.get("https://foo.bar/baz/")
@@ -115,7 +114,7 @@ def test_something():
     assert response.status_code == 401
     assert custom_request.called
 
-    response = httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "token"})
+    response = httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "x"})
     assert response.status_code == 201
     assert custom_request.call_count == 2
 ```
@@ -170,7 +169,9 @@ def test_something():
 
 ### Content callback
 
-If you need dynamic response content, pass a callback function.
+If you need dynamic response content, pass a *callback* function.  
+When used together with a [URL pattern](#url-pattern), named groups will be passed
+as `kwargs`.
 
 ``` python
 import httpx
@@ -178,19 +179,15 @@ import re
 import respx
 
 
-def my_content(request, slug=None):
-    """
-    Named groups in a URL pattern will be passed kwargs.
-
-    Return bytes, str, list or a dict.
-    """
+def some_content(request, slug=None):
+    """ Return bytes, str, list or a dict. """
     return {"slug": slug}
 
 
 @respx.mock
 def test_something():
     url_pattern = r"^https://foo.bar/(?P<slug>\w+)/$")
-    respx.get(url_pattern, content=my_content)
+    respx.get(url_pattern, content=some_content)
 
     response = httpx.get("https://foo.bar/apa/")
     assert response.json() == {"slug": "apa"}
@@ -229,7 +226,7 @@ Configure checks by using the `respx.mock` decorator / context manager *with* pa
 ``` python
 @respx.mock(assert_all_called=False)
 def test_something(httpx_mock):
-    httpx_mock.get("https://some.url/")  # Will not cause assertion fail
+    httpx_mock.get("https://some.url/")  # OK
     httpx_mock.get("https://foo.bar/")
 
     response = httpx.get("https://foo.bar/")
@@ -238,7 +235,7 @@ def test_something(httpx_mock):
 ```
 ``` python
 with respx.mock(assert_all_mocked=False) as httpx_mock:
-    response = httpx.get("https://foo.bar/")  # Will cause assertion fail
+    response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
     assert httpx_mock.stats.call_count == 1
 ```

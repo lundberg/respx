@@ -3,7 +3,7 @@
 To mock out `HTTPX`, use the `respx.mock` decorator / context manager.
 
 
-## Mock Decorator
+## Using the Decorator
 
 ``` python
 import httpx
@@ -19,7 +19,7 @@ def test_something():
     assert response.text == "foobar"
 ```
 
-## Mock Context Manager
+## Using the Context Manager
 
 ``` python
 import httpx
@@ -27,10 +27,31 @@ import respx
 
 
 with respx.mock:
-    request = respx.options("https://foo.bar/baz/", content={"some": "thing"})
-    response = httpx.options("https://foo.bar/baz/")
+    request = respx.get("https://foo.bar/", content="foobar")
+    response = httpx.get("https://foo.bar/")
     assert request.called
-    assert response.json() == {"some": "thing"}
+    assert response.status_code == 200
+    assert response.text == "foobar"
+```
+
+## Async Support
+
+Both decorator and context manager supports async contexts and the `HTTPX` async client.
+
+``` python
+@respx.mock
+async def test_something():
+    ...
+    async with httpx.AsyncClient() as client:
+        response = await client.get(...)
+
+```
+
+``` python
+async with respx.mock:
+    ...
+    async with httpx.AsyncClient() as client:
+        response = await client.get(...)
 ```
 
 ## Advanced Usage

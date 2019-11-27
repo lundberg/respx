@@ -38,4 +38,4 @@ Install with pip:
 $ pip install respx
 ```
 
-See `HTTPX` documentation on [Installation](https://www.encode.io/httpx/#installation) for requirements.
+See `HTTPX`'s documentation on [Installation](https://www.encode.io/httpx/#installation) for requirements.

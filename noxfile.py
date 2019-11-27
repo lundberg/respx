@@ -9,7 +9,7 @@ lint_requirements = ("flake8", "black", "isort")
 docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
 
 
-@nox.session
+@nox.session(python=["3.6", "3.7", "3.8"])
 def test(session):
     session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
     session.install("-e", ".")
@@ -48,7 +48,7 @@ def docs(session):
 
 
 @nox.session(reuse_venv=True)
-def watch_docs(session):
+def watch(session):
     session.install("--upgrade", *docs_requirements)
     session.install("-e", ".")
 

@@ -3,30 +3,68 @@ name: test
 on: [push]
 
 jobs:
-  build:
-    name: Python ${{ matrix.python-version }}
+  test:
+    name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       max-parallel: 4
       matrix:
         python-version: [3.6, 3.7, 3.8]
-
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Lint
+    - name: Pip cache
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip
+        restore-keys: |
+          ${{ runner.os }}-pip
+    - name: Nox cache
+      uses: actions/cache@v1
+      with:
+        path: .nox
+        key: ${{ runner.os }}-nox
+        restore-keys: |
+          ${{ runner.os }}-nox
+    - name: Test
       run: |
-        pip install flake8
-        make lint
-    - name: Coverage
-      run: |
-        pip install coverage
-        make coverage
+        pip install --upgrade nox
+        nox -s test-${{ matrix.python-version }}
     - name: Upload report
       uses: codecov/codecov-action@v1.0.3
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         name: Python ${{ matrix.python-version }}
+
+  lint:
+    name: Check Linting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.6
+    - name: Pip cache
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip
+        restore-keys: |
+          ${{ runner.os }}-pip
+    - name: Nox cache
+      uses: actions/cache@v1
+      with:
+        path: .nox
+        key: ${{ runner.os }}-nox
+        restore-keys: |
+          ${{ runner.os }}-nox
+    - name: Lint
+      run: |
+        pip install --upgrade nox
+        nox -s check

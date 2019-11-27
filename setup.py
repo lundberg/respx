@@ -40,7 +40,7 @@ with codecs.open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 # Install requirements
 install_requires = [
-    "httpx==0.7.6",
+    "httpx>=0.7.7,<0.8",
     "asynctest",
 ]
 

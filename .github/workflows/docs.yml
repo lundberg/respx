@@ -23,13 +23,6 @@ jobs:
         key: ${{ runner.os }}-pip
         restore-keys: |
           ${{ runner.os }}-pip
-    - name: Nox cache
-      uses: actions/cache@v1
-      with:
-        path: .nox
-        key: ${{ runner.os }}-nox
-        restore-keys: |
-          ${{ runner.os }}-nox
     - name: Build
       run: |
         pip install --upgrade nox

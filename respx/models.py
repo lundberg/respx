@@ -3,12 +3,14 @@ import json as jsonlib
 import re
 import typing
 from functools import partial
+from urllib.parse import urljoin
 
 import asynctest
 from httpx.models import URL, Headers, HeaderTypes, Request
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
+URLPatternTypes = typing.Union[str, typing.Pattern[str]]
 ContentDataTypes = typing.Union[
     bytes, str, typing.List, typing.Dict, typing.Callable, Exception,
 ]
@@ -77,10 +79,11 @@ class RequestPattern:
     def __init__(
         self,
         method: typing.Union[str, typing.Callable],
-        url: typing.Optional[typing.Union[str, typing.Pattern]],
+        url: typing.Optional[URLPatternTypes],
         response: ResponseTemplate,
         pass_through: bool = False,
         alias: typing.Optional[str] = None,
+        base_url: typing.Optional[str] = None,
     ) -> None:
         self._match_func: typing.Optional[typing.Callable] = None
 
@@ -91,7 +94,7 @@ class RequestPattern:
             self._match_func = method
         else:
             self.method = method
-            self.url = url
+            self.set_url(url, base=base_url)
             self.pass_through = pass_through
 
         self.response = response
@@ -111,6 +114,28 @@ class RequestPattern:
         return [
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
+
+    def get_url(self) -> typing.Optional[URLPatternTypes]:
+        return self._url
+
+    def set_url(
+        self, url: typing.Optional[URLPatternTypes], base: typing.Optional[str] = None,
+    ) -> None:
+        if url is None:
+            url = url if base is None else base
+        elif isinstance(url, str):
+            url = url if base is None else urljoin(base, url)
+        elif isregex(url):
+            url = url if base is None else re.compile(urljoin(base, url.pattern))
+        else:
+            raise ValueError(
+                "Request url pattern must be str or compiled regex, got {}.".format(
+                    type(url).__name__
+                )
+            )
+        self._url = url
+
+    url = property(get_url, set_url)
 
     def match(
         self, request: Request
@@ -132,24 +157,19 @@ class RequestPattern:
             response = self.response.clone(context={"request": request})
             return self._match_func(request, response)
 
-        # TODO: Split method and url test
-        if self.method == request.method and self.url:
-            if isinstance(self.url, str):
-                matches = self.url == str(request.url)
-            elif isregex(self.url):
-                match = self.url.match(str(request.url))
-                if match:
-                    matches = True
-                    url_params = match.groupdict()
-            else:
-                raise ValueError(
-                    "Request url pattern must be str or compiled regex, got {}.".format(
-                        type(self.url).__name__
-                    )
-                )
+        if self.method != request.method:
+            return None
 
-            if matches:
-                return self.response.clone(context={"request": request, **url_params})
+        if isinstance(self.url, str):
+            matches = self.url == str(request.url)
+        else:
+            match = self.url.match(str(request.url))
+            if match:
+                matches = True
+                url_params = match.groupdict()
+
+        if matches:
+            return self.response.clone(context={"request": request, **url_params})
 
         return None
 

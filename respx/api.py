@@ -23,11 +23,13 @@ class HTTPXMock:
         self,
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
+        base_url: typing.Optional[str] = None,
         local: bool = True,
     ) -> None:
         self._is_local = local
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
+        self._base_url = base_url
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
@@ -39,6 +41,7 @@ class HTTPXMock:
         func: typing.Optional[typing.Callable] = None,
         assert_all_called: typing.Optional[bool] = None,
         assert_all_mocked: typing.Optional[bool] = None,
+        base_url: typing.Optional[str] = None,
     ) -> typing.Union["HTTPXMock", typing.Callable]:
         """
         Decorator or Context Manager.
@@ -50,7 +53,7 @@ class HTTPXMock:
             # A. First stage of "local" decorator, WITH parentheses.
             # B. Only stage of "local" context manager, WITH parentheses,
             #    "global" context maanager hits __enter__ directly.
-            settings = {}
+            settings: typing.Dict[str, typing.Any] = {"base_url": base_url}
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
@@ -161,7 +164,12 @@ class HTTPXMock:
 
         response = ResponseTemplate(status_code, headers, content)
         pattern = RequestPattern(
-            method, url, response, pass_through=pass_through, alias=alias
+            method,
+            url,
+            response,
+            pass_through=pass_through,
+            alias=alias,
+            base_url=self._base_url,
         )
 
         self.add(pattern, alias=alias)

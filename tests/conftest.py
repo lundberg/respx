@@ -1,14 +1,8 @@
 import asyncio
-from contextlib import contextmanager
 
 import pytest
 
 import respx
-
-
-@contextmanager
-def does_not_raise():
-    yield
 
 
 @pytest.yield_fixture

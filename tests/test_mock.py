@@ -1,9 +1,11 @@
+from contextlib import ExitStack as does_not_raise
+
 import httpx
 import pytest
 
 import respx
 
-from .conftest import does_not_raise
+# from .conftest import does_not_raise
 
 
 @pytest.mark.asyncio

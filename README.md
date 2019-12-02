@@ -7,6 +7,12 @@
 
 A utility for mocking out the Python [HTTPX](https://github.com/encode/httpx) library.
 
+## Documentation
+
+Full documentation is available at [lundberg.github.io/respx](https://lundberg.github.io/respx/)
+
+### QuickStart
+
 ``` python
 import httpx
 import respx
@@ -19,7 +25,3 @@ async def test_something():
     assert request.called
     assert response.status_code == 201
 ```
-
-## Documentation
-
-Full documentation is available at [lundberg.github.io/respx](https://lundberg.github.io/respx/)

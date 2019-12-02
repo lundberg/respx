@@ -1,11 +1,10 @@
+import re
 from contextlib import ExitStack as does_not_raise
 
 import httpx
 import pytest
 
 import respx
-
-# from .conftest import does_not_raise
 
 
 @pytest.mark.asyncio
@@ -158,6 +157,27 @@ async def test_configured_decorator():
 
     await test()
     assert respx.stats.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_base_url():
+    async with respx.mock(base_url="https://foo.bar/") as httpx_mock:
+        request1 = httpx_mock.get("/baz/", content="baz")
+        request2 = httpx_mock.post(re.compile(r"(?P<slug>\w+)/?$"), content="slug")
+        request3 = httpx_mock.put(content="ok")
+
+        async with httpx.Client(base_url="https://foo.bar") as client:
+            response = await client.get("/baz/")
+            assert request1.called is True
+            assert response.text == "baz"
+
+            response = await client.post("/apa/")
+            assert request2.called is True
+            assert response.text == "slug"
+
+            response = await client.put("/")
+            assert request3.called is True
+            assert response.text == "ok"
 
 
 @pytest.mark.asyncio

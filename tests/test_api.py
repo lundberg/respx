@@ -41,7 +41,7 @@ async def test_http_methods():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "url", ["https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")]
+    "url", [None, "", "https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")]
 )
 async def test_url_match(url):
     async with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:
@@ -54,11 +54,9 @@ async def test_url_match(url):
 
 @pytest.mark.asyncio
 async def test_invalid_url_pattern():
-    async with respx.HTTPXMock(assert_all_called=False) as httpx_mock:
-        request = httpx_mock.get(["invalid"])
+    async with respx.HTTPXMock() as httpx_mock:
         with pytest.raises(ValueError):
-            await httpx.get("https://foo.bar/")
-        assert request.called is False
+            httpx_mock.get(["invalid"])
 
 
 @pytest.mark.asyncio

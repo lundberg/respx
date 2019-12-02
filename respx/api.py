@@ -293,7 +293,7 @@ class HTTPXMock:
         Patches request.url and attaches matched response template,
         and mocks client backend open stream methods.
         """
-        with self._patch_backend(client.concurrency_backend, request) as capture:
+        with self._patch_backend(client.dispatch.backend, request) as capture:
             try:
                 response = None
                 response = await _send(client, request, **kwargs)

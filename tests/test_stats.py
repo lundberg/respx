@@ -23,10 +23,8 @@ async def test_alias():
 @pytest.mark.asyncio
 async def test_httpx_exception_handling():
     async with respx.HTTPXMock() as httpx_mock:
-        # TODO: Patch something else once HTTPX 0.8.1 is released
         with asynctest.mock.patch(
-            "httpx.client.Client._dispatcher_for_request",
-            side_effect=ValueError("mock"),
+            "httpx.client.Client.dispatcher_for_url", side_effect=ValueError("mock"),
         ):
             url = "https://foo.bar/"
             request = httpx_mock.get(url)

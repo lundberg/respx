@@ -41,7 +41,7 @@ async def test_http_methods():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "url", ["https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")]
+    "url", [None, "", "https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")]
 )
 async def test_url_match(url):
     async with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:

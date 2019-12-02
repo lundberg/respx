@@ -121,6 +121,7 @@ class RequestPattern:
     def set_url(
         self, url: typing.Optional[URLPatternTypes], base: typing.Optional[str] = None,
     ) -> None:
+        url = url or None
         if url is None:
             url = url if base is None else base
         elif isinstance(url, str):
@@ -160,10 +161,12 @@ class RequestPattern:
         if self.method != request.method:
             return None
 
-        if isinstance(self.url, str):
-            matches = self.url == str(request.url)
+        if not self._url:
+            matches = True
+        elif isinstance(self._url, str):
+            matches = self._url == str(request.url)
         else:
-            match = self.url.match(str(request.url))
+            match = self._url.match(str(request.url))
             if match:
                 matches = True
                 url_params = match.groupdict()

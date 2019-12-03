@@ -244,7 +244,7 @@ async def test_assert_all_mocked(assert_all_mocked, raises):
 
 
 @pytest.mark.asyncio
-async def test_patching_dispatcher():
+async def test_asgi():
     async with respx.mock:
         async with httpx.Client(app="fake-asgi") as client:
             url = "https://foo.bar/"
@@ -258,3 +258,13 @@ async def test_patching_dispatcher():
                 {"Content-Type": "application/json", **headers}
             )
             assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_uds():
+    async with respx.mock:
+        async with httpx.Client(uds="/foo/bar.sock") as client:
+            request = respx.get("https://foo.bar/", status_code=202)
+            response = await client.get("https://foo.bar/")
+            assert request.called is True
+            assert response.status_code == 202

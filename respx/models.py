@@ -1,4 +1,5 @@
 import inspect
+import io
 import json as jsonlib
 import re
 import typing
@@ -6,7 +7,7 @@ from functools import partial
 from urllib.parse import urljoin
 
 import asynctest
-from httpx.models import URL, Headers, HeaderTypes, Request
+from httpx import URL, BaseSocketStream, Headers, HeaderTypes, Request, Response
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]
@@ -73,6 +74,38 @@ class ResponseTemplate:
         return ResponseTemplate(
             self.status_code, self._headers, self._content, context=context
         )
+
+    async def build(self, request: Request) -> Response:
+        content = await self.content
+        return Response(
+            status_code=self.status_code,
+            http_version=f"HTTP/{self.http_version}",
+            headers=self.headers,
+            content=content,
+            request=request,
+        )
+
+    async def socket_stream(self) -> BaseSocketStream:
+        content = await self.content
+
+        # Build raw bytes data
+        http_version = f"HTTP/{self.http_version}"
+        status_line = f"{http_version} {self.status_code} MOCK"
+        lines = [status_line]
+        lines.extend([f"{key.title()}: {value}" for key, value in self.headers.items()])
+
+        CRLF = b"\r\n"
+        data = CRLF.join((line.encode("ascii") for line in lines))
+        data += CRLF * 2
+        data += content
+
+        # Mock a SocketStream with bytes read from data
+        reader = io.BytesIO(data)
+        socket_stream = asynctest.mock.Mock(BaseSocketStream)
+        socket_stream.read.side_effect = lambda n, *args, **kwargs: reader.read(n)
+        socket_stream.get_http_version.return_value = http_version
+
+        return socket_stream
 
 
 class RequestPattern:

@@ -1,14 +1,11 @@
 import inspect
-import io
 import ssl
 import typing
 from contextlib import contextmanager
 from functools import partial, partialmethod, wraps
 
 import asynctest
-from httpx import BaseSocketStream, Client
-from httpx.config import TimeoutConfig
-from httpx.dispatch.base import Dispatcher
+from httpx import BaseSocketStream, Client, Dispatcher, TimeoutConfig
 from httpx.models import Headers, HeaderTypes, Request, Response
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
@@ -111,7 +108,7 @@ class HTTPXMock:
             return await self.__Client__send__spy(client, request, **kwargs)
 
         # Patch Client.send
-        patcher = asynctest.mock.patch("httpx.client.Client.send", new=unbound_send)
+        patcher = asynctest.mock.patch("httpx.Client.send", new=unbound_send)
         patcher.start()
 
         self._patchers.append(patcher)
@@ -219,7 +216,7 @@ class HTTPXMock:
                 raise ValueError(
                     (
                         "Matched request pattern must return either a "
-                        'ResponseTemplate or an Request, got "{}"'
+                        'ResponseTemplate or a Request, got "{}"'
                     ).format(type(match))
                 )
 
@@ -292,29 +289,6 @@ class HTTPXMock:
             for patcher in patchers:
                 patcher.stop()
 
-    async def _mock_socket_stream(self, response: ResponseTemplate) -> BaseSocketStream:
-        content = await response.content
-        headers = response.headers
-
-        # Build raw bytes data
-        http_version = f"HTTP/{response.http_version}"
-        status_line = f"{http_version} {response.status_code} MOCK"
-        lines = [status_line]
-        lines.extend([f"{key.title()}: {value}" for key, value in headers.items()])
-
-        CRLF = b"\r\n"
-        data = CRLF.join((line.encode("ascii") for line in lines))
-        data += CRLF * 2
-        data += content
-
-        # Mock backend SocketStream with bytes read from data
-        reader = io.BytesIO(data)
-        socket_stream = asynctest.mock.Mock(BaseSocketStream)
-        socket_stream.read.side_effect = lambda n, *args, **kwargs: reader.read(n)
-        socket_stream.get_http_version.return_value = http_version
-
-        return socket_stream
-
     async def __Client__send__spy(
         self, client: Client, request: Request, **kwargs: typing.Any
     ) -> Response:
@@ -336,16 +310,9 @@ class HTTPXMock:
         self, request: Request, **kwargs: typing.Any
     ) -> Response:
         # TODO: Support pass-through
-        url = request.url
-        response = getattr(url.host, "attachment", None)  # Pickup attached response
-        content = await response.content
-        return Response(
-            status_code=response.status_code,
-            http_version="HTTP/1.1",
-            headers=response.headers,
-            content=content,
-            request=request,
-        )
+        hostname = request.url.host
+        response = getattr(hostname, "attachment", None)  # Pickup attached template
+        return await response.build(request)
 
     async def __Backend__open_tcp_stream__mock(
         self,
@@ -354,9 +321,8 @@ class HTTPXMock:
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        return await (
-            self.__Backend__open_uds_stream__mock("", hostname, ssl_context, timeout)
-        )
+        response = getattr(hostname, "attachment", None)  # Pickup attached template
+        return await response.socket_stream()
 
     async def __Backend__open_uds_stream__mock(
         self,
@@ -365,5 +331,5 @@ class HTTPXMock:
         ssl_context: typing.Optional[ssl.SSLContext],
         timeout: TimeoutConfig,
     ) -> BaseSocketStream:
-        response = getattr(hostname, "attachment", None)  # Pickup attached response
-        return await self._mock_socket_stream(response)
+        response = getattr(hostname, "attachment", None)  # Pickup attached template
+        return await response.socket_stream()

@@ -241,3 +241,20 @@ async def test_assert_all_mocked(assert_all_mocked, raises):
             assert httpx_mock.stats.call_count == 1
             assert response.status_code == 200
     assert httpx_mock.stats.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_patching_dispatcher():
+    async with respx.mock:
+        async with httpx.Client(app="fake-asgi") as client:
+            url = "https://foo.bar/"
+            content = lambda request: {"status": "ok"}
+            headers = {"X-Foo": "bar"}
+            request = respx.get(url, status_code=202, headers=headers, content=content)
+            response = await client.get(url)
+            assert request.called is True
+            assert response.status_code == 202
+            assert response.headers == httpx.Headers(
+                {"Content-Type": "application/json", **headers}
+            )
+            assert response.json() == {"status": "ok"}

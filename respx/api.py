@@ -7,8 +7,8 @@ from functools import partial, partialmethod, wraps
 
 import asynctest
 from httpx import BaseSocketStream, Client
-from httpx.concurrency.base import ConcurrencyBackend
 from httpx.config import TimeoutConfig
+from httpx.dispatch.base import Dispatcher
 from httpx.models import Headers, HeaderTypes, Request, Response
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
@@ -108,7 +108,7 @@ class HTTPXMock:
         async def unbound_send(
             client: Client, request: Request, **kwargs: typing.Any
         ) -> Response:
-            return await self._send_spy(client, request, **kwargs)
+            return await self.__Client__send__spy(client, request, **kwargs)
 
         # Patch Client.send
         patcher = asynctest.mock.patch("httpx.client.Client.send", new=unbound_send)
@@ -256,7 +256,7 @@ class HTTPXMock:
 
     @contextmanager
     def _patch_backend(
-        self, backend: ConcurrencyBackend, request: Request
+        self, dispatch: Dispatcher, request: Request
     ) -> typing.Iterator[typing.Callable]:
         patchers = []
 
@@ -267,58 +267,30 @@ class HTTPXMock:
             # 2. Patch request url with response for later pickup in patched backend
             request.url = URLResponse(request.url, response)
 
-            # 3. Start patching open_tcp_stream() and open_uds_stream()
-            mockers = (
-                ("open_tcp_stream", self._open_tcp_stream_mock),
-                ("open_uds_stream", self._open_uds_stream_mock),
-            )
-            for target, mocker in mockers:
-                patcher = asynctest.mock.patch.object(backend, target, mocker)
+            backend = getattr(dispatch, "backend", None)
+            if backend is not None:
+                # 3A. Start patching backend's open_tcp_stream() and open_uds_stream()
+                mockers = (
+                    ("open_tcp_stream", self.__Backend__open_tcp_stream__mock),
+                    ("open_uds_stream", self.__Backend__open_uds_stream__mock),
+                )
+                for target, mocker in mockers:
+                    patcher = asynctest.mock.patch.object(backend, target, mocker)
+                    patcher.start()
+                    patchers.append(patcher)
+            else:
+                # 3B. Start patching dispatcher's send()
+                target, mocker = "send", self.__Dispatcher__send__mock
+                patcher = asynctest.mock.patch.object(dispatch, target, mocker)
                 patcher.start()
                 patchers.append(patcher)
 
         try:
             yield partial(self._capture, pattern=pattern)
         finally:
-            # 4. Stop patchers
+            # 4. Stop patching
             for patcher in patchers:
                 patcher.stop()
-
-    async def _send_spy(
-        self, client: Client, request: Request, **kwargs: typing.Any
-    ) -> Response:
-        """
-        Spy for Client.send().
-
-        Patches request.url and attaches matched response template,
-        and mocks client backend open stream methods.
-        """
-        with self._patch_backend(client.dispatch.backend, request) as capture:
-            try:
-                response = None
-                response = await _send(client, request, **kwargs)
-                return response
-            finally:
-                capture(request, response)
-
-    async def _open_tcp_stream_mock(
-        self,
-        hostname: str,
-        port: int,
-        ssl_context: typing.Optional[ssl.SSLContext],
-        timeout: TimeoutConfig,
-    ) -> BaseSocketStream:
-        return await self._open_uds_stream_mock("", hostname, ssl_context, timeout)
-
-    async def _open_uds_stream_mock(
-        self,
-        path: str,
-        hostname: typing.Optional[str],
-        ssl_context: typing.Optional[ssl.SSLContext],
-        timeout: TimeoutConfig,
-    ) -> BaseSocketStream:
-        response = getattr(hostname, "attachment", None)  # Pickup attached response
-        return await self._mock_socket_stream(response)
 
     async def _mock_socket_stream(self, response: ResponseTemplate) -> BaseSocketStream:
         content = await response.content
@@ -342,3 +314,56 @@ class HTTPXMock:
         socket_stream.get_http_version.return_value = http_version
 
         return socket_stream
+
+    async def __Client__send__spy(
+        self, client: Client, request: Request, **kwargs: typing.Any
+    ) -> Response:
+        """
+        Spy for Client.send().
+
+        Patches request.url and attaches matched response template,
+        and mocks client backend open stream methods.
+        """
+        with self._patch_backend(client.dispatch, request) as capture:
+            try:
+                response = None
+                response = await _send(client, request, **kwargs)
+                return response
+            finally:
+                capture(request, response)
+
+    async def __Dispatcher__send__mock(
+        self, request: Request, **kwargs: typing.Any
+    ) -> Response:
+        # TODO: Support pass-through
+        url = request.url
+        response = getattr(url.host, "attachment", None)  # Pickup attached response
+        content = await response.content
+        return Response(
+            status_code=response.status_code,
+            http_version="HTTP/1.1",
+            headers=response.headers,
+            content=content,
+            request=request,
+        )
+
+    async def __Backend__open_tcp_stream__mock(
+        self,
+        hostname: str,
+        port: int,
+        ssl_context: typing.Optional[ssl.SSLContext],
+        timeout: TimeoutConfig,
+    ) -> BaseSocketStream:
+        return await (
+            self.__Backend__open_uds_stream__mock("", hostname, ssl_context, timeout)
+        )
+
+    async def __Backend__open_uds_stream__mock(
+        self,
+        path: str,
+        hostname: typing.Optional[str],
+        ssl_context: typing.Optional[ssl.SSLContext],
+        timeout: TimeoutConfig,
+    ) -> BaseSocketStream:
+        response = getattr(hostname, "attachment", None)  # Pickup attached response
+        return await self._mock_socket_stream(response)

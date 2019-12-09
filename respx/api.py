@@ -5,7 +5,9 @@ from contextlib import contextmanager
 from functools import partial, partialmethod, wraps
 
 import asynctest
-from httpx import BaseSocketStream, Client, Dispatcher, TimeoutConfig
+from httpx import Client, TimeoutConfig
+from httpx.concurrency.base import BaseSocketStream
+from httpx.dispatch.base import Dispatcher
 from httpx.models import Headers, HeaderTypes, Request, Response
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse

@@ -14,7 +14,11 @@ def test(session):
     session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
     session.install("-e", ".")
 
-    session.run("pytest", "-v", *session.posargs)
+    options = session.posargs
+    if "-k" in options:
+        options.append("--no-cov")
+
+    session.run("pytest", "-v", *options)
 
 
 @nox.session

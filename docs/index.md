@@ -38,4 +38,5 @@ Install with pip:
 $ pip install respx
 ```
 
-Requires Python 3.6+ and HTTPX 0.8+
+Requires Python 3.6+ and HTTPX 0.9.3+.
+See [Changelog](https://github.com/lundberg/respx/blob/master/CHANGELOG.md) for older HTTPX compatibility.

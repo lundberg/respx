@@ -52,9 +52,18 @@ For full control, use the core request method.
 
 ## Matching Requests
 
+### Exact URL
+
+To match and mock a request by an exact URL, pass the `url` parameter as a *string*.
+
+``` python
+respx.get("https://foo.bar/", status_code=204)
+```
+
+
 ### URL pattern
 
-Instead of matching an exact URL, you can pass a *compiled regex* to match the request URL.
+Instead of matching an [exact URL](#exact-url), you can pass a *compiled regex* to match the request URL.
 
 ``` python
 import httpx
@@ -71,6 +80,26 @@ async def test_something():
 ```
 !!! tip
     Named groups in the regex pattern will be passed as `kwargs` to the response content [callback](#content-callback), if used.
+
+
+### Base URL
+
+When adding a lot of request patterns sharing the same domain/prefix, you can configure RESPX with a `base_url` to use as the base when matching URLs.
+
+Like `url`, the `base_url` can also be passed as a *compiled regex*, with optional named groups.
+
+``` python
+import httpx
+import respx
+
+
+@respx.mock(base_url="https://foo.bar")
+async def test_something():
+    async with httpx.Client(base_url="https://foo.bar") as client:
+        request = respx.get("/baz/", content="Baz")
+        response = await client.get("/baz/")
+        assert response.text == "Baz"
+```
 
 
 ### Request callback

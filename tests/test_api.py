@@ -4,6 +4,7 @@ import re
 import asynctest
 import httpx
 import pytest
+from httpx.exceptions import NetworkError
 
 import respx
 
@@ -232,7 +233,7 @@ async def test_pass_through(parameters, expected):
             "asyncio.open_connection",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
-            with pytest.raises(ConnectionRefusedError):
+            with pytest.raises(NetworkError):
                 await httpx.get("https://example.org/")
 
         assert open_connection.called is True

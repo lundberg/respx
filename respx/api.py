@@ -7,7 +7,7 @@ from functools import partial, partialmethod, wraps
 import asynctest
 from httpx import Client, TimeoutConfig
 from httpx.backends.base import BaseSocketStream
-from httpx.dispatch.base import Dispatcher
+from httpx.dispatch.base import AsyncDispatcher
 from httpx.models import Headers, HeaderTypes, Request, Response
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
@@ -255,7 +255,7 @@ class HTTPXMock:
 
     @contextmanager
     def _patch_backend(
-        self, dispatch: Dispatcher, request: Request
+        self, dispatch: AsyncDispatcher, request: Request
     ) -> typing.Iterator[typing.Callable]:
         patchers = []
 

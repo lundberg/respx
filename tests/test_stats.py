@@ -1,10 +1,12 @@
+import asyncio
 import re
 
 import asynctest
 import httpx
 import pytest
-from httpx.concurrency.asyncio import AsyncioBackend
-from httpx.concurrency.trio import TrioBackend
+import trio
+from httpx.backends.asyncio import AsyncioBackend
+from httpx.backends.trio import TrioBackend
 
 import respx
 
@@ -97,4 +99,8 @@ def test_stats(Backend):
         assert alias.alias == foobar2.alias
 
     backend = Backend()
-    backend.run(test, backend)
+    if isinstance(backend, TrioBackend):
+        trio.run(test, backend)
+    else:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(test(backend))

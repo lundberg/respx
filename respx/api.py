@@ -6,7 +6,7 @@ from functools import partial, partialmethod, wraps
 
 import asynctest
 from httpx import Client, TimeoutConfig
-from httpx.concurrency.base import BaseSocketStream
+from httpx.backends.base import BaseSocketStream
 from httpx.dispatch.base import Dispatcher
 from httpx.models import Headers, HeaderTypes, Request, Response
 

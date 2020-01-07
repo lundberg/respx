@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 import asynctest
 from httpx import URL, Headers, Request, Response
-from httpx.concurrency.base import BaseSocketStream
+from httpx.backends.base import BaseSocketStream
 from httpx.models import HeaderTypes
 
 Regex = type(re.compile(""))

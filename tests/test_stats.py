@@ -23,15 +23,16 @@ async def test_alias():
 
 
 @pytest.mark.asyncio
-async def test_httpx_exception_handling():
+async def test_httpx_exception_handling(client):
     async with respx.HTTPXMock() as httpx_mock:
         with asynctest.mock.patch(
-            "httpx.client.Client.dispatcher_for_url", side_effect=ValueError("mock"),
+            "httpx.client.AsyncClient.dispatcher_for_url",
+            side_effect=ValueError("mock"),
         ):
             url = "https://foo.bar/"
             request = httpx_mock.get(url)
             with pytest.raises(ValueError):
-                await httpx.get(url)
+                await client.get(url)
 
         assert request.called is True
         assert httpx_mock.stats.call_count == 1
@@ -57,7 +58,7 @@ def test_stats(Backend):
         assert respx.stats.call_count == len(respx.calls)
         assert respx.stats.call_count == 0
 
-        async with httpx.Client(backend=backend) as client:
+        async with httpx.AsyncClient(backend=backend) as client:
             get_response = await client.get(url)
             del_response = await client.delete(url)
 

@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from functools import partial, partialmethod, wraps
 
 import asynctest
-from httpx import Client, TimeoutConfig
+from httpx import AsyncClient, Timeout
 from httpx.backends.base import BaseSocketStream
 from httpx.dispatch.base import AsyncDispatcher
 from httpx.models import Headers, HeaderTypes, Request, Response
@@ -14,7 +14,7 @@ from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLRespo
 
 __all__ = ["HTTPXMock"]
 
-_send = Client.send  # Pass-through reference
+_AsyncClient__send = AsyncClient.send  # Pass-through reference
 
 
 class HTTPXMock:
@@ -103,14 +103,14 @@ class HTTPXMock:
         """
         Starts mocking httpx.
         """
-        # Unbound -> bound spy version of Client.send
+        # Unbound -> bound spy version of AsyncClient.send
         async def unbound_send(
-            client: Client, request: Request, **kwargs: typing.Any
+            client: AsyncClient, request: Request, **kwargs: typing.Any
         ) -> Response:
-            return await self.__Client__send__spy(client, request, **kwargs)
+            return await self.__AsyncClient__send__spy(client, request, **kwargs)
 
-        # Patch Client.send
-        patcher = asynctest.mock.patch("httpx.Client.send", new=unbound_send)
+        # Patch AsyncClient.send
+        patcher = asynctest.mock.patch("httpx.AsyncClient.send", new=unbound_send)
         patcher.start()
 
         self._patchers.append(patcher)
@@ -291,11 +291,11 @@ class HTTPXMock:
             for patcher in patchers:
                 patcher.stop()
 
-    async def __Client__send__spy(
-        self, client: Client, request: Request, **kwargs: typing.Any
+    async def __AsyncClient__send__spy(
+        self, client: AsyncClient, request: Request, **kwargs: typing.Any
     ) -> Response:
         """
-        Spy for Client.send().
+        Spy for AsyncClient.send().
 
         Patches request.url and attaches matched response template,
         and mocks client backend open stream methods.
@@ -303,7 +303,7 @@ class HTTPXMock:
         with self._patch_backend(client.dispatch, request) as capture:
             try:
                 response = None
-                response = await _send(client, request, **kwargs)
+                response = await _AsyncClient__send(client, request, **kwargs)
                 return response
             finally:
                 capture(request, response)
@@ -321,7 +321,7 @@ class HTTPXMock:
         hostname: str,
         port: int,
         ssl_context: typing.Optional[ssl.SSLContext],
-        timeout: TimeoutConfig,
+        timeout: Timeout,
     ) -> BaseSocketStream:
         response = getattr(hostname, "attachment", None)  # Pickup attached template
         return await response.socket_stream()
@@ -331,7 +331,7 @@ class HTTPXMock:
         path: str,
         hostname: typing.Optional[str],
         ssl_context: typing.Optional[ssl.SSLContext],
-        timeout: TimeoutConfig,
+        timeout: Timeout,
     ) -> BaseSocketStream:
         response = getattr(hostname, "attachment", None)  # Pickup attached template
         return await response.socket_stream()

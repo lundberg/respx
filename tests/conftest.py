@@ -1,5 +1,6 @@
 import asyncio
 
+import httpx
 import pytest
 
 import respx
@@ -15,3 +16,9 @@ async def httpx_mock():
 def future():
     loop = asyncio.get_event_loop()
     return loop.run_until_complete
+
+
+@pytest.fixture
+async def client():
+    async with httpx.AsyncClient() as client:
+        yield client

@@ -19,9 +19,9 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     request = respx.post("https://foo.bar/baz/", status_code=201)
-    response = await httpx.post("https://foo.bar/baz/")
+    response = httpx.post("https://foo.bar/baz/")
     assert request.called
     assert response.status_code == 201
 ```

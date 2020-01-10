@@ -11,9 +11,9 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     request = respx.get("https://foo.bar/", content="foobar")
-    response = await httpx.get("https://foo.bar/")
+    response = httpx.get("https://foo.bar/")
     assert request.called
     assert response.status_code == 200
     assert response.text == "foobar"
@@ -27,13 +27,14 @@ import httpx
 import respx
 
 
-async with respx.mock:
+with respx.mock:
     request = respx.get("https://foo.bar/", content="foobar")
-    response = await httpx.get("https://foo.bar/")
+    response = httpx.get("https://foo.bar/")
     assert request.called
     assert response.status_code == 200
     assert response.text == "foobar"
 ```
+
 
 ## Advanced Usage
 
@@ -44,7 +45,20 @@ For more details on checks, see RESPX [Built-in Assertions](api.md#built-in-asse
     You can also start and stop mocking `HTTPX` manually, by calling `respx.start()` and `respx.stop()`.
 
 
-## Sync Support
+## Async Support
 
-`HTTPX` is, *since version `0.8`*, an **async** only HTTP client.
-You can still use the `respx.mock` decorator on regular **sync** functions to mock out `HTTPX` and responses.
+You can use `respx.mock` in both **sync** and **async** scopes to mock out `HTTPX` responses.
+
+``` python
+@respx.mock
+async def test_something():
+    async with httpx.AsyncClient() as client:
+        request = respx.get("https://foo.bar/", content="foobar")
+        response = await client.get("https://foo.bar/")
+```
+``` python
+async with respx.mock:
+    async with httpx.AsyncClient() as client:
+        request = respx.get("https://foo.bar/", content="foobar")
+        response = await client.get("https://foo.bar/")
+```

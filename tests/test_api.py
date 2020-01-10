@@ -4,12 +4,14 @@ import re
 import asynctest
 import httpx
 import pytest
+from httpx.exceptions import NetworkError
+from urllib3.exceptions import SSLError
 
 import respx
 
 
 @pytest.mark.asyncio
-async def test_http_methods():
+async def test_http_methods(client):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         m = httpx_mock.get(url, status_code=404)
@@ -20,33 +22,53 @@ async def test_http_methods():
         httpx_mock.head(url, status_code=405)
         httpx_mock.options(url, status_code=501)
 
-        response = await httpx.get(url)
+        response = httpx.get(url)
         assert response.status_code == 404
-        response = await httpx.post(url)
+        response = await client.get(url)
+        assert response.status_code == 404
+
+        response = httpx.post(url)
         assert response.status_code == 201
-        response = await httpx.put(url)
+        response = await client.post(url)
+        assert response.status_code == 201
+
+        response = httpx.put(url)
         assert response.status_code == 202
-        response = await httpx.patch(url)
+        response = await client.put(url)
+        assert response.status_code == 202
+
+        response = httpx.patch(url)
         assert response.status_code == 500
-        response = await httpx.delete(url)
+        response = await client.patch(url)
+        assert response.status_code == 500
+
+        response = httpx.delete(url)
         assert response.status_code == 204
-        response = await httpx.head(url)
+        response = await client.delete(url)
+        assert response.status_code == 204
+
+        response = httpx.head(url)
         assert response.status_code == 405
-        response = await httpx.options(url)
+        response = await client.head(url)
+        assert response.status_code == 405
+
+        response = httpx.options(url)
+        assert response.status_code == 501
+        response = await client.options(url)
         assert response.status_code == 501
 
         assert m.called is True
-        assert httpx_mock.stats.call_count == 7
+        assert httpx_mock.stats.call_count == 7 * 2
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url", [None, "", "https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")]
 )
-async def test_url_match(url):
+async def test_url_match(client, url):
     async with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:
         request = httpx_mock.get(url, content="baz")
-        response = await httpx.get("https://foo.bar/baz/")
+        response = await client.get("https://foo.bar/baz/")
         assert request.called is True
         assert response.status_code == 200
         assert response.text == "baz"
@@ -60,14 +82,14 @@ async def test_invalid_url_pattern():
 
 
 @pytest.mark.asyncio
-async def test_repeated_pattern():
+async def test_repeated_pattern(client):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo/bar/baz/"
         one = httpx_mock.post(url, status_code=201)
         two = httpx_mock.post(url, status_code=409)
-        response1 = await httpx.post(url, json={})
-        response2 = await httpx.post(url, json={})
-        response3 = await httpx.post(url, json={})
+        response1 = await client.post(url, json={})
+        response2 = await client.post(url, json={})
+        response3 = await client.post(url, json={})
 
         assert response1.status_code == 201
         assert response2.status_code == 409
@@ -86,11 +108,11 @@ async def test_repeated_pattern():
 
 
 @pytest.mark.asyncio
-async def test_status_code():
+async def test_status_code(client):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         request = httpx_mock.get(url, status_code=404)
-        response = await httpx.get(url)
+        response = await client.get(url)
 
     assert request.called is True
     assert response.status_code == 404
@@ -113,11 +135,11 @@ async def test_status_code():
         ),
     ],
 )
-async def test_headers(headers, content_type, expected):
+async def test_headers(client, headers, content_type, expected):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         request = httpx_mock.get(url, content_type=content_type, headers=headers)
-        response = await httpx.get(url)
+        response = await client.get(url)
         assert request.called is True
         assert response.headers == httpx.Headers(expected)
 
@@ -126,12 +148,12 @@ async def test_headers(headers, content_type, expected):
 @pytest.mark.parametrize(
     "content,expected", [(b"eldr\xc3\xa4v", "eldräv"), ("äpple", "äpple")]
 )
-async def test_text_content(content, expected):
+async def test_text_content(client, content, expected):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         content_type = "text/plain; charset=utf-8"  # TODO: Remove once respected
         request = httpx_mock.post(url, content=content, content_type=content_type)
-        response = await httpx.post(url)
+        response = await client.post(url)
         assert request.called is True
         assert response.text == expected
 
@@ -152,23 +174,30 @@ async def test_text_content(content, expected):
         ),
     ],
 )
-async def test_json_content(content, headers, expected_headers):
+async def test_json_content(client, content, headers, expected_headers):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         request = httpx_mock.get(url, content=content, headers=headers)
-        response = await httpx.get(url)
+
+        async_response = await client.get(url)
         assert request.called is True
-        assert response.headers == httpx.Headers(expected_headers or headers)
-        assert response.json() == content
+        assert async_response.headers == httpx.Headers(expected_headers or headers)
+        assert async_response.json() == content
+
+        httpx_mock.reset()
+        sync_response = httpx.get(url)
+        assert request.called is True
+        assert sync_response.headers == httpx.Headers(expected_headers or headers)
+        assert sync_response.json() == content
 
 
 @pytest.mark.asyncio
-async def test_raising_content():
+async def test_raising_content(client):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         request = httpx_mock.get(url, content=httpx.ConnectTimeout())
         with pytest.raises(httpx.ConnectTimeout):
-            await httpx.get(url)
+            await client.get(url)
 
         assert request.called is True
         _request, _response = request.calls[-1]
@@ -177,19 +206,26 @@ async def test_raising_content():
 
 
 @pytest.mark.asyncio
-async def test_callable_content():
+async def test_callable_content(client):
     async with respx.HTTPXMock() as httpx_mock:
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
         content = lambda request, slug: f"hello {slug}"
         request = httpx_mock.get(url_pattern, content=content)
-        response = await httpx.get("https://foo.bar/world/")
+
+        async_response = await client.get("https://foo.bar/world/")
         assert request.called is True
-        assert response.status_code == 200
-        assert response.text == "hello world"
+        assert async_response.status_code == 200
+        assert async_response.text == "hello world"
+
+        httpx_mock.reset()
+        sync_response = httpx.get("https://foo.bar/world/")
+        assert request.called is True
+        assert sync_response.status_code == 200
+        assert sync_response.text == "hello world"
 
 
 @pytest.mark.asyncio
-async def test_request_callback():
+async def test_request_callback(client):
     def callback(request, response):
         if request.url.host == "foo.bar":
             response.headers["X-Foo"] = "bar"
@@ -201,7 +237,7 @@ async def test_request_callback():
         request = httpx_mock.request(
             callback, status_code=202, headers={"X-Ham": "spam"}
         )
-        response = await httpx.get("https://foo.bar/")
+        response = await client.get("https://foo.bar/")
 
         assert request.called is True
         assert request.pass_through is None
@@ -213,7 +249,7 @@ async def test_request_callback():
 
         with pytest.raises(ValueError):
             httpx_mock.request(lambda req, res: "invalid")
-            await httpx.get("https://ham.spam/")
+            await client.get("https://ham.spam/")
 
 
 @pytest.mark.asyncio
@@ -224,7 +260,7 @@ async def test_request_callback():
         ({"method": lambda request, response: request}, None),
     ],
 )
-async def test_pass_through(parameters, expected):
+async def test_pass_through(client, parameters, expected):
     async with respx.HTTPXMock() as httpx_mock:
         request = httpx_mock.request(**parameters)
 
@@ -232,17 +268,29 @@ async def test_pass_through(parameters, expected):
             "asyncio.open_connection",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
-            with pytest.raises(ConnectionRefusedError):
-                await httpx.get("https://example.org/")
+            with pytest.raises(NetworkError):
+                await client.get("https://example.org/")
 
         assert open_connection.called is True
+        assert request.called is True
+        assert request.pass_through is expected
+
+        httpx_mock.reset()
+
+        with asynctest.mock.patch(
+            "urllib3.PoolManager.urlopen", side_effect=SSLError("test request blocked"),
+        ) as urlopen:
+            with pytest.raises(NetworkError):
+                httpx.get("https://example.org/")
+
+        assert urlopen.called is True
         assert request.called is True
         assert request.pass_through is expected
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_parallel_requests():
+async def test_parallel_requests(client):
     async def content(request, page):
         await asyncio.sleep(0.2 if page == "one" else 0.1)
         return page
@@ -251,7 +299,7 @@ async def test_parallel_requests():
     respx.get(url_pattern, content=content)
 
     responses = await asyncio.gather(
-        httpx.get("https://foo/one/"), httpx.get("https://foo/two/")
+        client.get("https://foo/one/"), client.get("https://foo/two/")
     )
     response_one, response_two = responses
 

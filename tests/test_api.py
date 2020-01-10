@@ -5,6 +5,7 @@ import asynctest
 import httpx
 import pytest
 from httpx.exceptions import NetworkError
+from urllib3.exceptions import SSLError
 
 import respx
 
@@ -257,6 +258,18 @@ async def test_pass_through(client, parameters, expected):
                 await client.get("https://example.org/")
 
         assert open_connection.called is True
+        assert request.called is True
+        assert request.pass_through is expected
+
+        httpx_mock.reset()
+
+        with asynctest.mock.patch(
+            "urllib3.PoolManager.urlopen", side_effect=SSLError("test request blocked"),
+        ) as urlopen:
+            with pytest.raises(NetworkError):
+                httpx.get("https://example.org/")
+
+        assert urlopen.called is True
         assert request.called is True
         assert request.pass_through is expected
 

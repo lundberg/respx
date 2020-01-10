@@ -36,6 +36,11 @@ class ResponseTemplate:
         self._headers = Headers(headers or {})
         self._content = content if content is not None else b""
 
+    def clone(self, context: typing.Optional[Kwargs] = None) -> "ResponseTemplate":
+        return ResponseTemplate(
+            self.status_code, self._headers, self._content, context=context
+        )
+
     @property
     def headers(self) -> Headers:
         if "Content-Type" not in self._headers:
@@ -43,14 +48,26 @@ class ResponseTemplate:
         return self._headers
 
     @property
-    async def content(self) -> bytes:
-        content = self._content
+    def content(self) -> bytes:
+        return self.encode_content(self._content)
 
+    @content.setter
+    def content(self, content: ContentDataTypes) -> None:
+        self._content = content
+
+    @property
+    async def acontent(self) -> bytes:
+        content: ContentDataTypes = self._content
+
+        # Pre-handle async content callbacks
+        if callable(content) and inspect.iscoroutinefunction(content):
+            content = await content(**self.context)
+
+        return self.encode_content(content)
+
+    def encode_content(self, content: ContentDataTypes) -> bytes:
         if callable(content):
-            if inspect.iscoroutinefunction(content):
-                content = await content(**self.context)
-            else:
-                content = content(**self.context)
+            content = content(**self.context)
 
         if isinstance(content, Exception):
             raise content
@@ -68,17 +85,10 @@ class ResponseTemplate:
 
         return content
 
-    @content.setter
-    def content(self, content: ContentDataTypes) -> None:
-        self._content = content
-
-    def clone(self, context: typing.Optional[Kwargs] = None) -> "ResponseTemplate":
-        return ResponseTemplate(
-            self.status_code, self._headers, self._content, context=context
-        )
-
-    async def build(self, request: Request) -> Response:
-        content = await self.content
+    def build(
+        self, request: Request, content: typing.Optional[bytes] = None
+    ) -> Response:
+        content = content or self.content
         return Response(
             status_code=self.status_code,
             http_version=f"HTTP/{self.http_version}",
@@ -87,8 +97,16 @@ class ResponseTemplate:
             request=request,
         )
 
+    async def abuild(self, request: Request) -> Response:
+        content = await self.acontent
+        return self.build(request, content)
+
+    @property
     async def socket_stream(self) -> BaseSocketStream:
-        content = await self.content
+        """
+        Mocks a SocketStream with bytes read from generated raw response.
+        """
+        content = await self.acontent
 
         # Build raw bytes data
         http_version = f"HTTP/{self.http_version}"

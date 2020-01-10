@@ -324,7 +324,7 @@ class HTTPXMock:
         timeout: Timeout,
     ) -> BaseSocketStream:
         response = getattr(hostname, "attachment", None)  # Pickup attached template
-        return await response.socket_stream()
+        return await response.socket_stream
 
     async def __Backend__open_uds_stream__mock(
         self,
@@ -334,4 +334,4 @@ class HTTPXMock:
         timeout: Timeout,
     ) -> BaseSocketStream:
         response = getattr(hostname, "attachment", None)  # Pickup attached template
-        return await response.socket_stream()
+        return await response.socket_stream

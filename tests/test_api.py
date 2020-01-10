@@ -178,10 +178,17 @@ async def test_json_content(client, content, headers, expected_headers):
     async with respx.HTTPXMock() as httpx_mock:
         url = "https://foo.bar/"
         request = httpx_mock.get(url, content=content, headers=headers)
-        response = await client.get(url)
+
+        async_response = await client.get(url)
         assert request.called is True
-        assert response.headers == httpx.Headers(expected_headers or headers)
-        assert response.json() == content
+        assert async_response.headers == httpx.Headers(expected_headers or headers)
+        assert async_response.json() == content
+
+        httpx_mock.reset()
+        sync_response = httpx.get(url)
+        assert request.called is True
+        assert sync_response.headers == httpx.Headers(expected_headers or headers)
+        assert sync_response.json() == content
 
 
 @pytest.mark.asyncio
@@ -204,10 +211,17 @@ async def test_callable_content(client):
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
         content = lambda request, slug: f"hello {slug}"
         request = httpx_mock.get(url_pattern, content=content)
-        response = await client.get("https://foo.bar/world/")
+
+        async_response = await client.get("https://foo.bar/world/")
         assert request.called is True
-        assert response.status_code == 200
-        assert response.text == "hello world"
+        assert async_response.status_code == 200
+        assert async_response.text == "hello world"
+
+        httpx_mock.reset()
+        sync_response = httpx.get("https://foo.bar/world/")
+        assert request.called is True
+        assert sync_response.status_code == 200
+        assert sync_response.text == "hello world"
 
 
 @pytest.mark.asyncio

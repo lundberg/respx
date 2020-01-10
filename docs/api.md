@@ -280,6 +280,8 @@ The `respx` API includes a `.calls` list, containing captured (`request`, `respo
 
 Each mocked response *request pattern* has its own `.calls` and `.stats`, along with `.called` and `.call_count ` stats shortcuts.
 
+To reset stats without stop mocking, use `respx.reset()`.
+
 ``` python
 import httpx
 import respx
@@ -302,4 +304,8 @@ def test_something():
     request, response = respx.calls[-1]
     assert request.method == "GET"
     assert response.status_code == 200
+
+    respx.reset()
+    assert len(respx.calls) == 0
+    assert respx.stats.call_count == 0
 ```

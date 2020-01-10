@@ -135,12 +135,20 @@ class HTTPXMock:
             patcher.stop()
 
         if reset:
+            self.clear()
             self.reset()
 
-    def reset(self):
-        self._patchers.clear()
+    def clear(self) -> None:
+        """
+        Clears added patterns and aliases.
+        """
         self._patterns.clear()
         self.aliases.clear()
+
+    def reset(self) -> None:
+        """
+        Resets call stats.
+        """
         self.calls.clear()
         self.stats.reset_mock()
 

@@ -273,7 +273,7 @@ class HTTPXMock:
         )
 
     @contextmanager
-    def _patch_backend(
+    def _patch_dispatcher(
         self, dispatch: typing.Union[SyncDispatcher, AsyncDispatcher], request: Request
     ) -> typing.Iterator[typing.Callable]:
         patchers = []
@@ -318,9 +318,9 @@ class HTTPXMock:
         Spy for Client.send().
 
         Patches request.url and attaches matched response template,
-        and mocks client backend open stream methods.
+        and mocks client dispatcher send method.
         """
-        with self._patch_backend(client.dispatch, request) as capture:
+        with self._patch_dispatcher(client.dispatch, request) as capture:
             try:
                 response = None
                 response = _Client__send(client, request, **kwargs)
@@ -335,9 +335,9 @@ class HTTPXMock:
         Spy for AsyncClient.send().
 
         Patches request.url and attaches matched response template,
-        and mocks client backend open stream methods.
+        and mocks client concurrency backend open stream methods.
         """
-        with self._patch_backend(client.dispatch, request) as capture:
+        with self._patch_dispatcher(client.dispatch, request) as capture:
             try:
                 response = None
                 response = await _AsyncClient__send(client, request, **kwargs)

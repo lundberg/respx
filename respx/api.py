@@ -348,7 +348,6 @@ class HTTPXMock:
     def __SyncDispatcher__send__mock(
         self, request: Request, **kwargs: typing.Any
     ) -> Response:
-        # TODO: Support pass-through
         hostname = request.url.host
         response = getattr(hostname, "attachment", None)  # Pickup attached template
         return response.build(request)
@@ -356,7 +355,6 @@ class HTTPXMock:
     async def __AsyncDispatcher__send__mock(
         self, request: Request, **kwargs: typing.Any
     ) -> Response:
-        # TODO: Support pass-through
         hostname = request.url.host
         response = getattr(hostname, "attachment", None)  # Pickup attached template
         return await response.abuild(request)

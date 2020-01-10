@@ -72,10 +72,10 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     url_pattern = re.compile(r"^https://foo.bar/\w+/$")
     respx.get(url_pattern, content="Baz")
-    response = await httpx.get("https://foo.bar/baz/")
+    response = httpx.get("https://foo.bar/baz/")
     assert response.text == "Baz"
 ```
 !!! tip
@@ -95,7 +95,7 @@ import respx
 
 @respx.mock(base_url="https://foo.bar")
 async def test_something():
-    async with httpx.Client(base_url="https://foo.bar") as client:
+    async with httpx.AsyncClient(base_url="https://foo.bar") as client:
         request = respx.get("/baz/", content="Baz")
         response = await client.get("/baz/")
         assert response.text == "Baz"
@@ -131,19 +131,19 @@ def match_and_mock(request, response):
 
 
 @respx.mock
-async def test_something():
+def test_something():
     custom_request = respx.request(match_and_mock, status_code=201)
     respx.get("https://foo.bar/baz/")
 
-    response = await httpx.get("https://foo.bar/baz/")
+    response = httpx.get("https://foo.bar/baz/")
     assert response.status_code == 200
     assert not custom_request.called
 
-    response = await httpx.post("https://foo.bar/baz/")
+    response = httpx.post("https://foo.bar/baz/")
     assert response.status_code == 401
     assert custom_request.called
 
-    response = await httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "x"})
+    response = httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "x"})
     assert response.status_code == 201
     assert custom_request.call_count == 2
 ```
@@ -159,18 +159,18 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     respx.get("https://foo.bar/baz/123/", status_code=404)
     respx.get("https://foo.bar/baz/123/", content={"id": 123})
     respx.post("https://foo.bar/baz/", status_code=201)
 
-    response = await httpx.get("https://foo.bar/baz/123/")
+    response = httpx.get("https://foo.bar/baz/123/")
     assert response.status_code == 404  # First match
 
-    response = await httpx.post("https://foo.bar/baz/")
+    response = httpx.post("https://foo.bar/baz/")
     assert response.status_code == 201
 
-    response = await httpx.get("https://foo.bar/baz/123/")
+    response = httpx.get("https://foo.bar/baz/123/")
     assert response.status_code == 200  # Second match
     assert response.json() == {"id": 123}
 ```
@@ -190,9 +190,9 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     respx.get("https://foo.bar/baz/123/", content={"id": 123})
-    response = await httpx.get("https://foo.bar/baz/123/")
+    response = httpx.get("https://foo.bar/baz/123/")
     assert response.json() == {"id": 123}
 ```
 
@@ -214,11 +214,11 @@ def some_content(request, slug=None):
 
 
 @respx.mock
-async def test_something():
+def test_something():
     url_pattern = r"^https://foo.bar/(?P<slug>\w+)/$")
     respx.get(url_pattern, content=some_content)
 
-    response = await httpx.get("https://foo.bar/apa/")
+    response = httpx.get("https://foo.bar/apa/")
     assert response.json() == {"slug": "apa"}
 ```
 
@@ -234,9 +234,9 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     respx.get("https://foo.bar/", content=httpx.ConnectTimeout())
-    response = await httpx.get("https://foo.bar/")  # Will raise
+    response = httpx.get("https://foo.bar/")  # Will raise
 ```
 
 ---
@@ -254,17 +254,17 @@ Configure checks by using the `respx.mock` decorator / context manager *with* pa
 
 ``` python
 @respx.mock(assert_all_called=False)
-async def test_something(httpx_mock):
+def test_something(httpx_mock):
     httpx_mock.get("https://some.url/")  # OK
     httpx_mock.get("https://foo.bar/")
 
-    response = await httpx.get("https://foo.bar/")
+    response = httpx.get("https://foo.bar/")
     assert response.status_code == 200
     assert httpx_mock.stats.call_count == 1
 ```
 ``` python
-async with respx.mock(assert_all_mocked=False) as httpx_mock:
-    response = await httpx.get("https://foo.bar/")  # OK
+with respx.mock(assert_all_mocked=False) as httpx_mock:
+    response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
     assert httpx_mock.stats.call_count == 1
 ```
@@ -286,14 +286,14 @@ import respx
 
 
 @respx.mock
-async def test_something():
+def test_something():
     request = respx.post("https://foo.bar/baz/", status_code=201)
-    await httpx.post("https://foo.bar/baz/")
+    httpx.post("https://foo.bar/baz/")
     assert request.called
     assert request.call_count == 1
 
     respx.get("https://foo.bar/", alias="index")
-    await httpx.get("https://foo.bar/")
+    httpx.get("https://foo.bar/")
     assert respx.aliases["index"].called
     assert respx.aliases["index"].call_count == 1
 

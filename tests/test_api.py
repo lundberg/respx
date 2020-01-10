@@ -21,23 +21,43 @@ async def test_http_methods(client):
         httpx_mock.head(url, status_code=405)
         httpx_mock.options(url, status_code=501)
 
+        response = httpx.get(url)
+        assert response.status_code == 404
         response = await client.get(url)
         assert response.status_code == 404
+
+        response = httpx.post(url)
+        assert response.status_code == 201
         response = await client.post(url)
         assert response.status_code == 201
+
+        response = httpx.put(url)
+        assert response.status_code == 202
         response = await client.put(url)
         assert response.status_code == 202
+
+        response = httpx.patch(url)
+        assert response.status_code == 500
         response = await client.patch(url)
         assert response.status_code == 500
+
+        response = httpx.delete(url)
+        assert response.status_code == 204
         response = await client.delete(url)
         assert response.status_code == 204
+
+        response = httpx.head(url)
+        assert response.status_code == 405
         response = await client.head(url)
         assert response.status_code == 405
+
+        response = httpx.options(url)
+        assert response.status_code == 501
         response = await client.options(url)
         assert response.status_code == 501
 
         assert m.called is True
-        assert httpx_mock.stats.call_count == 7
+        assert httpx_mock.stats.call_count == 7 * 2
 
 
 @pytest.mark.asyncio

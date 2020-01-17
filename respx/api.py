@@ -25,12 +25,12 @@ class HTTPXMock:
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: typing.Optional[str] = None,
-        local: bool = True,
+        proxy: typing.Optional["HTTPXMock"] = None,
     ) -> None:
-        self._is_local = local
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._base_url = base_url
+        self._proxy = proxy
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
@@ -51,10 +51,14 @@ class HTTPXMock:
         for global state, i.e. shared patterns added outside of scope.
         """
         if func is None:
-            # A. First stage of "local" decorator, WITH parentheses.
-            # B. Only stage of "local" context manager, WITH parentheses,
-            #    "global" context maanager hits __enter__ directly.
-            settings: typing.Dict[str, typing.Any] = {"base_url": base_url}
+            # Parantheses used, branch out to new nested instance.
+            # - Only stage when using local ctx `with respx.mock(...) as httpx_mock:`
+            # - First stage when using local decorator `@respx.mock(...)`
+            #   FYI, global ctx `with respx.mock:` hits __enter__ directly
+            settings: typing.Dict[str, typing.Any] = {
+                "base_url": base_url,
+                "proxy": self,
+            }
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
@@ -65,7 +69,7 @@ class HTTPXMock:
         @wraps(func)
         async def async_decorator(*args, **kwargs):
             assert func is not None
-            if self._is_local:
+            if self._proxy:
                 kwargs["httpx_mock"] = self
             async with self:
                 return await func(*args, **kwargs)
@@ -74,14 +78,14 @@ class HTTPXMock:
         @wraps(func)
         def sync_decorator(*args, **kwargs):
             assert func is not None
-            if self._is_local:
+            if self._proxy:
                 kwargs["httpx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 
-        # Dispatch async/sync decorator, depening on decorated function
-        # A. Second stage of "local" decorator, WITH parentheses.
-        # A. Only stage of "global" decorator, WITHOUT parentheses.
+        # Dispatch async/sync decorator, depening on decorated function.
+        # - Only stage when using global decorator `@respx.mock`
+        # - Second stage when using local decorator `@respx.mock(...)`
         return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def __enter__(self) -> "HTTPXMock":

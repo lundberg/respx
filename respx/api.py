@@ -31,6 +31,7 @@ class HTTPXMock:
         self._assert_all_mocked = assert_all_mocked
         self._base_url = base_url
         self._proxy = proxy
+        self._mocks: typing.List[HTTPXMock] = []
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
@@ -92,9 +93,6 @@ class HTTPXMock:
         self.start()
         return self
 
-    async def __aenter__(self) -> "HTTPXMock":
-        return self.__enter__()
-
     def __exit__(self, *args: typing.Any) -> None:
         try:
             if self._assert_all_called:
@@ -102,13 +100,30 @@ class HTTPXMock:
         finally:
             self.stop()
 
+    async def __aenter__(self) -> "HTTPXMock":
+        return self.__enter__()
+
     async def __aexit__(self, *args: typing.Any) -> None:
         self.__exit__(*args)
 
-    def start(self) -> None:
+    def start(self, httpx_mock: typing.Optional["HTTPXMock"] = None) -> None:
         """
         Starts mocking httpx.
         """
+        httpx_mock = httpx_mock or self
+
+        # Ensure we patch HTTPX using proxy instance
+        if self._proxy:
+            self._proxy.start(httpx_mock=httpx_mock)
+            return
+
+        # Register given mock instance
+        self._mocks.append(httpx_mock)
+
+        # Ensure we only patch HTTPX once!
+        if self._patchers:
+            return
+
         # Unbound -> bound spy version of Client.send
         def unbound_sync_send(
             client: Client, request: Request, **kwargs: typing.Any
@@ -130,17 +145,38 @@ class HTTPXMock:
             patcher.start()
             self._patchers.append(patcher)
 
-    def stop(self, reset: bool = True) -> None:
+    def stop(
+        self,
+        httpx_mock: typing.Optional["HTTPXMock"] = None,
+        clear: bool = True,
+        reset: bool = True,
+    ) -> None:
         """
         Stops mocking httpx.
         """
+        httpx_mock = httpx_mock or self
+
+        if clear:
+            self.clear()
+        if reset:
+            self.reset()
+
+        # Ensure we stop patching HTTPX using proxy instance
+        if self._proxy is not None:
+            self._proxy.stop(httpx_mock=httpx_mock, reset=False)
+            return
+
+        # Unregister given mock instance
+        assert httpx_mock in self._mocks, "HTTPX mock already stopped!"
+        self._mocks.remove(httpx_mock)
+
+        # Ensure we don't stop patch HTTPX when registered mockers exists
+        if self._mocks:
+            return
+
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
-
-        if reset:
-            self.clear()
-            self.reset()
 
     def clear(self) -> None:
         """
@@ -212,50 +248,57 @@ class HTTPXMock:
     def _match(
         self, request: Request
     ) -> typing.Tuple[
-        typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
+        "HTTPXMock", typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
         matched_pattern: typing.Optional[RequestPattern] = None
         matched_pattern_index: typing.Optional[int] = None
         response: typing.Optional[ResponseTemplate] = None
 
-        for i, pattern in enumerate(self._patterns):
-            match = pattern.match(request)
-            if not match:
-                continue
+        # Iterate all started mockers and their patterns
+        for httpx_mock in self._mocks:
+            patterns = httpx_mock._patterns
 
-            if matched_pattern_index is not None:
-                # Multiple matches found, drop and use the first one
-                self._patterns.pop(matched_pattern_index)
+            for i, pattern in enumerate(patterns):
+                match = pattern.match(request)
+                if not match:
+                    continue
+
+                if matched_pattern_index is not None:
+                    # Multiple matches found, drop and use the first one
+                    patterns.pop(matched_pattern_index)
+                    break
+
+                used_mock = httpx_mock
+                matched_pattern = pattern
+                matched_pattern_index = i
+
+                if isinstance(match, ResponseTemplate):
+                    # Mock response
+                    response = match
+                elif isinstance(match, Request):
+                    # Pass-through request
+                    response = None
+                else:
+                    raise ValueError(
+                        (
+                            "Matched request pattern must return either a "
+                            'ResponseTemplate or a Request, got "{}"'
+                        ).format(type(match))
+                    )
+
+            if matched_pattern:
                 break
 
-            matched_pattern = pattern
-            matched_pattern_index = i
-
-            if isinstance(match, ResponseTemplate):
-                # Mock response
-                response = match
-            elif isinstance(match, Request):
-                # Pass-through request
-                response = None
-            else:
-                raise ValueError(
-                    (
-                        "Matched request pattern must return either a "
-                        'ResponseTemplate or a Request, got "{}"'
-                    ).format(type(match))
-                )
-
-        # Assert we always get a pattern match, if check is enabled
-        assert (
-            not self._assert_all_mocked
-            or self._assert_all_mocked
-            and matched_pattern is not None
-        ), f"RESPX: {request!r} not mocked!"
-
         if matched_pattern is None:
+            # Assert we always get a pattern match, if check is enabled
+            allows_unmocked = tuple(m for m in self._mocks if not m._assert_all_mocked)
+            assert allows_unmocked, f"RESPX: {request!r} not mocked!"
+
+            # Relate default response to first mocker that allows unmocked requests
+            used_mock = allows_unmocked[0]
             response = ResponseTemplate()
 
-        return matched_pattern, response
+        return used_mock, matched_pattern, response
 
     def _capture(
         self,
@@ -283,7 +326,7 @@ class HTTPXMock:
         patchers = []
 
         # 1. Match request against added patterns
-        pattern, response = self._match(request)
+        httpx_mock, pattern, response = self._match(request)
 
         if response is not None:
             # 2. Patch request url with response for later pickup in patched dispatcher
@@ -309,7 +352,7 @@ class HTTPXMock:
                 patchers.append(patcher)
 
         try:
-            yield partial(self._capture, pattern=pattern)
+            yield partial(httpx_mock._capture, pattern=pattern)
         finally:
             # 4. Stop patching
             for patcher in patchers:

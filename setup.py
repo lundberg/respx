@@ -32,5 +32,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     python_requires=">=3.6",
-    install_requires=["httpx==0.11.0", "asynctest"],
+    install_requires=["httpx>=0.11,<0.12", "asynctest"],
 )

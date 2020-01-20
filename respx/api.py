@@ -94,11 +94,7 @@ class HTTPXMock:
         return self
 
     def __exit__(self, *args: typing.Any) -> None:
-        try:
-            if self._assert_all_called:
-                self.assert_all_called()
-        finally:
-            self.stop()
+        self.stop()
 
     async def __aenter__(self) -> "HTTPXMock":
         return self.__enter__()
@@ -106,20 +102,49 @@ class HTTPXMock:
     async def __aexit__(self, *args: typing.Any) -> None:
         self.__exit__(*args)
 
-    def start(self, httpx_mock: typing.Optional["HTTPXMock"] = None) -> None:
+    def start(self) -> None:
         """
-        Starts mocking httpx.
+        Register mock/patterns and starts patching HTTPX.
         """
-        httpx_mock = httpx_mock or self
+        self._register(self)
 
+    def stop(self, clear: bool = True, reset: bool = True) -> None:
+        """
+        Unregister mock/patterns and stop patching HTTPX, when no registered mocks left.
+        """
+        try:
+            if self._assert_all_called:
+                self.assert_all_called()
+        finally:
+            if clear:
+                self.clear()
+            if reset:
+                self.reset()
+
+            self._unregister(self)
+
+    def _register(self, httpx_mock: "HTTPXMock") -> None:
         # Ensure we patch HTTPX using proxy instance
         if self._proxy:
-            self._proxy.start(httpx_mock=httpx_mock)
+            self._proxy._register(httpx_mock)
             return
 
-        # Register given mock instance
+        # Register given mock instance / patterns
         self._mocks.append(httpx_mock)
+        self._patch()
 
+    def _unregister(self, httpx_mock: "HTTPXMock") -> None:
+        # Ensure we unpatch HTTPX using proxy instance
+        if self._proxy is not None:
+            self._proxy._unregister(httpx_mock)
+            return
+
+        # Unregister given mock instance / patterns
+        assert httpx_mock in self._mocks, "HTTPX mock already stopped!"
+        self._mocks.remove(httpx_mock)
+        self._unpatch()
+
+    def _patch(self) -> None:
         # Ensure we only patch HTTPX once!
         if self._patchers:
             return
@@ -136,6 +161,7 @@ class HTTPXMock:
         ) -> Response:
             return await self.__AsyncClient__send__spy(client, request, **kwargs)
 
+        # Start patching HTTPX
         mockers = (
             ("httpx.Client.send", unbound_sync_send),
             ("httpx.AsyncClient.send", unbound_async_send),
@@ -145,35 +171,12 @@ class HTTPXMock:
             patcher.start()
             self._patchers.append(patcher)
 
-    def stop(
-        self,
-        httpx_mock: typing.Optional["HTTPXMock"] = None,
-        clear: bool = True,
-        reset: bool = True,
-    ) -> None:
-        """
-        Stops mocking httpx.
-        """
-        httpx_mock = httpx_mock or self
-
-        if clear:
-            self.clear()
-        if reset:
-            self.reset()
-
-        # Ensure we stop patching HTTPX using proxy instance
-        if self._proxy is not None:
-            self._proxy.stop(httpx_mock=httpx_mock, reset=False)
-            return
-
-        # Unregister given mock instance
-        assert httpx_mock in self._mocks, "HTTPX mock already stopped!"
-        self._mocks.remove(httpx_mock)
-
-        # Ensure we don't stop patch HTTPX when registered mockers exists
+    def _unpatch(self) -> None:
+        # Ensure we don't stop patching HTTPX when registered mocks exists
         if self._mocks:
             return
 
+        # Stop patching HTTPX
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
@@ -253,6 +256,8 @@ class HTTPXMock:
         matched_pattern: typing.Optional[RequestPattern] = None
         matched_pattern_index: typing.Optional[int] = None
         response: typing.Optional[ResponseTemplate] = None
+        # if request.url == "https://foo.bar/asgi/":
+        # import pdb; pdb.set_trace()
 
         # Iterate all started mockers and their patterns
         for httpx_mock in self._mocks:

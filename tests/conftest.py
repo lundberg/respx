@@ -1,18 +1,8 @@
-import asyncio
-
 import httpx
 import pytest
 
 import respx
-
-pytestmark = pytest.mark.asyncio
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+from respx.fixtures import session_event_loop as event_loop  # noqa
 
 
 @pytest.fixture
@@ -29,14 +19,15 @@ async def httpx_mock():
 
 
 @pytest.fixture(scope="session")
-async def mocked_foo(event_loop):
+async def mocked_foo():
     async with respx.mock(base_url="https://foo.api") as httpx_mock:
         httpx_mock.get("/", status_code=202, alias="index")
+        httpx_mock.get("/bar/", alias="bar")
         yield httpx_mock
 
 
 @pytest.fixture(scope="session")
-async def mocked_ham(event_loop):
+async def mocked_ham():
     async with respx.mock(base_url="https://ham.api") as httpx_mock:
         httpx_mock.get("/", status_code=200, alias="index")
         yield httpx_mock

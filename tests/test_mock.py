@@ -32,9 +32,19 @@ async def test_mock_request_fixture(client, httpx_mock):
 
 
 @pytest.mark.asyncio
-async def test_mock_session_fixture(client, mocked_foo, mocked_ham):
-    assert mocked_foo.stats.call_count == 0
-    assert mocked_ham.stats.call_count == 0
+async def test_mock_single_session_fixture(client, mocked_foo):
+    current_foo_call_count = mocked_foo.stats.call_count
+    response = await client.get("https://foo.api/bar/")
+    request = mocked_foo.aliases["bar"]
+    assert request.called is True
+    assert response.status_code == 200
+    assert mocked_foo.stats.call_count == current_foo_call_count + 1
+
+
+@pytest.mark.asyncio
+async def test_mock_multiple_session_fixtures(client, mocked_foo, mocked_ham):
+    current_foo_call_count = mocked_foo.stats.call_count
+    current_ham_call_count = mocked_ham.stats.call_count
 
     response = await client.get("https://foo.api/")
     request = mocked_foo.aliases["index"]
@@ -46,8 +56,8 @@ async def test_mock_session_fixture(client, mocked_foo, mocked_ham):
     assert request.called is True
     assert response.status_code == 200
 
-    assert mocked_foo.stats.call_count == 1
-    assert mocked_ham.stats.call_count == 1
+    assert mocked_foo.stats.call_count == current_foo_call_count + 1
+    assert mocked_ham.stats.call_count == current_ham_call_count + 1
 
 
 def test_global_sync_decorator():

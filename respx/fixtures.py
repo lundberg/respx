@@ -1,6 +1,6 @@
 try:
     import pytest
-except ImportError:
+except ImportError:  # pragma: nocover
     pass
 else:
     import asyncio

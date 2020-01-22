@@ -25,12 +25,13 @@ class HTTPXMock:
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: typing.Optional[str] = None,
-        local: bool = True,
+        proxy: typing.Optional["HTTPXMock"] = None,
     ) -> None:
-        self._is_local = local
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._base_url = base_url
+        self._proxy = proxy
+        self._mocks: typing.List[HTTPXMock] = []
         self._patchers: typing.List[asynctest.mock._patch] = []
         self._patterns: typing.List[RequestPattern] = []
         self.aliases: typing.Dict[str, RequestPattern] = {}
@@ -51,10 +52,14 @@ class HTTPXMock:
         for global state, i.e. shared patterns added outside of scope.
         """
         if func is None:
-            # A. First stage of "local" decorator, WITH parentheses.
-            # B. Only stage of "local" context manager, WITH parentheses,
-            #    "global" context maanager hits __enter__ directly.
-            settings: typing.Dict[str, typing.Any] = {"base_url": base_url}
+            # Parantheses used, branch out to new nested instance.
+            # - Only stage when using local ctx `with respx.mock(...) as httpx_mock:`
+            # - First stage when using local decorator `@respx.mock(...)`
+            #   FYI, global ctx `with respx.mock:` hits __enter__ directly
+            settings: typing.Dict[str, typing.Any] = {
+                "base_url": base_url,
+                "proxy": self,
+            }
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
@@ -65,7 +70,7 @@ class HTTPXMock:
         @wraps(func)
         async def async_decorator(*args, **kwargs):
             assert func is not None
-            if self._is_local:
+            if self._proxy:
                 kwargs["httpx_mock"] = self
             async with self:
                 return await func(*args, **kwargs)
@@ -74,37 +79,76 @@ class HTTPXMock:
         @wraps(func)
         def sync_decorator(*args, **kwargs):
             assert func is not None
-            if self._is_local:
+            if self._proxy:
                 kwargs["httpx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 
-        # Dispatch async/sync decorator, depening on decorated function
-        # A. Second stage of "local" decorator, WITH parentheses.
-        # A. Only stage of "global" decorator, WITHOUT parentheses.
+        # Dispatch async/sync decorator, depening on decorated function.
+        # - Only stage when using global decorator `@respx.mock`
+        # - Second stage when using local decorator `@respx.mock(...)`
         return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
     def __enter__(self) -> "HTTPXMock":
         self.start()
         return self
 
+    def __exit__(self, *args: typing.Any) -> None:
+        self.stop()
+
     async def __aenter__(self) -> "HTTPXMock":
         return self.__enter__()
-
-    def __exit__(self, *args: typing.Any) -> None:
-        try:
-            if self._assert_all_called:
-                self.assert_all_called()
-        finally:
-            self.stop()
 
     async def __aexit__(self, *args: typing.Any) -> None:
         self.__exit__(*args)
 
     def start(self) -> None:
         """
-        Starts mocking httpx.
+        Register mock/patterns and starts patching HTTPX.
         """
+        self._register(self)
+
+    def stop(self, clear: bool = True, reset: bool = True) -> None:
+        """
+        Unregister mock/patterns and stop patching HTTPX, when no registered mocks left.
+        """
+        try:
+            if self._assert_all_called:
+                self.assert_all_called()
+        finally:
+            if clear:
+                self.clear()
+            if reset:
+                self.reset()
+
+            self._unregister(self)
+
+    def _register(self, httpx_mock: "HTTPXMock") -> None:
+        # Ensure we patch HTTPX using proxy instance
+        if self._proxy:
+            self._proxy._register(httpx_mock)
+            return
+
+        # Register given mock instance / patterns
+        self._mocks.append(httpx_mock)
+        self._patch()
+
+    def _unregister(self, httpx_mock: "HTTPXMock") -> None:
+        # Ensure we unpatch HTTPX using proxy instance
+        if self._proxy is not None:
+            self._proxy._unregister(httpx_mock)
+            return
+
+        # Unregister given mock instance / patterns
+        assert httpx_mock in self._mocks, "HTTPX mock already stopped!"
+        self._mocks.remove(httpx_mock)
+        self._unpatch()
+
+    def _patch(self) -> None:
+        # Ensure we only patch HTTPX once!
+        if self._patchers:
+            return
+
         # Unbound -> bound spy version of Client.send
         def unbound_sync_send(
             client: Client, request: Request, **kwargs: typing.Any
@@ -117,6 +161,7 @@ class HTTPXMock:
         ) -> Response:
             return await self.__AsyncClient__send__spy(client, request, **kwargs)
 
+        # Start patching HTTPX
         mockers = (
             ("httpx.Client.send", unbound_sync_send),
             ("httpx.AsyncClient.send", unbound_async_send),
@@ -126,17 +171,15 @@ class HTTPXMock:
             patcher.start()
             self._patchers.append(patcher)
 
-    def stop(self, reset: bool = True) -> None:
-        """
-        Stops mocking httpx.
-        """
+    def _unpatch(self) -> None:
+        # Ensure we don't stop patching HTTPX when registered mocks exists
+        if self._mocks:
+            return
+
+        # Stop patching HTTPX
         while self._patchers:
             patcher = self._patchers.pop()
             patcher.stop()
-
-        if reset:
-            self.clear()
-            self.reset()
 
     def clear(self) -> None:
         """
@@ -208,50 +251,59 @@ class HTTPXMock:
     def _match(
         self, request: Request
     ) -> typing.Tuple[
-        typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
+        "HTTPXMock", typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
         matched_pattern: typing.Optional[RequestPattern] = None
         matched_pattern_index: typing.Optional[int] = None
         response: typing.Optional[ResponseTemplate] = None
+        # if request.url == "https://foo.bar/asgi/":
+        # import pdb; pdb.set_trace()
 
-        for i, pattern in enumerate(self._patterns):
-            match = pattern.match(request)
-            if not match:
-                continue
+        # Iterate all started mockers and their patterns
+        for httpx_mock in self._mocks:
+            patterns = httpx_mock._patterns
 
-            if matched_pattern_index is not None:
-                # Multiple matches found, drop and use the first one
-                self._patterns.pop(matched_pattern_index)
+            for i, pattern in enumerate(patterns):
+                match = pattern.match(request)
+                if not match:
+                    continue
+
+                if matched_pattern_index is not None:
+                    # Multiple matches found, drop and use the first one
+                    patterns.pop(matched_pattern_index)
+                    break
+
+                used_mock = httpx_mock
+                matched_pattern = pattern
+                matched_pattern_index = i
+
+                if isinstance(match, ResponseTemplate):
+                    # Mock response
+                    response = match
+                elif isinstance(match, Request):
+                    # Pass-through request
+                    response = None
+                else:
+                    raise ValueError(
+                        (
+                            "Matched request pattern must return either a "
+                            'ResponseTemplate or a Request, got "{}"'
+                        ).format(type(match))
+                    )
+
+            if matched_pattern:
                 break
 
-            matched_pattern = pattern
-            matched_pattern_index = i
-
-            if isinstance(match, ResponseTemplate):
-                # Mock response
-                response = match
-            elif isinstance(match, Request):
-                # Pass-through request
-                response = None
-            else:
-                raise ValueError(
-                    (
-                        "Matched request pattern must return either a "
-                        'ResponseTemplate or a Request, got "{}"'
-                    ).format(type(match))
-                )
-
-        # Assert we always get a pattern match, if check is enabled
-        assert (
-            not self._assert_all_mocked
-            or self._assert_all_mocked
-            and matched_pattern is not None
-        ), f"RESPX: {request!r} not mocked!"
-
         if matched_pattern is None:
+            # Assert we always get a pattern match, if check is enabled
+            allows_unmocked = tuple(m for m in self._mocks if not m._assert_all_mocked)
+            assert allows_unmocked, f"RESPX: {request!r} not mocked!"
+
+            # Relate default response to first mocker that allows unmocked requests
+            used_mock = allows_unmocked[0]
             response = ResponseTemplate()
 
-        return matched_pattern, response
+        return used_mock, matched_pattern, response
 
     def _capture(
         self,
@@ -279,7 +331,7 @@ class HTTPXMock:
         patchers = []
 
         # 1. Match request against added patterns
-        pattern, response = self._match(request)
+        httpx_mock, pattern, response = self._match(request)
 
         if response is not None:
             # 2. Patch request url with response for later pickup in patched dispatcher
@@ -305,7 +357,7 @@ class HTTPXMock:
                 patchers.append(patcher)
 
         try:
-            yield partial(self._capture, pattern=pattern)
+            yield partial(httpx_mock._capture, pattern=pattern)
         finally:
             # 4. Stop patching
             for patcher in patchers:

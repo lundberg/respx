@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 import respx
-from respx.fixtures import session_event_loop as event_loop
+from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ async def httpx_mock():
 
 
 @pytest.fixture(scope="session")
-async def mocked_foo(event_loop):
+async def mocked_foo(event_loop):  # noqa: F811
     async with respx.mock(base_url="https://foo.api") as httpx_mock:
         httpx_mock.get("/", status_code=202, alias="index")
         httpx_mock.get("/bar/", alias="bar")
@@ -27,7 +27,7 @@ async def mocked_foo(event_loop):
 
 
 @pytest.fixture(scope="session")
-async def mocked_ham(event_loop):
+async def mocked_ham(event_loop):  # noqa: F811
     async with respx.mock(base_url="https://ham.api") as httpx_mock:
         httpx_mock.get("/", status_code=200, alias="index")
         yield httpx_mock

@@ -148,11 +148,11 @@ If a session scoped RESPX fixture is used in an async context, you also need to 
 
 import pytest
 import respx
-from respx.fixtures import session_event_loop as event_loop  # noqa
+from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 
 
 @pytest.fixture(scope="session")
-async def mocked_api(event_loop):
+async def mocked_api(event_loop):  # noqa: F811
     async with respx.mock(base_url="https://foo.bar") as httpx_mock:
         ...
         yield httpx_mock

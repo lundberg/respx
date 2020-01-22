@@ -143,7 +143,7 @@ If a session scoped RESPX fixture is used in an async context, you also need to 
  [event_loop](https://github.com/pytest-dev/pytest-asyncio#event_loop) fixture.
  You can use the `session_event_loop` utility for this. 
 
-```
+``` python
 # conftest.py
 
 import pytest
@@ -152,7 +152,7 @@ from respx.fixtures import session_event_loop as event_loop  # noqa
 
 
 @pytest.fixture(scope="session")
-async def mocked_api():
+async def mocked_api(event_loop):
     async with respx.mock(base_url="https://foo.bar") as httpx_mock:
         ...
         yield httpx_mock

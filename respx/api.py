@@ -256,8 +256,6 @@ class HTTPXMock:
         matched_pattern: typing.Optional[RequestPattern] = None
         matched_pattern_index: typing.Optional[int] = None
         response: typing.Optional[ResponseTemplate] = None
-        # if request.url == "https://foo.bar/asgi/":
-        # import pdb; pdb.set_trace()
 
         # Iterate all started mockers and their patterns
         for httpx_mock in self._mocks:

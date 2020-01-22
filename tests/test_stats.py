@@ -103,5 +103,8 @@ def test_stats(Backend):
     if isinstance(backend, TrioBackend):
         trio.run(test, backend)
     else:
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(test(backend))
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(test(backend))
+        finally:
+            loop.close()

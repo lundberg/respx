@@ -54,7 +54,7 @@ import respx
 @pytest.fixture
 def mocked_api():
     with respx.mock(base_url="https://foo.bar") as httpx_mock:
-        httpx_mock.get("/user/", content=[], alias="list_users")
+        httpx_mock.get("/users/", content=[], alias="list_users")
         ...
         yield httpx_mock
 ```

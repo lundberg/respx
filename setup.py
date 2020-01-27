@@ -8,7 +8,7 @@ exec(Path("respx", "__version__.py").read_text())  # Load __version__ into local
 setup(
     name="respx",
     version=locals()["__version__"],
-    license="MIT",
+    license="BSD",
     author="Jonas Lundberg",
     author_email="jonas@5monkeys.se",
     url="https://github.com/lundberg/respx",

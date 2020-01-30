@@ -4,7 +4,7 @@ import re
 import asynctest
 import httpx
 import pytest
-from httpx.exceptions import NetworkError
+from httpx._exceptions import NetworkError
 from urllib3.exceptions import SSLError
 
 import respx

@@ -5,8 +5,8 @@ import asynctest
 import httpx
 import pytest
 import trio
-from httpx.backends.asyncio import AsyncioBackend
-from httpx.backends.trio import TrioBackend
+from httpx._backends.asyncio import AsyncioBackend
+from httpx._backends.trio import TrioBackend
 
 import respx
 
@@ -26,7 +26,7 @@ async def test_alias():
 async def test_httpx_exception_handling(client):
     async with respx.HTTPXMock() as httpx_mock:
         with asynctest.mock.patch(
-            "httpx.client.AsyncClient.dispatcher_for_url",
+            "httpx._client.AsyncClient.dispatcher_for_url",
             side_effect=ValueError("mock"),
         ):
             url = "https://foo.bar/"

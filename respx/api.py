@@ -200,10 +200,10 @@ class HTTPXMock:
             (pattern.called for pattern in self._patterns)
         ), "RESPX: some mocked requests were not called!"
 
-    def add(self, pattern: RequestPattern, alias: typing.Optional[str] = None) -> None:
+    def add(self, pattern: RequestPattern) -> None:
         self._patterns.append(pattern)
-        if alias:
-            self.aliases[alias] = pattern
+        if pattern.alias:
+            self.aliases[pattern.alias] = pattern
 
     def request(
         self,
@@ -233,7 +233,7 @@ class HTTPXMock:
             base_url=self._base_url,
         )
 
-        self.add(pattern, alias=alias)
+        self.add(pattern)
 
         return pattern
 

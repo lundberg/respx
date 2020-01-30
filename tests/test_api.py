@@ -12,15 +12,15 @@ import respx
 
 @pytest.mark.asyncio
 async def test_http_methods(client):
-    async with respx.HTTPXMock() as httpx_mock:
+    async with respx.mock:
         url = "https://foo.bar/"
-        m = httpx_mock.get(url, status_code=404)
-        httpx_mock.post(url, status_code=201)
-        httpx_mock.put(url, status_code=202)
-        httpx_mock.patch(url, status_code=500)
-        httpx_mock.delete(url, status_code=204)
-        httpx_mock.head(url, status_code=405)
-        httpx_mock.options(url, status_code=501)
+        m = respx.get(url, status_code=404)
+        respx.post(url, status_code=201)
+        respx.put(url, status_code=202)
+        respx.patch(url, status_code=500)
+        respx.delete(url, status_code=204)
+        respx.head(url, status_code=405)
+        respx.options(url, status_code=501)
 
         response = httpx.get(url)
         assert response.status_code == 404
@@ -58,7 +58,7 @@ async def test_http_methods(client):
         assert response.status_code == 501
 
         assert m.called is True
-        assert httpx_mock.stats.call_count == 7 * 2
+        assert respx.stats.call_count == 7 * 2
 
 
 @pytest.mark.asyncio

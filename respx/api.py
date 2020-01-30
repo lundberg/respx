@@ -2,7 +2,7 @@ import inspect
 import ssl
 import typing
 from contextlib import contextmanager
-from functools import partial, partialmethod, wraps
+from functools import partial, wraps
 
 import asynctest
 from httpx import AsyncClient, Client, Timeout
@@ -237,13 +237,152 @@ class HTTPXMock:
 
         return pattern
 
-    get = partialmethod(request, "GET")
-    post = partialmethod(request, "POST")
-    put = partialmethod(request, "PUT")
-    patch = partialmethod(request, "PATCH")
-    delete = partialmethod(request, "DELETE")
-    head = partialmethod(request, "HEAD")
-    options = partialmethod(request, "OPTIONS")
+    def get(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "GET",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def post(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "POST",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def put(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "PUT",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def patch(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "PATCH",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def delete(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "DELETE",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def head(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "HEAD",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
+
+    def options(
+        self,
+        url: typing.Optional[typing.Union[str, typing.Pattern]] = None,
+        status_code: typing.Optional[int] = None,
+        content: typing.Optional[ContentDataTypes] = None,
+        content_type: typing.Optional[str] = None,
+        headers: typing.Optional[HeaderTypes] = None,
+        pass_through: bool = False,
+        alias: typing.Optional[str] = None,
+    ) -> RequestPattern:
+        return self.request(
+            "OPTIONS",
+            url=url,
+            status_code=status_code,
+            content=content,
+            content_type=content_type,
+            headers=headers,
+            pass_through=pass_through,
+            alias=alias,
+        )
 
     def __getitem__(self, alias: str) -> typing.Optional[RequestPattern]:
         return self.aliases.get(alias)

@@ -1,10 +1,42 @@
 from .__version__ import __version__
-from .api import HTTPXMock
+from .mocks import HTTPXMock
 
-# Expose mock api
-mock = HTTPXMock(assert_all_called=False)
-__api__ = list(filter(lambda m: not m.startswith("_"), dir(mock)))
+from .api import (  # isort:skip
+    mock,
+    aliases,
+    stats,
+    calls,
+    start,
+    stop,
+    clear,
+    reset,
+    request,
+    get,
+    post,
+    put,
+    patch,
+    delete,
+    head,
+    options,
+)
 
-__all__ = ["__version__", "HTTPXMock", "mock"]
-__all__.extend(__api__)
-globals().update({method: getattr(mock, method) for method in __api__})
+__all__ = [
+    "__version__",
+    "HTTPXMock",
+    "mock",
+    "aliases",
+    "stats",
+    "calls",
+    "start",
+    "stop",
+    "clear",
+    "reset",
+    "request",
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete",
+    "head",
+    "options",
+]

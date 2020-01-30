@@ -1,5 +1,5 @@
 from .__version__ import __version__
-from .api import HTTPXMock
+from .mocks import HTTPXMock
 
 # Expose mock api
 mock = HTTPXMock(assert_all_called=False)

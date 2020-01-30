@@ -195,7 +195,7 @@ class HTTPXMock:
         self.calls.clear()
         self.stats.reset_mock()
 
-    def assert_all_called(self):
+    def assert_all_called(self) -> None:
         assert all(
             (pattern.called for pattern in self._patterns)
         ), "RESPX: some mocked requests were not called!"
@@ -253,6 +253,7 @@ class HTTPXMock:
     ) -> typing.Tuple[
         "HTTPXMock", typing.Optional[RequestPattern], typing.Optional[ResponseTemplate]
     ]:
+        used_mock = self
         matched_pattern: typing.Optional[RequestPattern] = None
         matched_pattern_index: typing.Optional[int] = None
         response: typing.Optional[ResponseTemplate] = None

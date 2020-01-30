@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2020-01-30
+### Changed
+- Refactored high level and internal api for better editor autocompletion. (PR #44)
+
+- Fixed usage of nested or parallel mock instances. (PR #39)
+## [0.9.0] - 2020-01-22
+### Fixed
+- Fixed usage of nested or parallel mock instances. (PR #39)
+
 ## [0.8.3] - 2020-01-10
 ### Fixed
 - Fixed support for `HTTPX` 0.11.0 sync api. (PR #38)
@@ -15,10 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.1] - 2019-12-09
 ### Added
 - Added support for configuring patterns `base_url`. (PR #34)
+- Added manifest and `py.typed` files.
 
 ### Fixed
 - Fixed support for `HTTPX` 0.9.3 refactorizations. (PR #35)
-- Added manifest and `py.typed` files.
 
 ## [0.8] - 2019-11-27
 ### Added

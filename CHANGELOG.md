@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Refactored high level and internal api for better editor autocompletion. (PR #44)
 
-- Fixed usage of nested or parallel mock instances. (PR #39)
 ## [0.9.0] - 2020-01-22
 ### Fixed
 - Fixed usage of nested or parallel mock instances. (PR #39)

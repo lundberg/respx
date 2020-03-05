@@ -58,7 +58,7 @@ def test_stats(Backend):
         assert respx.stats.call_count == len(respx.calls)
         assert respx.stats.call_count == 0
 
-        async with httpx.AsyncClient(backend=backend) as client:
+        async with httpx.AsyncClient() as client:
             get_response = await client.get(url)
             del_response = await client.delete(url)
 

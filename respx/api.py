@@ -1,6 +1,6 @@
 from typing import Callable, Optional, Pattern, Union
 
-from httpx.models import HeaderTypes
+from httpx._models import HeaderTypes
 
 from .mocks import HTTPXMock
 from .models import ContentDataTypes, RequestPattern

@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 
 import asynctest
 from httpx import URL, Headers, Request, Response
-from httpx.backends.base import BaseSocketStream
-from httpx.models import HeaderTypes
+from httpx._backends.base import BaseSocketStream
+from httpx._models import HeaderTypes
 
 Regex = type(re.compile(""))
 Kwargs = typing.Dict[str, typing.Any]

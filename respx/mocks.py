@@ -5,10 +5,10 @@ from contextlib import contextmanager
 from functools import partial, wraps
 
 import asynctest
-from httpx import AsyncClient, Client, Timeout
-from httpx.backends.base import BaseSocketStream, ConcurrencyBackend
-from httpx.dispatch.base import AsyncDispatcher, SyncDispatcher
-from httpx.models import Headers, HeaderTypes, Request, Response
+from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
+from httpx._backends.base import BaseSocketStream, ConcurrencyBackend
+from httpx._dispatch.base import AsyncDispatcher, SyncDispatcher
+from httpx._models import HeaderTypes
 
 from .models import ContentDataTypes, RequestPattern, ResponseTemplate, URLResponse
 

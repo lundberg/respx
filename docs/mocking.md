@@ -53,7 +53,7 @@ import respx
 
 @pytest.fixture
 def mocked_api():
-    with respx.mock(base_url="https://foo.bar") as httpx_mock:
+    with respx.HTTPXMock(base_url="https://foo.bar") as httpx_mock:
         httpx_mock.get("/users/", content=[], alias="list_users")
         ...
         yield httpx_mock
@@ -84,7 +84,7 @@ def test_list_users(mocked_api):
 
 class MockedAPIMixin:
     def setUp(self):
-        self.mocked_api = respx.mock(base_url="https://foo.bar")
+        self.mocked_api = respx.HTTPXMock(base_url="https://foo.bar")
         self.mocked_api.get("/user/", content=[], alias="list_users")
         ...
         self.mocked_api.start()
@@ -153,7 +153,7 @@ from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 
 @pytest.fixture(scope="session")
 async def mocked_api(event_loop):  # noqa: F811
-    async with respx.mock(base_url="https://foo.bar") as httpx_mock:
+    async with respx.HTTPXMock(base_url="https://foo.bar") as httpx_mock:
         ...
         yield httpx_mock
 ```

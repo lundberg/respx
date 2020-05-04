@@ -93,7 +93,7 @@ import httpx
 import respx
 
 
-@respx.mock(base_url="https://foo.bar")
+@respx.HTTPXMock(base_url="https://foo.bar")
 async def test_something():
     async with httpx.AsyncClient(base_url="https://foo.bar") as client:
         request = respx.get("/baz/", content="Baz")
@@ -253,7 +253,7 @@ RESPX has the following build-in assertion checks:
 Configure checks by using the `respx.mock` decorator / context manager *with* parentheses.
 
 ``` python
-@respx.mock(assert_all_called=False)
+@respx.HTTPXMock(assert_all_called=False)
 def test_something(httpx_mock):
     httpx_mock.get("https://some.url/")  # OK
     httpx_mock.get("https://foo.bar/")
@@ -263,7 +263,7 @@ def test_something(httpx_mock):
     assert httpx_mock.stats.call_count == 1
 ```
 ``` python
-with respx.mock(assert_all_mocked=False) as httpx_mock:
+with respx.HTTPXMock(assert_all_mocked=False) as httpx_mock:
     response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
     assert httpx_mock.stats.call_count == 1

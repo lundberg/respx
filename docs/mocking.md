@@ -85,7 +85,7 @@ def test_list_users(mocked_api):
 class MockedAPIMixin:
     def setUp(self):
         self.mocked_api = respx.mock(base_url="https://foo.bar")
-        self.mocked_api.get("/user/", content=[], alias="list_users")
+        self.mocked_api.get("/users/", content=[], alias="list_users")
         ...
         self.mocked_api.start()
 
@@ -127,6 +127,8 @@ async def test_something():
     async with httpx.AsyncClient() as client:
         request = respx.get("https://foo.bar/", content="foobar")
         response = await client.get("https://foo.bar/")
+        assert request.called
+        assert response.text == "foobar"
 ```
 ``` python
 @pytest.mark.asyncio
@@ -135,6 +137,8 @@ async def test_something():
         async with httpx.AsyncClient() as client:
             request = respx.get("https://foo.bar/", content="foobar")
             response = await client.get("https://foo.bar/")
+            assert request.called
+            assert response.text == "foobar"
 ```
 
 **Session Scoped Fixtures**
@@ -170,11 +174,15 @@ class MyTestCase(asynctest.TestCase):
         async with httpx.AsyncClient() as client:
             request = respx.get("https://foo.bar/", content="foobar")
             response = await client.get("https://foo.bar/")
+            assert request.called
+            assert response.text == "foobar"
 
     async def test_something(self):
         async with respx.mock:
             async with httpx.AsyncClient() as client:
                 request = respx.get("https://foo.bar/", content="foobar")
                 response = await client.get("https://foo.bar/")
+                assert request.called
+                assert response.text == "foobar"
 ```
 

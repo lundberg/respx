@@ -6,8 +6,8 @@ theme:
   palette:
     primary: "deep purple"
     accent: "deep purple"
-  logo:
-    icon: "school"
+  icon:
+    logo: "material/school"
 
 repo_name: lundberg/respx
 repo_url: https://github.com/lundberg/respx

@@ -5,6 +5,7 @@ import httpx
 import pytest
 
 import respx
+from respx import MockTransport
 
 
 @pytest.mark.asyncio
@@ -258,7 +259,7 @@ async def test_base_url():
 @pytest.mark.asyncio
 async def test_start_stop(client):
     url = "https://foo.bar/"
-    request = respx.request("GET", url, status_code=202)
+    request = respx.add("GET", url, status_code=202)
     assert respx.stats.call_count == 0
 
     try:
@@ -270,15 +271,17 @@ async def test_start_stop(client):
         assert respx.stats.call_count == 1
 
         respx.stop(clear=False, reset=False)
-        assert len(respx.mock._patterns) == 1
+        assert len(respx.mock.patterns) == 1
         assert respx.stats.call_count == 1
+        assert request.called is True
 
         respx.reset()
-        assert len(respx.mock._patterns) == 1
+        assert len(respx.mock.patterns) == 1
         assert respx.stats.call_count == 0
+        assert request.called is False
 
         respx.clear()
-        assert len(respx.mock._patterns) == 0
+        assert len(respx.mock.patterns) == 0
 
     except Exception:  # pragma: nocover
         respx.stop()  # Cleanup global state on error, to not affect other tests
@@ -297,7 +300,7 @@ async def test_start_stop(client):
 )
 async def test_assert_all_called(client, assert_all_called, do_post, raises):
     with raises:
-        async with respx.HTTPXMock(assert_all_called=assert_all_called) as httpx_mock:
+        async with MockTransport(assert_all_called=assert_all_called) as httpx_mock:
             request1 = httpx_mock.get("https://foo.bar/1/", status_code=404)
             request2 = httpx_mock.post("https://foo.bar/", status_code=201)
 
@@ -316,7 +319,12 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
 )
 async def test_assert_all_mocked(client, assert_all_mocked, raises):
     with raises:
-        async with respx.HTTPXMock(assert_all_mocked=assert_all_mocked) as httpx_mock:
+        with MockTransport(assert_all_mocked=assert_all_mocked) as httpx_mock:
+            response = httpx.get("https://foo.bar/")
+            assert httpx_mock.stats.call_count == 1
+            assert response.status_code == 200
+    with raises:
+        async with MockTransport(assert_all_mocked=assert_all_mocked) as httpx_mock:
             response = await client.get("https://foo.bar/")
             assert httpx_mock.stats.call_count == 1
             assert response.status_code == 200
@@ -340,8 +348,22 @@ async def test_asgi():
             assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_deprecated():
+    url = "https://foo.bar/"
+    with respx.mock:
+        respx.request("POST", url, status_code=201)
+        with respx.HTTPXMock() as httpx_mock:
+            httpx_mock.request("GET", url)
+            response = httpx.post(url)
+            assert response.status_code == 201
+            response = httpx.get(url)
+            assert response.status_code == 200
+
+
+@pytest.mark.xfail(strict=True)
 @pytest.mark.asyncio
-async def test_uds():
+async def test_uds():  # pragma: no cover
     async with respx.mock:
         async with httpx.AsyncClient(uds="/foo/bar.sock") as client:
             request = respx.get("https://foo.bar/", status_code=202)

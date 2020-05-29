@@ -1,48 +1,144 @@
 import inspect
-import io
 import json as jsonlib
 import re
-import typing
 from functools import partial
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Pattern,
+    Sequence,
+    Tuple,
+    Union,
+)
 from urllib.parse import urljoin
 
 import asynctest
-from httpx import URL, Headers, Request, Response
-from httpx._backends.base import BaseSocketStream
-from httpx._models import HeaderTypes
+import httpx  # TODO: Drop usage
+from httpcore import AsyncByteStream, SyncByteStream
+from httpx import Headers as HTTPXHeaders  # TODO: Drop usage
+
+URL = Tuple[bytes, bytes, Optional[int], bytes]
+Headers = List[Tuple[bytes, bytes]]
+TimeoutDict = Dict[str, Optional[float]]
+Request = Tuple[
+    bytes, URL, Headers, Union[SyncByteStream, AsyncByteStream],
+]
+Response = Tuple[
+    bytes,  # http version
+    int,  # status code
+    bytes,  # reason
+    Headers,
+    Union[SyncByteStream, AsyncByteStream],  # body
+]
+
+HeaderTypes = Union[
+    HTTPXHeaders,
+    Dict[str, str],
+    Dict[bytes, bytes],
+    Sequence[Tuple[str, str]],
+    Sequence[Tuple[bytes, bytes]],
+]
 
 Regex = type(re.compile(""))
-Kwargs = typing.Dict[str, typing.Any]
-URLPatternTypes = typing.Union[str, typing.Pattern[str]]
-ContentDataTypes = typing.Union[
-    bytes, str, typing.List, typing.Dict, typing.Callable, Exception,
+Kwargs = Dict[str, Any]
+URLPatternTypes = Union[str, Pattern[str], URL]
+ContentDataTypes = Union[
+    bytes, str, List, Dict, Callable, Exception,
 ]
 
 istype = lambda t, o: isinstance(o, t)
 isregex = partial(istype, Regex)
 
 
+def build_request(request: Request) -> Union[httpx.Request, Request]:
+    """
+    Try to re-build a httpx request from httpcore request args
+    """
+    try:
+        from httpx import URL as _URL, Request as _Request
+    except ImportError:  # pragma: no cover
+        return request
+    else:
+        method, url, headers, stream = request
+        scheme, host, port, full_path = url
+        port_str = "" if port == {b"https": 443, b"http": 80}[scheme] else f":{port}"
+        return _Request(
+            method.decode(),
+            _URL(f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"),
+            headers=headers,
+            stream=stream,  # type: ignore
+        )
+
+
+def build_response(
+    response: Optional[Response], request: Union[httpx.Request, Request]
+) -> Optional[Union[httpx.Response, Response]]:
+    """
+    Try to re-build a httpx response from httpcore response
+    """
+    if response is None:
+        return None
+    if not isinstance(request, httpx.Request):  # pragma: no cover
+        return response
+    try:
+        from httpx import Response as _Response
+    except ImportError:  # pragma: no cover
+        return response
+    else:
+        http_version, status_code, _, headers, stream = response
+        httpx_response = _Response(
+            status_code,
+            http_version=http_version.decode("ascii"),
+            headers=headers,
+            stream=stream,  # type: ignore
+            request=request,
+        )
+        httpx_response.read()
+        return httpx_response
+
+
+class ContentStream(AsyncByteStream, SyncByteStream):
+    def __init__(self, content: bytes) -> None:
+        self._content = content
+        self.close_func = None  # type: ignore
+        self.aclose_func = None  # type: ignore
+
+    def __iter__(self) -> Iterator[bytes]:
+        yield self._content
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield self._content
+
+
 class ResponseTemplate:
     def __init__(
         self,
-        status_code: typing.Optional[int] = None,
-        headers: typing.Optional[HeaderTypes] = None,
-        content: typing.Optional[ContentDataTypes] = None,
-        context: typing.Optional[Kwargs] = None,
+        status_code: Optional[int] = None,
+        headers: Optional[HeaderTypes] = None,
+        content: Optional[ContentDataTypes] = None,
+        content_type: Optional[str] = None,
+        context: Optional[Kwargs] = None,
     ) -> None:
         self.http_version = 1.1
         self.status_code = status_code or 200
         self.context = context if context is not None else {}
-        self._headers = Headers(headers or {})
         self._content = content if content is not None else b""
+        self._headers = HTTPXHeaders(headers) if headers else HTTPXHeaders()
+        if content_type:
+            self._headers["Content-Type"] = content_type
 
-    def clone(self, context: typing.Optional[Kwargs] = None) -> "ResponseTemplate":
+    def clone(self, context: Optional[Kwargs] = None) -> "ResponseTemplate":
         return ResponseTemplate(
             self.status_code, self._headers, self._content, context=context
         )
 
     @property
-    def headers(self) -> Headers:
+    def headers(self) -> HTTPXHeaders:
         if "Content-Type" not in self._headers:
             self._headers["Content-Type"] = "text/plain"
         return self._headers
@@ -85,60 +181,40 @@ class ResponseTemplate:
 
         return content
 
-    def build(
-        self, request: Request, content: typing.Optional[bytes] = None
-    ) -> Response:
-        content = content or self.content
-        return Response(
-            status_code=self.status_code,
-            http_version=f"HTTP/{self.http_version}",
-            headers=self.headers,
-            content=content,
-            request=request,
+    @property
+    def raw(self):
+        stream = ContentStream(self.content)
+        return (
+            f"HTTP/{self.http_version}".encode("ascii"),
+            self.status_code,
+            b"<reason_phrase>",
+            self.headers.raw,
+            stream,
         )
 
-    async def abuild(self, request: Request) -> Response:
-        content = await self.acontent
-        return self.build(request, content)
-
     @property
-    async def socket_stream(self) -> BaseSocketStream:
-        """
-        Mocks a SocketStream with bytes read from generated raw response.
-        """
-        content = await self.acontent
-
-        # Build raw bytes data
-        http_version = f"HTTP/{self.http_version}"
-        status_line = f"{http_version} {self.status_code} MOCK"
-        lines = [status_line]
-        lines.extend([f"{key.title()}: {value}" for key, value in self.headers.items()])
-
-        CRLF = b"\r\n"
-        data = CRLF.join((line.encode("ascii") for line in lines))
-        data += CRLF * 2
-        data += content
-
-        # Mock a SocketStream with bytes read from data
-        reader = io.BytesIO(data)
-        socket_stream = asynctest.mock.Mock(BaseSocketStream)
-        socket_stream.read.side_effect = lambda n, *args, **kwargs: reader.read(n)
-        socket_stream.get_http_version.return_value = http_version
-
-        return socket_stream
+    async def araw(self):
+        stream = ContentStream(await self.acontent)
+        return (
+            f"HTTP/{self.http_version}".encode("ascii"),
+            self.status_code,
+            b"<reason_phrase>",
+            self.headers.raw,
+            stream,
+        )
 
 
 class RequestPattern:
     def __init__(
         self,
-        method: typing.Union[str, typing.Callable],
-        url: typing.Optional[URLPatternTypes],
-        response: ResponseTemplate,
+        method: Union[str, Callable],
+        url: Optional[URLPatternTypes],
+        response: Optional[ResponseTemplate] = None,
         pass_through: bool = False,
-        alias: typing.Optional[str] = None,
-        base_url: typing.Optional[str] = None,
+        alias: Optional[str] = None,
+        base_url: Optional[str] = None,
     ) -> None:
-        self._match_func: typing.Optional[typing.Callable] = None
+        self._match_func: Optional[Callable] = None
 
         if callable(method):
             self.method = None
@@ -150,7 +226,7 @@ class RequestPattern:
             self.set_url(url, base=base_url)
             self.pass_through = pass_through
 
-        self.response = response
+        self.response = response or ResponseTemplate()
         self.alias = alias
         self.stats = asynctest.mock.MagicMock()
 
@@ -168,17 +244,19 @@ class RequestPattern:
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
 
-    def get_url(self) -> typing.Optional[URLPatternTypes]:
+    def get_url(self) -> Optional[URLPatternTypes]:
         return self._url
 
     def set_url(
-        self, url: typing.Optional[URLPatternTypes], base: typing.Optional[str] = None,
+        self, url: Optional[URLPatternTypes], base: Optional[str] = None,
     ) -> None:
         url = url or None
         if url is None:
-            url = url if base is None else base
+            url = base
         elif isinstance(url, str):
             url = url if base is None else urljoin(base, url)
+        elif isinstance(url, tuple):
+            url = self.build_url(url)
         elif isregex(url):
             url = url if base is None else re.compile(urljoin(base, url.pattern))
         else:
@@ -191,9 +269,12 @@ class RequestPattern:
 
     url = property(get_url, set_url)
 
-    def match(
-        self, request: Request
-    ) -> typing.Optional[typing.Union[Request, ResponseTemplate]]:
+    def build_url(self, parts: URL) -> str:
+        scheme, host, port, full_path = parts
+        port_str = "" if port == {b"https": 443, b"http": 80}[scheme] else f":{port}"
+        return f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"
+
+    def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:
         """
         Matches request with configured pattern;
         custom matcher function or http method + url pattern.
@@ -203,47 +284,34 @@ class RequestPattern:
         """
         matches = False
         url_params: Kwargs = {}
+        _request = build_request(request)
 
         if self.pass_through:
             return request
 
         if self._match_func:
-            response = self.response.clone(context={"request": request})
-            return self._match_func(request, response)
+            response = self.response.clone(context={"request": _request})
+            result = self._match_func(_request, response)
+            if result == _request:  # Detect pass through
+                result = request
+            return result
 
-        if self.method != request.method:
+        request_method, _request_url, *_ = request
+        if self.method != request_method.decode():
             return None
 
+        request_url = self.build_url(_request_url)
         if not self._url:
             matches = True
         elif isinstance(self._url, str):
-            matches = self._url == str(request.url)
+            matches = self._url == request_url
         else:
-            match = self._url.match(str(request.url))
+            match = self._url.match(request_url)
             if match:
                 matches = True
                 url_params = match.groupdict()
 
         if matches:
-            return self.response.clone(context={"request": request, **url_params})
+            return self.response.clone(context={"request": _request, **url_params})
 
         return None
-
-
-class URLResponse(URL):
-    def __init__(self, url: URL, response: ResponseTemplate) -> None:
-        self.response = response
-        super().__init__(url)
-
-    @property
-    def host(self) -> str:
-        """
-        Returns host (str) with attached pattern match (self)
-        """
-        hostname = AttachmentString(super().host)
-        hostname.attachment = self.response
-        return hostname
-
-
-class AttachmentString(str):
-    attachment: typing.Optional[typing.Any] = None

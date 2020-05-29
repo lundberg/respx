@@ -28,10 +28,10 @@ class MockTransport(BaseMockTransport):
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
-        proxy: Optional["HTTPXMock"] = None,
+        local: bool = False,
     ) -> None:
         self._assert_all_called = assert_all_called
-        self._proxy = proxy
+        self._local = local
         super().__init__(assert_all_mocked=assert_all_mocked, base_url=base_url)
 
     def __call__(
@@ -40,7 +40,7 @@ class MockTransport(BaseMockTransport):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
-    ) -> Union["HTTPXMock", Callable]:
+    ) -> Union["MockTransport", Callable]:
         """
         Decorator or Context Manager.
 
@@ -49,12 +49,12 @@ class MockTransport(BaseMockTransport):
         """
         if func is None:
             # Parantheses used, branch out to new nested instance.
-            # - Only stage when using local ctx `with respx.mock(...) as httpx_mock:`
+            # - Only stage when using local ctx `with respx.mock(...) as respx_mock:`
             # - First stage when using local decorator `@respx.mock(...)`
             #   FYI, global ctx `with respx.mock:` hits __enter__ directly
             settings: Dict[str, Any] = {
                 "base_url": base_url,
-                "proxy": self,
+                "local": True,
             }
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
@@ -66,8 +66,8 @@ class MockTransport(BaseMockTransport):
         @wraps(func)
         async def async_decorator(*args, **kwargs):
             assert func is not None
-            if self._proxy:
-                kwargs["httpx_mock"] = self
+            if self._local:
+                kwargs["respx_mock"] = self
             async with self:
                 return await func(*args, **kwargs)
 
@@ -75,8 +75,8 @@ class MockTransport(BaseMockTransport):
         @wraps(func)
         def sync_decorator(*args, **kwargs):
             assert func is not None
-            if self._proxy:
-                kwargs["httpx_mock"] = self
+            if self._local:
+                kwargs["respx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 

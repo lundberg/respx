@@ -14,31 +14,31 @@ from respx import MockTransport
 
 @pytest.mark.asyncio
 async def test_alias():
-    async with MockTransport(assert_all_called=False) as httpx_mock:
+    async with MockTransport(assert_all_called=False) as respx_mock:
         url = "https://foo.bar/"
-        request = httpx_mock.get(url, alias="foobar")
+        request = respx_mock.get(url, alias="foobar")
         assert "foobar" not in respx.aliases
-        assert "foobar" in httpx_mock.aliases
-        assert httpx_mock.aliases["foobar"].url == request.url
-        assert httpx_mock["foobar"].url == request.url
+        assert "foobar" in respx_mock.aliases
+        assert respx_mock.aliases["foobar"].url == request.url
+        assert respx_mock["foobar"].url == request.url
 
 
 @pytest.mark.xfail(strict=True)
 @pytest.mark.asyncio
 async def test_httpx_exception_handling(client):  # pragma: no cover
-    async with MockTransport() as httpx_mock:
+    async with MockTransport() as respx_mock:
         with asynctest.mock.patch(
             "httpx._client.AsyncClient.dispatcher_for_url",
             side_effect=ValueError("mock"),
         ):
             url = "https://foo.bar/"
-            request = httpx_mock.get(url)
+            request = respx_mock.get(url)
             with pytest.raises(ValueError):
                 await client.get(url)
 
         assert request.called is True
-        assert httpx_mock.stats.call_count == 1
-        _request, _response = httpx_mock.calls[-1]
+        assert respx_mock.stats.call_count == 1
+        _request, _response = respx_mock.calls[-1]
         assert _request is not None
         assert _response is None
 

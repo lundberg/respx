@@ -20,16 +20,16 @@ async def test_decorating_test(client):
 
 
 @pytest.mark.asyncio
-async def test_mock_request_fixture(client, httpx_mock):
+async def test_mock_request_fixture(client, my_mock):
     assert respx.stats.call_count == 0
-    assert httpx_mock.stats.call_count == 0
+    assert my_mock.stats.call_count == 0
     response = await client.get("https://httpx.mock/")
-    request = httpx_mock.aliases["index"]
+    request = my_mock.aliases["index"]
     assert request.called is True
     assert response.is_error
     assert response.status_code == 404
     assert respx.stats.call_count == 0
-    assert httpx_mock.stats.call_count == 1
+    assert my_mock.stats.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -94,14 +94,14 @@ async def test_global_async_decorator(client):
 
 def test_local_sync_decorator():
     @respx.mock()
-    def test(httpx_mock):
+    def test(respx_mock):
         assert respx.stats.call_count == 0
-        request = httpx_mock.get("https://foo.bar/", status_code=202)
+        request = respx_mock.get("https://foo.bar/", status_code=202)
         response = httpx.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
         assert respx.stats.call_count == 0
-        assert httpx_mock.stats.call_count == 1
+        assert respx_mock.stats.call_count == 1
 
     assert respx.stats.call_count == 0
     test()
@@ -111,14 +111,14 @@ def test_local_sync_decorator():
 @pytest.mark.asyncio
 async def test_local_async_decorator(client):
     @respx.mock()
-    async def test(httpx_mock):
+    async def test(respx_mock):
         assert respx.stats.call_count == 0
-        request = httpx_mock.get("https://foo.bar/", status_code=202)
+        request = respx_mock.get("https://foo.bar/", status_code=202)
         response = await client.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
         assert respx.stats.call_count == 0
-        assert httpx_mock.stats.call_count == 1
+        assert respx_mock.stats.call_count == 1
 
     await test()
     assert respx.stats.call_count == 0
@@ -147,48 +147,48 @@ async def test_global_contextmanager(client):
 
 @pytest.mark.asyncio
 async def test_local_contextmanager(client):
-    with respx.mock() as httpx_mock:
-        assert httpx_mock.stats.call_count == 0
-        request = httpx_mock.get("https://foo/bar/", status_code=202)
+    with respx.mock() as respx_mock:
+        assert respx_mock.stats.call_count == 0
+        request = respx_mock.get("https://foo/bar/", status_code=202)
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
         assert respx.stats.call_count == 0
-        assert httpx_mock.stats.call_count == 1
+        assert respx_mock.stats.call_count == 1
 
-    async with respx.mock() as httpx_mock:
-        assert httpx_mock.stats.call_count == 0
-        request = httpx_mock.get("https://foo/bar/", status_code=202)
+    async with respx.mock() as respx_mock:
+        assert respx_mock.stats.call_count == 0
+        request = respx_mock.get("https://foo/bar/", status_code=202)
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
         assert respx.stats.call_count == 0
-        assert httpx_mock.stats.call_count == 1
+        assert respx_mock.stats.call_count == 1
 
     assert respx.stats.call_count == 0
 
 
 @pytest.mark.asyncio
 async def test_nested_local_contextmanager(client):
-    with respx.mock() as httpx_mock_1:
-        get_request = httpx_mock_1.get("https://foo/bar/", status_code=202)
+    with respx.mock() as respx_mock_1:
+        get_request = respx_mock_1.get("https://foo/bar/", status_code=202)
 
-        with respx.mock() as httpx_mock_2:
-            post_request = httpx_mock_2.post("https://foo/bar/", status_code=201)
+        with respx.mock() as respx_mock_2:
+            post_request = respx_mock_2.post("https://foo/bar/", status_code=201)
 
             response = await client.get("https://foo/bar/")
             assert get_request.called is True
             assert response.status_code == 202
             assert respx.stats.call_count == 0
-            assert httpx_mock_1.stats.call_count == 1
-            assert httpx_mock_2.stats.call_count == 0
+            assert respx_mock_1.stats.call_count == 1
+            assert respx_mock_2.stats.call_count == 0
 
             response = await client.post("https://foo/bar/")
             assert post_request.called is True
             assert response.status_code == 201
             assert respx.stats.call_count == 0
-            assert httpx_mock_1.stats.call_count == 1
-            assert httpx_mock_2.stats.call_count == 1
+            assert respx_mock_1.stats.call_count == 1
+            assert respx_mock_2.stats.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -213,9 +213,9 @@ async def test_nested_global_contextmanager(client):
 @pytest.mark.asyncio
 async def test_configured_decorator(client):
     @respx.mock(assert_all_called=False, assert_all_mocked=False)
-    async def test(httpx_mock):
-        assert httpx_mock.stats.call_count == 0
-        request = httpx_mock.get("https://foo.bar/")
+    async def test(respx_mock):
+        assert respx_mock.stats.call_count == 0
+        request = respx_mock.get("https://foo.bar/")
         response = await client.get("https://some.thing/")
 
         assert response.status_code == 200
@@ -224,9 +224,9 @@ async def test_configured_decorator(client):
 
         assert request.called is False
         assert respx.stats.call_count == 0
-        assert httpx_mock.stats.call_count == 1
+        assert respx_mock.stats.call_count == 1
 
-        _request, _response = httpx_mock.calls[-1]
+        _request, _response = respx_mock.calls[-1]
         assert _request is not None
         assert _response is not None
         assert _request.url == "https://some.thing/"
@@ -236,11 +236,13 @@ async def test_configured_decorator(client):
 
 
 @pytest.mark.asyncio
-async def test_base_url():
-    async with respx.mock(base_url="https://foo.bar/") as httpx_mock:
-        request1 = httpx_mock.get("/baz/", content="baz")
-        request2 = httpx_mock.post(re.compile(r"(?P<slug>\w+)/?$"), content="slug")
-        request3 = httpx_mock.put(content="ok")
+@respx.mock(base_url="https://ham.spam/")
+async def test_base_url(respx_mock=None):
+    request = respx_mock.patch("/egg/", content="yolk")
+    async with respx.mock(base_url="https://foo.bar/") as foobar_mock:
+        request1 = foobar_mock.get("/baz/", content="baz")
+        request2 = foobar_mock.post(re.compile(r"(?P<slug>\w+)/?$"), content="slug")
+        request3 = foobar_mock.put(content="ok")
 
         async with httpx.AsyncClient(base_url="https://foo.bar") as client:
             response = await client.get("/baz/")
@@ -254,6 +256,10 @@ async def test_base_url():
             response = await client.put("/")
             assert request3.called is True
             assert response.text == "ok"
+
+            response = await client.patch("https://ham.spam/egg/")
+            assert request.called is True
+            assert response.text == "yolk"
 
 
 @pytest.mark.asyncio
@@ -300,9 +306,9 @@ async def test_start_stop(client):
 )
 async def test_assert_all_called(client, assert_all_called, do_post, raises):
     with raises:
-        async with MockTransport(assert_all_called=assert_all_called) as httpx_mock:
-            request1 = httpx_mock.get("https://foo.bar/1/", status_code=404)
-            request2 = httpx_mock.post("https://foo.bar/", status_code=201)
+        async with MockTransport(assert_all_called=assert_all_called) as respx_mock:
+            request1 = respx_mock.get("https://foo.bar/1/", status_code=404)
+            request2 = respx_mock.post("https://foo.bar/", status_code=201)
 
             await client.get("https://foo.bar/1/")
             if do_post:
@@ -319,16 +325,16 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
 )
 async def test_assert_all_mocked(client, assert_all_mocked, raises):
     with raises:
-        with MockTransport(assert_all_mocked=assert_all_mocked) as httpx_mock:
+        with MockTransport(assert_all_mocked=assert_all_mocked) as respx_mock:
             response = httpx.get("https://foo.bar/")
-            assert httpx_mock.stats.call_count == 1
+            assert respx_mock.stats.call_count == 1
             assert response.status_code == 200
     with raises:
-        async with MockTransport(assert_all_mocked=assert_all_mocked) as httpx_mock:
+        async with MockTransport(assert_all_mocked=assert_all_mocked) as respx_mock:
             response = await client.get("https://foo.bar/")
-            assert httpx_mock.stats.call_count == 1
+            assert respx_mock.stats.call_count == 1
             assert response.status_code == 200
-    assert httpx_mock.stats.call_count == 0
+    assert respx_mock.stats.call_count == 0
 
 
 @pytest.mark.asyncio

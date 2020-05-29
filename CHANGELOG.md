@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2020-05-29
+### Fixed
+- Fixed support for `HTTPX` 0.13. (PR #57)
+
+### Added
+- Added support for mocking out `HTTP Core`.
+- Added support for using mock transports with `HTTPX` clients without patching.
+- Include LICENSE.md in source distribution, thanks @synapticarbors.
+
+### Changed
+- Renamed passed mock to decorated functions from `httpx_mock` to `respx_mock`.
+- Renamed `HTTPXMock` to `MockTransport`, but kept a deprecated `HTTPXMock` subclass.
+- Deprecated `respx.request()` in favour of `respx.add()`.
+
 ## [0.10.1] - 2020-03-11
 ### Fixed
 - Fixed support for `HTTPX` 0.12.0. (PR #45)

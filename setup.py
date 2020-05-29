@@ -12,7 +12,7 @@ setup(
     author="Jonas Lundberg",
     author_email="jonas@5monkeys.se",
     url="https://github.com/lundberg/respx",
-    keywords=["httpx", "httpcore", "mock", "responses", "requests", "async", "http",],
+    keywords=["httpx", "httpcore", "mock", "responses", "requests", "async", "http"],
     description="A utility for mocking out the Python HTTPX and HTTP Core libraries.",
     long_description=Path("README.md").read_text("utf-8"),
     long_description_content_type="text/markdown",

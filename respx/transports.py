@@ -26,8 +26,12 @@ from .models import (
 
 class BaseMockTransport:
     def __init__(
-        self, assert_all_mocked: bool = True, base_url: Optional[str] = None,
+        self,
+        assert_all_called: bool = True,
+        assert_all_mocked: bool = True,
+        base_url: Optional[str] = None,
     ) -> None:
+        self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._base_url = base_url
 
@@ -371,6 +375,13 @@ class BaseMockTransport:
             raise
         finally:
             self.record(request, response, pattern=pattern)
+
+    def close(self) -> None:
+        if self._assert_all_called:
+            self.assert_all_called()
+
+    async def aclose(self) -> None:
+        self.close()
 
 
 class SyncMockTransport(BaseMockTransport, SyncHTTPTransport):

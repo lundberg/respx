@@ -30,9 +30,12 @@ class MockTransport(BaseMockTransport):
         base_url: Optional[str] = None,
         local: bool = False,
     ) -> None:
-        self._assert_all_called = assert_all_called
         self._local = local
-        super().__init__(assert_all_mocked=assert_all_mocked, base_url=base_url)
+        super().__init__(
+            assert_all_called=assert_all_called,
+            assert_all_mocked=assert_all_mocked,
+            base_url=base_url,
+        )
 
     def __call__(
         self,

@@ -1,6 +1,6 @@
 # Mocking HTTPX
 
-To mock out `HTTPX`, use the `respx.mock` decorator / context manager.
+To mock out `HTTPX` *and/or* `HTTP Core`, use the `respx.mock` decorator / context manager.
 
 Optionally configure [built-in assertion](api.md#built-in-assertions) checks and [base URL](api.md#base-url)
 with `respx.mock(...)`.
@@ -42,6 +42,68 @@ with respx.mock:
     You can also start and stop mocking `HTTPX` manually, by calling `respx.start()` and `respx.stop()`.
 
 
+## Using the mock Transports
+
+The built-in transports are the base of all mocking and patching in RESPX.
+
+*In fact*, `respx.mock` is an actual instance of `MockTransport`.
+
+### MockTransport
+``` python
+import httpx
+import respx
+
+
+mock_transport = respx.MockTransport()
+request = mock_transport.get("https://foo.bar/", content="foobar")
+
+with mock_transport:
+    response = httpx.get("https://foo.bar/")
+    assert request.called
+    assert response.status_code == 200
+    assert response.text == "foobar"
+```
+
+### SyncMockTransport
+
+If you don't *need* to patch the original `HTTPX`/`HTTP Core` transports, then use the `SyncMockTransport` or [`AsyncMockTransport`](#asyncmocktransport) directly, by passing the `transport` *arg* when instantiating your `HTTPX` client, or alike.
+
+``` python
+import httpx
+import respx
+
+
+mock_transport = respx.SyncMockTransport()
+request = mock_transport.get("https://foo.bar/", content="foobar")
+
+with httpx.Client(transport=mock_transport) as client:
+    response = client.get("https://foo.bar/")
+    assert request.called
+    assert response.status_code == 200
+    assert response.text == "foobar"
+```
+
+### AsyncMockTransport
+
+``` python
+import httpx
+import respx
+
+
+mock_transport = respx.AsyncMockTransport()
+request = mock_transport.get("https://foo.bar/", content="foobar")
+
+async with httpx.AsyncClient(transport=mock_transport) as client:
+    response = await client.get("https://foo.bar/")
+    assert request.called
+    assert response.status_code == 200
+    assert response.text == "foobar"
+```
+
+!!! note "NOTE"
+    The mock transports takes the same configuration arguments as the decorator / context manager.
+
+
 ## Global Setup & Teardown
 
 ### pytest
@@ -53,10 +115,10 @@ import respx
 
 @pytest.fixture
 def mocked_api():
-    with respx.mock(base_url="https://foo.bar") as httpx_mock:
-        httpx_mock.get("/users/", content=[], alias="list_users")
+    with respx.mock(base_url="https://foo.bar") as respx_mock:
+        respx_mock.get("/users/", content=[], alias="list_users")
         ...
-        yield httpx_mock
+        yield respx_mock
 ```
 
 ``` python
@@ -157,9 +219,9 @@ from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 
 @pytest.fixture(scope="session")
 async def mocked_api(event_loop):  # noqa: F811
-    async with respx.mock(base_url="https://foo.bar") as httpx_mock:
+    async with respx.mock(base_url="https://foo.bar") as respx_mock:
         ...
-        yield httpx_mock
+        yield respx_mock
 ```
 
 ### unittest

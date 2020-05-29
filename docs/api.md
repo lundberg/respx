@@ -22,16 +22,16 @@ See [Request API](#request-api) for parameters.
 > <code>respx.<strong>delete</strong>(...)</strong></code>
 
 
-### Request API
+### Pattern API
 
-For full control, use the core request method.
+For full control, use the core `add` method.
 
-> ::: respx.request
+> ::: respx.add
 >     :docstring:
 >
 > **Parameters:**
 >
-> * **method** - *str | callable*  
+> * **method** - *str | callable | RequestPattern*  
 >   Request HTTP method, or [Request callback](#request-callback), to match.
 > * **url** - *(optional) str | pattern*  
 >   Request exact URL, or [URL pattern](#url-pattern), to match.
@@ -94,9 +94,9 @@ import respx
 
 
 @respx.mock(base_url="https://foo.bar")
-async def test_something():
+async def test_something(respx_mock):
     async with httpx.AsyncClient(base_url="https://foo.bar") as client:
-        request = respx.get("/baz/", content="Baz")
+        request = respx_mock.get("/baz/", content="Baz")
         response = await client.get("/baz/")
         assert response.text == "Baz"
 ```
@@ -105,7 +105,7 @@ async def test_something():
 ### Request callback
 
 For full control of what request to **match** and what response to **mock**,
-pass a *callback* function as the `request(method, ...)` parameter.
+pass a *callback* function as the `add(method, ...)` parameter.
 The callback's response argument will be pre-populated with any additional response parameters.
 
 ``` python
@@ -132,7 +132,7 @@ def match_and_mock(request, response):
 
 @respx.mock
 def test_something():
-    custom_request = respx.request(match_and_mock, status_code=201)
+    custom_request = respx.add(match_and_mock, status_code=201)
     respx.get("https://foo.bar/baz/")
 
     response = httpx.get("https://foo.bar/baz/")
@@ -254,19 +254,19 @@ Configure checks by using the `respx.mock` decorator / context manager *with* pa
 
 ``` python
 @respx.mock(assert_all_called=False)
-def test_something(httpx_mock):
-    httpx_mock.get("https://some.url/")  # OK
-    httpx_mock.get("https://foo.bar/")
+def test_something(respx_mock):
+    respx_mock.get("https://some.url/")  # OK
+    respx_mock.get("https://foo.bar/")
 
     response = httpx.get("https://foo.bar/")
     assert response.status_code == 200
-    assert httpx_mock.stats.call_count == 1
+    assert respx_mock.stats.call_count == 1
 ```
 ``` python
-with respx.mock(assert_all_mocked=False) as httpx_mock:
+with respx.mock(assert_all_mocked=False) as respx_mock:
     response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
-    assert httpx_mock.stats.call_count == 1
+    assert respx_mock.stats.call_count == 1
 ```
 
 !!! attention "Without Parentheses"

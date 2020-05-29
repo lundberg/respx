@@ -12,22 +12,22 @@ async def client():
 
 
 @pytest.fixture
-async def httpx_mock():
-    async with respx.mock(base_url="https://httpx.mock") as httpx_mock:
-        httpx_mock.get("/", status_code=404, alias="index")
-        yield httpx_mock
+async def my_mock():
+    async with respx.mock(base_url="https://httpx.mock") as respx_mock:
+        respx_mock.get("/", status_code=404, alias="index")
+        yield respx_mock
 
 
 @pytest.fixture(scope="session")
 async def mocked_foo(event_loop):  # noqa: F811
-    async with respx.mock(base_url="https://foo.api") as httpx_mock:
-        httpx_mock.get("/", status_code=202, alias="index")
-        httpx_mock.get("/bar/", alias="bar")
-        yield httpx_mock
+    async with respx.mock(base_url="https://foo.api") as respx_mock:
+        respx_mock.get("/", status_code=202, alias="index")
+        respx_mock.get("/bar/", alias="bar")
+        yield respx_mock
 
 
 @pytest.fixture(scope="session")
 async def mocked_ham(event_loop):  # noqa: F811
-    async with respx.mock(base_url="https://ham.api") as httpx_mock:
-        httpx_mock.get("/", status_code=200, alias="index")
-        yield httpx_mock
+    async with respx.mock(base_url="https://ham.api") as respx_mock:
+        respx_mock.get("/", status_code=200, alias="index")
+        yield respx_mock

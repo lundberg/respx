@@ -1,7 +1,8 @@
+import httpcore
 import httpx
 import pytest
 
-from respx import AsyncMockTransport, SyncMockTransport
+from respx import AsyncMockTransport, MockTransport, SyncMockTransport
 
 
 def test_sync_transport():
@@ -55,3 +56,32 @@ async def test_transport_assertions():
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get(url)
             assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_httpcore_request():
+    async with MockTransport() as transport:
+        transport.add("GET", "https://foo.bar/", content="foobar")
+        with httpcore.SyncConnectionPool() as http:
+            (http_version, status_code, reason_phrase, headers, stream,) = http.request(
+                method=b"GET", url=(b"https", b"foo.bar", 443, b"/"),
+            )
+
+            body = b"".join([chunk for chunk in stream])
+            stream.close()
+            assert body == b"foobar"
+
+        async with httpcore.AsyncConnectionPool() as http:
+            (
+                http_version,
+                status_code,
+                reason_phrase,
+                headers,
+                stream,
+            ) = await http.request(
+                method=b"GET", url=(b"https", b"foo.bar", 443, b"/"),
+            )
+
+            body = b"".join([chunk async for chunk in stream])
+            await stream.aclose()
+            assert body == b"foobar"

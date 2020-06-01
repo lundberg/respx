@@ -70,7 +70,7 @@ def build_request(request: Request) -> Union[httpx.Request, Request]:
         return _Request(
             method.decode(),
             _URL(f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"),
-            headers=headers,
+            headers=headers or None,
             stream=stream,  # type: ignore
         )
 
@@ -105,8 +105,8 @@ def build_response(
 class ContentStream(AsyncByteStream, SyncByteStream):
     def __init__(self, content: bytes) -> None:
         self._content = content
-        self.close_func = None  # type: ignore
-        self.aclose_func = None  # type: ignore
+        self.close_func = None
+        self.aclose_func = None
 
     def __iter__(self) -> Iterator[bytes]:
         yield self._content

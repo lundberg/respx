@@ -279,8 +279,8 @@ class BaseMockTransport:
         self,
         method: bytes,
         url: URL,
-        headers: Headers,
-        stream: Union[SyncByteStream, AsyncByteStream],
+        headers: Headers = None,
+        stream: Union[SyncByteStream, AsyncByteStream] = None,
     ) -> Tuple[Optional[RequestPattern], Request, Optional[ResponseTemplate]]:
         request: Request = (method, url, headers, stream)
 
@@ -328,10 +328,10 @@ class BaseMockTransport:
         self,
         method: bytes,
         url: URL,
-        headers: Headers,
-        stream: SyncByteStream,
-        timeout: Optional[TimeoutDict] = None,
-        pass_through: Optional[Callable[..., Response]] = None,
+        headers: Headers = None,
+        stream: SyncByteStream = None,
+        timeout: TimeoutDict = None,
+        pass_through: Callable[..., Response] = None,
     ) -> Response:
         pattern, request, response_template = self.match(method, url, headers, stream)
 
@@ -345,7 +345,7 @@ class BaseMockTransport:
                 response = response_template.raw
             return response
         except Exception:
-            response = None  # type: ignore
+            response = None
             raise
         finally:
             self.record(request, response, pattern=pattern)
@@ -354,10 +354,10 @@ class BaseMockTransport:
         self,
         method: bytes,
         url: URL,
-        headers: Headers,
-        stream: AsyncByteStream,
-        timeout: Optional[TimeoutDict] = None,
-        pass_through: Optional[Callable[..., Coroutine[Any, Any, Response]]] = None,
+        headers: Headers = None,
+        stream: AsyncByteStream = None,
+        timeout: TimeoutDict = None,
+        pass_through: Callable[..., Coroutine[Any, Any, Response]] = None,
     ) -> Response:
         pattern, request, response_template = self.match(method, url, headers, stream)
 
@@ -371,7 +371,7 @@ class BaseMockTransport:
                 response = await response_template.araw
             return response
         except Exception:
-            response = None  # type: ignore
+            response = None
             raise
         finally:
             self.record(request, response, pattern=pattern)
@@ -389,9 +389,9 @@ class SyncMockTransport(BaseMockTransport, SyncHTTPTransport):
         self,
         method: bytes,
         url: URL,
-        headers: Headers,
-        stream: SyncByteStream,
-        timeout: Optional[TimeoutDict] = None,
+        headers: Headers = None,
+        stream: SyncByteStream = None,
+        timeout: TimeoutDict = None,
     ) -> Response:
         return self._sync_request(method, url, headers, stream, timeout)
 
@@ -401,8 +401,8 @@ class AsyncMockTransport(BaseMockTransport, AsyncHTTPTransport):
         self,
         method: bytes,
         url: URL,
-        headers: Headers,
-        stream: AsyncByteStream,
-        timeout: Optional[TimeoutDict] = None,
+        headers: Headers = None,
+        stream: AsyncByteStream = None,
+        timeout: TimeoutDict = None,
     ) -> Response:
         return await self._async_request(method, url, headers, stream, timeout)

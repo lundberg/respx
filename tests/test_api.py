@@ -65,19 +65,20 @@ async def test_http_methods(client):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "url",
+    "url,pattern",
     [
-        None,
-        "",
-        "https://foo.bar/baz/",
-        re.compile(r"^https://foo.bar/\w+/$"),
-        (b"https", b"foo.bar", 443, b"/baz/"),
+        ("https://foo.bar", "https://foo.bar"),
+        ("https://foo.bar/baz/", None),
+        ("https://foo.bar/baz/", ""),
+        ("https://foo.bar/baz/", "https://foo.bar/baz/"),
+        ("https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")),
+        ("https://foo.bar/baz/", (b"https", b"foo.bar", 443, b"/baz/")),
     ],
 )
-async def test_url_match(client, url):
+async def test_url_match(client, url, pattern):
     async with MockTransport(assert_all_mocked=False) as respx_mock:
-        request = respx_mock.get(url, content="baz")
-        response = await client.get("https://foo.bar/baz/")
+        request = respx_mock.get(pattern, content="baz")
+        response = await client.get(url)
         assert request.called is True
         assert response.status_code == 200
         assert response.text == "baz"

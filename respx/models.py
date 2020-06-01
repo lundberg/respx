@@ -15,7 +15,7 @@ from typing import (
     Tuple,
     Union,
 )
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import asynctest
 import httpx  # TODO: Drop usage
@@ -255,6 +255,9 @@ class RequestPattern:
             url = base
         elif isinstance(url, str):
             url = url if base is None else urljoin(base, url)
+            parsed_url = urlparse(url)
+            if not parsed_url.path:
+                url = parsed_url._replace(path="/").geturl()
         elif isinstance(url, tuple):
             url = self.build_url(url)
         elif isregex(url):

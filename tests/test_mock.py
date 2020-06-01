@@ -354,6 +354,21 @@ async def test_asgi():
             assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.asyncio
+async def test_proxies():
+    with respx.mock:
+        respx.get("https://foo.bar/", content={"foo": "bar"})
+        with httpx.Client(proxies={"https": "https://1.1.1.1:1"}) as client:
+            response = client.get("https://foo.bar/")
+        assert response.json() == {"foo": "bar"}
+
+    async with respx.mock:
+        respx.get("https://foo.bar/", content={"foo": "bar"})
+        async with httpx.AsyncClient(proxies={"https": "https://1.1.1.1:1"}) as client:
+            response = await client.get("https://foo.bar/")
+        assert response.json() == {"foo": "bar"}
+
+
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_deprecated():
     url = "https://foo.bar/"

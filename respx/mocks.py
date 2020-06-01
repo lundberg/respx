@@ -16,8 +16,10 @@ class MockTransport(BaseMockTransport):
     targets = [
         "httpcore._sync.connection.SyncHTTPConnection.request",
         "httpcore._sync.connection_pool.SyncConnectionPool.request",
+        "httpcore._sync.http_proxy.SyncHTTPProxy.request",
         "httpcore._async.connection.AsyncHTTPConnection.request",
         "httpcore._async.connection_pool.AsyncConnectionPool.request",
+        "httpcore._async.http_proxy.AsyncHTTPProxy.request",
         "httpx._transports.asgi.ASGITransport.request",
         "httpx._transports.wsgi.WSGITransport.request",
         "httpx._transports.urllib3.URLLib3Transport.request",

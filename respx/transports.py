@@ -1,5 +1,17 @@
 import warnings
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Pattern, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Pattern,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import asynctest
 from httpcore import (
@@ -22,6 +34,8 @@ from .models import (
     build_request,
     build_response,
 )
+
+DefaultType = TypeVar("DefaultType", bound=Any)
 
 
 class BaseMockTransport:
@@ -59,6 +73,31 @@ class BaseMockTransport:
 
     def __getitem__(self, alias: str) -> Optional[RequestPattern]:
         return self.aliases.get(alias)
+
+    @overload
+    def pop(self, alias: str) -> RequestPattern:
+        ...
+
+    @overload
+    def pop(
+        self, alias: str, default: DefaultType
+    ) -> Union[RequestPattern, DefaultType]:
+        ...
+
+    def pop(self, alias, default=...):
+        """
+        Removes a pattern by alias and returns it.
+
+        Raises KeyError when `default` not provided and alias is not found.
+        """
+        try:
+            request_pattern = self.aliases.pop(alias)
+            self.patterns.remove(request_pattern)
+            return request_pattern
+        except KeyError as ex:
+            if default is ...:
+                raise ex
+            return default
 
     def add(
         self,

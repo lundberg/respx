@@ -175,6 +175,33 @@ def test_something():
     assert response.json() == {"id": 123}
 ```
 
+### Manipulating Existing Patterns
+
+Clearing all existing patterns:
+
+``` python
+import respx
+
+
+@respx.mock
+def test_something():
+    respx.get("https://foo.bar/baz", status_code=404)
+    respx.clear()  # no patterns will be matched after this call
+```
+
+Removing and optionally re-using an existing pattern by alias:
+
+``` python
+import respx
+
+
+@respx.mock
+def test_something():
+    respx.get("https://foo.bar/", status_code=404, alias="index")
+    request_pattern = respx.pop("index")
+    respx.get(request_pattern.url, status_code=200)
+```
+
 ---
 
 ## Response Content

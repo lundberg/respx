@@ -85,3 +85,26 @@ async def test_httpcore_request():
             body = b"".join([chunk async for chunk in stream])
             await stream.aclose()
             assert body == b"foobar"
+
+
+@pytest.mark.asyncio
+async def test_transport_pop():
+    url = "https://foo.bar/"
+    alias = "get_alias"
+
+    transport = AsyncMockTransport()
+    transport.get(url, status_code=404, alias=alias)
+
+    request_pattern = transport.pop(alias)
+
+    assert request_pattern.response.status_code == 404
+    assert request_pattern.alias == alias
+    assert request_pattern.url == url
+
+    assert not transport.aliases
+    assert not transport.patterns
+
+    with pytest.raises(KeyError):
+        transport.pop(alias)
+
+    assert transport.pop(alias, "custom default") == "custom default"

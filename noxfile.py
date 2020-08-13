@@ -27,7 +27,7 @@ def check(session):
     session.install("-e", ".")
 
     session.run("black", "--check", "--diff", "--target-version=py36", *source_files)
-    session.run("isort", "--check", "--diff", "--project=respx", "-rc", *source_files)
+    session.run("isort", "--check", "--diff", "--project=respx", *source_files)
     session.run("flake8", *source_files)
     session.run("mypy", "respx")
 
@@ -37,7 +37,7 @@ def lint(session):
     session.install("--upgrade", "autoflake", *lint_requirements)
 
     session.run("autoflake", "--in-place", "--recursive", *source_files)
-    session.run("isort", "--project=respx", "--recursive", "--apply", *source_files)
+    session.run("isort", "--project=respx", *source_files)
     session.run("black", "--target-version=py36", *source_files)
 
     check(session)

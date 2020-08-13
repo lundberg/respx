@@ -66,7 +66,11 @@ def build_request(request: Request) -> Union[httpx.Request, Request]:
     else:
         method, url, headers, stream = request
         scheme, host, port, full_path = url
-        port_str = "" if port == {b"https": 443, b"http": 80}[scheme] else f":{port}"
+        port_str = (
+            ""
+            if not port or port == {b"https": 443, b"http": 80}[scheme]
+            else f":{port}"
+        )
         return _Request(
             method.decode(),
             _URL(f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"),
@@ -274,7 +278,11 @@ class RequestPattern:
 
     def build_url(self, parts: URL) -> str:
         scheme, host, port, full_path = parts
-        port_str = "" if port == {b"https": 443, b"http": 80}[scheme] else f":{port}"
+        port_str = (
+            ""
+            if not port or port == {b"https": 443, b"http": 80}[scheme]
+            else f":{port}"
+        )
         return f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"
 
     def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:

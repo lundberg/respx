@@ -5,7 +5,6 @@ import socket
 import asynctest
 import httpx
 import pytest
-from httpcore import NetworkError
 
 import respx
 from respx import MockTransport
@@ -205,7 +204,7 @@ async def test_json_content(client, content, headers, expected_headers):
 async def test_raising_content(client):
     async with MockTransport() as respx_mock:
         url = "https://foo.bar/"
-        request = respx_mock.get(url, content=httpx.ConnectTimeout())
+        request = respx_mock.get(url, content=httpx.ConnectTimeout("X-P", request=None))
         with pytest.raises(httpx.ConnectTimeout):
             await client.get(url)
 
@@ -277,7 +276,7 @@ async def test_pass_through(client, parameters, expected):
             "asyncio.open_connection",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
-            with pytest.raises(NetworkError):
+            with pytest.raises(httpx.NetworkError):
                 await client.get("https://example.org/")
 
         assert open_connection.called is True
@@ -290,7 +289,7 @@ async def test_pass_through(client, parameters, expected):
         with asynctest.mock.patch(
             "socket.socket.connect", side_effect=socket.error("test request blocked"),
         ) as connect:
-            with pytest.raises(NetworkError):
+            with pytest.raises(httpx.NetworkError):
                 httpx.get("https://example.org/")
 
         assert connect.called is True

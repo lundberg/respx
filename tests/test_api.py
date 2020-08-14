@@ -1,8 +1,8 @@
 import asyncio
 import re
 import socket
+from unittest import mock
 
-import asynctest
 import httpx
 import pytest
 
@@ -272,7 +272,7 @@ async def test_pass_through(client, parameters, expected):
     async with MockTransport() as respx_mock:
         request = respx_mock.add(**parameters)
 
-        with asynctest.mock.patch(
+        with mock.patch(
             "asyncio.open_connection",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
@@ -286,7 +286,7 @@ async def test_pass_through(client, parameters, expected):
     with MockTransport() as respx_mock:
         request = respx_mock.add(**parameters)
 
-        with asynctest.mock.patch(
+        with mock.patch(
             "socket.socket.connect", side_effect=socket.error("test request blocked"),
         ) as connect:
             with pytest.raises(httpx.NetworkError):

@@ -15,9 +15,9 @@ from typing import (
     Tuple,
     Union,
 )
+from unittest import mock
 from urllib.parse import urljoin, urlparse
 
-import asynctest
 import httpx  # TODO: Drop usage
 from httpcore import AsyncByteStream, SyncByteStream
 from httpx import Headers as HTTPXHeaders  # TODO: Drop usage
@@ -232,7 +232,7 @@ class RequestPattern:
 
         self.response = response or ResponseTemplate()
         self.alias = alias
-        self.stats = asynctest.mock.MagicMock()
+        self.stats = mock.MagicMock()
 
     @property
     def called(self):

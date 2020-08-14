@@ -12,8 +12,8 @@ from typing import (
     Union,
     overload,
 )
+from unittest import mock
 
-import asynctest
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
@@ -52,7 +52,7 @@ class BaseMockTransport:
         self.patterns: List[RequestPattern] = []
         self.aliases: Dict[str, RequestPattern] = {}
 
-        self.stats = asynctest.mock.MagicMock()
+        self.stats = mock.MagicMock()
         self.calls: List[Tuple[Request, Optional[Response]]] = []
 
     def clear(self):

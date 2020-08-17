@@ -358,13 +358,15 @@ async def test_asgi():
 async def test_proxies():
     with respx.mock:
         respx.get("https://foo.bar/", content={"foo": "bar"})
-        with httpx.Client(proxies={"https": "https://1.1.1.1:1"}) as client:
+        with httpx.Client(proxies={"https://": "https://1.1.1.1:1"}) as client:
             response = client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 
     async with respx.mock:
         respx.get("https://foo.bar/", content={"foo": "bar"})
-        async with httpx.AsyncClient(proxies={"https": "https://1.1.1.1:1"}) as client:
+        async with httpx.AsyncClient(
+            proxies={"https://": "https://1.1.1.1:1"}
+        ) as client:
             response = await client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 

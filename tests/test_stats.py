@@ -1,7 +1,7 @@
 import asyncio
 import re
+from unittest import mock
 
-import asynctest
 import httpx
 import pytest
 import trio
@@ -27,7 +27,7 @@ async def test_alias():
 @pytest.mark.asyncio
 async def test_httpx_exception_handling(client):  # pragma: no cover
     async with MockTransport() as respx_mock:
-        with asynctest.mock.patch(
+        with mock.patch(
             "httpx._client.AsyncClient.dispatcher_for_url",
             side_effect=ValueError("mock"),
         ):

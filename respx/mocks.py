@@ -2,8 +2,7 @@ import inspect
 import warnings
 from functools import partial, wraps
 from typing import Any, Callable, Dict, List, Optional, Union
-
-import asynctest
+from unittest import mock
 
 from .transports import BaseMockTransport
 
@@ -11,7 +10,7 @@ __all__ = ["MockTransport", "HTTPXMock"]
 
 
 class MockTransport(BaseMockTransport):
-    _patches: List[asynctest.mock._patch] = []
+    _patches: List[mock._patch] = []
     transports: List["MockTransport"] = []
     targets = [
         "httpcore._sync.connection.SyncHTTPConnection.request",
@@ -136,9 +135,7 @@ class MockTransport(BaseMockTransport):
 
         # Start patching target transports
         for target in cls.targets:
-            patch = asynctest.mock.patch(
-                target, spec=True, create=True, new_callable=cls._mock,
-            )
+            patch = mock.patch(target, spec=True, create=True, new_callable=cls._mock)
             patch.start()
             cls._patches.append(patch)
 

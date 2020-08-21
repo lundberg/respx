@@ -102,7 +102,11 @@ def build_response(
             stream=stream,  # type: ignore
             request=request,
         )
-        httpx_response.read()
+
+        # Pre-read response stream, but only if mocked, not pass-through
+        if isinstance(stream, ContentStream):
+            httpx_response.read()
+
         return httpx_response
 
 

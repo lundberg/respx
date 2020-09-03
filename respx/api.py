@@ -30,6 +30,10 @@ def reset() -> None:
     mock.reset()
 
 
+def pop(alias: Optional[str] = None) -> RequestPattern:
+    global mock
+    mock.pop(alias=alias)
+
 def add(
     method: Union[str, Callable],
     url: Optional[Union[str, Pattern]] = None,

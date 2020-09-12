@@ -55,13 +55,12 @@ HeaderTypes = Union[
 
 DefaultType = TypeVar("DefaultType", bound=Any)
 
-Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]
 URLPatternTypes = Union[str, Pattern[str], URL]
 ContentDataTypes = Union[bytes, str, List, Dict, Callable, Exception]
 
 istype = lambda t, o: isinstance(o, t)
-isregex = partial(istype, Regex)
+isregex = partial(istype, Pattern)
 
 
 def build_request(request: Request) -> Union[httpx.Request, Request]:
@@ -187,9 +186,7 @@ class ResponseTemplate:
 
         return content
 
-    @property
-    def raw(self):
-        stream = ContentStream(self.content)
+    def build_raw_response(self, stream):
         return (
             self.status_code,
             self.headers.raw,
@@ -198,14 +195,14 @@ class ResponseTemplate:
         )
 
     @property
+    def raw(self):
+        stream = ContentStream(self.content)
+        return self.build_raw_response(stream)
+
+    @property
     async def araw(self):
         stream = ContentStream(await self.acontent)
-        return (
-            self.status_code,
-            self.headers.raw,
-            stream,
-            {"http_version": f"HTTP/{self.http_version}".encode("ascii")},
-        )
+        return self.build_raw_response(stream)
 
 
 class RequestPattern:

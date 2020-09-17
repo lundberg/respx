@@ -1,7 +1,9 @@
-from typing import Callable, Optional, Pattern, Union
+from typing import Any, Callable, Optional, Pattern, TypeVar, Union, overload
 
 from .mocks import MockTransport
 from .models import ContentDataTypes, HeaderTypes, RequestPattern
+
+DefaultType = TypeVar("DefaultType", bound=Any)
 
 mock = MockTransport(assert_all_called=False)
 
@@ -30,9 +32,20 @@ def reset() -> None:
     mock.reset()
 
 
-def pop(alias: Optional[str] = None) -> RequestPattern:
+@overload
+def pop(alias: str) -> RequestPattern:
+    ...
+
+
+@overload
+def pop(alias: str, default: DefaultType) -> Union[RequestPattern, DefaultType]:
+    ...
+
+
+def pop(alias, default=...):
     global mock
-    mock.pop(alias=alias)
+    return mock.pop(alias=alias, default=default)
+
 
 def add(
     method: Union[str, Callable],

@@ -26,7 +26,10 @@ URL = Tuple[bytes, bytes, Optional[int], bytes]
 Headers = List[Tuple[bytes, bytes]]
 TimeoutDict = Dict[str, Optional[float]]
 Request = Tuple[
-    bytes, URL, Headers, Union[SyncByteStream, AsyncByteStream],
+    bytes,  # http method
+    URL,
+    Headers,
+    Union[SyncByteStream, AsyncByteStream],
 ]
 Response = Tuple[
     bytes,  # http version
@@ -47,9 +50,7 @@ HeaderTypes = Union[
 Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]
 URLPatternTypes = Union[str, Pattern[str], URL]
-ContentDataTypes = Union[
-    bytes, str, List, Dict, Callable, Exception,
-]
+ContentDataTypes = Union[bytes, str, List, Dict, Callable, Exception]
 
 istype = lambda t, o: isinstance(o, t)
 isregex = partial(istype, Regex)
@@ -256,7 +257,7 @@ class RequestPattern:
         return self._url
 
     def set_url(
-        self, url: Optional[URLPatternTypes], base: Optional[str] = None,
+        self, url: Optional[URLPatternTypes], base: Optional[str] = None
     ) -> None:
         url = url or None
         if url is None:

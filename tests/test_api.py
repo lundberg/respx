@@ -287,7 +287,7 @@ async def test_pass_through(client, parameters, expected):
         request = respx_mock.add(**parameters)
 
         with mock.patch(
-            "socket.socket.connect", side_effect=socket.error("test request blocked"),
+            "socket.socket.connect", side_effect=socket.error("test request blocked")
         ) as connect:
             with pytest.raises(httpx.NetworkError):
                 httpx.get("https://example.org/")

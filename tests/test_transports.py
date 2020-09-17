@@ -63,9 +63,13 @@ async def test_httpcore_request():
     async with MockTransport() as transport:
         transport.add("GET", "https://foo.bar/", content="foobar")
         with httpcore.SyncConnectionPool() as http:
-            (http_version, status_code, reason_phrase, headers, stream,) = http.request(
-                method=b"GET", url=(b"https", b"foo.bar", 443, b"/"),
-            )
+            (
+                http_version,
+                status_code,
+                reason_phrase,
+                headers,
+                stream,
+            ) = http.request(method=b"GET", url=(b"https", b"foo.bar", 443, b"/"))
 
             body = b"".join([chunk for chunk in stream])
             stream.close()
@@ -78,9 +82,7 @@ async def test_httpcore_request():
                 reason_phrase,
                 headers,
                 stream,
-            ) = await http.request(
-                method=b"GET", url=(b"https", b"foo.bar", 443, b"/"),
-            )
+            ) = await http.request(method=b"GET", url=(b"https", b"foo.bar", 443, b"/"))
 
             body = b"".join([chunk async for chunk in stream])
             await stream.aclose()

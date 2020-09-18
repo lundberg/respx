@@ -1,9 +1,7 @@
-from typing import Any, Callable, Optional, Pattern, TypeVar, Union, overload
+from typing import Callable, Optional, Pattern, Union, overload
 
 from .mocks import MockTransport
-from .models import ContentDataTypes, HeaderTypes, RequestPattern
-
-DefaultType = TypeVar("DefaultType", bound=Any)
+from .models import ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
 
 mock = MockTransport(assert_all_called=False)
 

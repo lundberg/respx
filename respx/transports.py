@@ -8,7 +8,6 @@ from typing import (
     Optional,
     Pattern,
     Tuple,
-    TypeVar,
     Union,
     overload,
 )
@@ -24,6 +23,7 @@ from httpcore import (
 from .models import (
     URL,
     ContentDataTypes,
+    DefaultType,
     Headers,
     HeaderTypes,
     Request,
@@ -34,8 +34,6 @@ from .models import (
     build_request,
     build_response,
 )
-
-DefaultType = TypeVar("DefaultType", bound=Any)
 
 
 class BaseMockTransport:

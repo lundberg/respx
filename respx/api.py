@@ -68,29 +68,6 @@ def add(
     )
 
 
-def request(
-    method: Union[str, Callable],
-    url: Optional[Union[str, Pattern]] = None,
-    status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
-    headers: Optional[HeaderTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-) -> RequestPattern:
-    global mock
-    return mock.request(
-        method,
-        url=url,
-        status_code=status_code,
-        content=content,
-        content_type=content_type,
-        headers=headers,
-        pass_through=pass_through,
-        alias=alias,
-    )
-
-
 def get(
     url: Optional[Union[str, Pattern]] = None,
     status_code: Optional[int] = None,

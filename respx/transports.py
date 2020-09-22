@@ -280,14 +280,6 @@ class BaseMockTransport:
             alias=alias,
         )
 
-    def request(self, *args: Any, **kwargs: Any) -> RequestPattern:
-        warnings.warn(
-            "respx.request() is due to be deprecated. Use respx.add() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.add(*args, **kwargs)
-
     def record(
         self,
         request: Any,

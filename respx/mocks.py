@@ -6,7 +6,7 @@ from unittest import mock
 
 from .transports import BaseMockTransport
 
-__all__ = ["MockTransport", "HTTPXMock"]
+__all__ = ["MockTransport"]
 
 
 class MockTransport(BaseMockTransport):
@@ -189,13 +189,3 @@ class MockTransport(BaseMockTransport):
                 return response
 
         return request
-
-
-class HTTPXMock(MockTransport):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "HTTPXMock() is due to be deprecated. Use MockTransport() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

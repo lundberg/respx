@@ -13,6 +13,7 @@ from typing import (
     Pattern,
     Sequence,
     Tuple,
+    TypeVar,
     Union,
 )
 from unittest import mock
@@ -46,6 +47,8 @@ HeaderTypes = Union[
     Sequence[Tuple[str, str]],
     Sequence[Tuple[bytes, bytes]],
 ]
+
+DefaultType = TypeVar("DefaultType", bound=Any)
 
 Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]

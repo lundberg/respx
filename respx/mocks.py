@@ -1,5 +1,4 @@
 import inspect
-import warnings
 from functools import partial, wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 from unittest import mock
@@ -13,15 +12,14 @@ class MockTransport(BaseMockTransport):
     _patches: List[mock._patch] = []
     transports: List["MockTransport"] = []
     targets = [
-        "httpcore._sync.connection.SyncHTTPConnection.request",
-        "httpcore._sync.connection_pool.SyncConnectionPool.request",
-        "httpcore._sync.http_proxy.SyncHTTPProxy.request",
-        "httpcore._async.connection.AsyncHTTPConnection.request",
-        "httpcore._async.connection_pool.AsyncConnectionPool.request",
-        "httpcore._async.http_proxy.AsyncHTTPProxy.request",
-        "httpx._transports.asgi.ASGITransport.request",
-        "httpx._transports.wsgi.WSGITransport.request",
-        "httpx._transports.urllib3.URLLib3Transport.request",
+        "httpcore._sync.connection.SyncHTTPConnection",
+        "httpcore._sync.connection_pool.SyncConnectionPool",
+        "httpcore._sync.http_proxy.SyncHTTPProxy",
+        "httpcore._async.connection.AsyncHTTPConnection",
+        "httpcore._async.connection_pool.AsyncConnectionPool",
+        "httpcore._async.http_proxy.AsyncHTTPProxy",
+        "httpx._transports.asgi.ASGITransport",
+        "httpx._transports.wsgi.WSGITransport",
     ]
 
     def __init__(
@@ -134,10 +132,15 @@ class MockTransport(BaseMockTransport):
             return
 
         # Start patching target transports
-        for target in cls.targets:
-            patch = mock.patch(target, spec=True, create=True, new_callable=cls._mock)
-            patch.start()
-            cls._patches.append(patch)
+        for transport in cls.targets:
+            for method, new in (("request", cls._request), ("arequest", cls._arequest)):
+                try:
+                    spec = f"{transport}.{method}"
+                    patch = mock.patch(spec, spec=True, new_callable=new)
+                    patch.start()
+                    cls._patches.append(patch)
+                except AttributeError:
+                    pass
 
     @classmethod
     def _unpatch(cls) -> None:
@@ -151,41 +154,43 @@ class MockTransport(BaseMockTransport):
             patch.stop()
 
     @classmethod
-    def _mock(cls, spec):
-        if inspect.iscoroutinefunction(spec):
-
-            async def request(self, *args, **kwargs):
-                kwargs["pass_through"] = partial(spec, self)
-                response = None
-                error = None
-                for transport in cls.transports:
-                    try:
-                        response = await transport._async_request(*args, **kwargs)
-                    except AssertionError as e:
-                        error = e.args[0]
-                        continue
-                    else:
-                        break
+    def _request(cls, spec):
+        def request(self, *args, **kwargs):
+            pass_through = partial(spec, self)
+            kwargs["ext"] = {**kwargs.get("ext", {}), "pass_through": pass_through}
+            response = None
+            error = None
+            for transport in cls.transports:
+                try:
+                    response = transport.request(*args, **kwargs)
+                except AssertionError as e:
+                    error = e.args[0]
+                    continue
                 else:
-                    assert response, error
-                return response
+                    break
+            else:
+                assert response, error
+            return response
 
-        else:
+        return request
 
-            def request(self, *args, **kwargs):
-                kwargs["pass_through"] = partial(spec, self)
-                response = None
-                error = None
-                for transport in cls.transports:
-                    try:
-                        response = transport._sync_request(*args, **kwargs)
-                    except AssertionError as e:
-                        error = e.args[0]
-                        continue
-                    else:
-                        break
+    @classmethod
+    def _arequest(cls, spec):
+        async def request(self, *args, **kwargs):
+            pass_through = partial(spec, self)
+            kwargs["ext"] = {**kwargs.get("ext", {}), "pass_through": pass_through}
+            response = None
+            error = None
+            for transport in cls.transports:
+                try:
+                    response = await transport.arequest(*args, **kwargs)
+                except AssertionError as e:
+                    error = e.args[0]
+                    continue
                 else:
-                    assert response, error
-                return response
+                    break
+            else:
+                assert response, error
+            return response
 
         return request

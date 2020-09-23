@@ -257,12 +257,13 @@ This is useful when you need to test proper `HTTPX` error handling in your app.
 
 ``` python
 import httpx
+import httpcore
 import respx
 
 
 @respx.mock
 def test_something():
-    respx.get("https://foo.bar/", content=httpx.ConnectTimeout())
+    respx.get("https://foo.bar/", content=httpcore.ConnectTimeout())
     response = httpx.get("https://foo.bar/")  # Will raise
 ```
 

@@ -1,17 +1,4 @@
-import warnings
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
-    Pattern,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
 from unittest import mock
 
 from httpcore import (
@@ -23,19 +10,19 @@ from httpcore import (
 
 from .models import (
     URL,
+    AsyncResponse,
     ContentDataTypes,
+    DefaultType,
     Headers,
     HeaderTypes,
     Request,
     RequestPattern,
     Response,
     ResponseTemplate,
-    TimeoutDict,
+    SyncResponse,
     build_request,
     build_response,
 )
-
-DefaultType = TypeVar("DefaultType", bound=Any)
 
 
 class BaseMockTransport:
@@ -282,14 +269,6 @@ class BaseMockTransport:
             alias=alias,
         )
 
-    def request(self, *args: Any, **kwargs: Any) -> RequestPattern:
-        warnings.warn(
-            "respx.request() is due to be deprecated. Use respx.add() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.add(*args, **kwargs)
-
     def record(
         self,
         request: Any,
@@ -363,23 +342,23 @@ class BaseMockTransport:
 
         return matched_pattern, request, response
 
-    def _sync_request(
+    def request(
         self,
         method: bytes,
         url: URL,
         headers: Headers = None,
         stream: SyncByteStream = None,
-        timeout: TimeoutDict = None,
-        pass_through: Callable[..., Response] = None,
-    ) -> Response:
+        ext: dict = None,
+    ) -> SyncResponse:
         pattern, request, response_template = self.match(method, url, headers, stream)
 
         try:
             if response_template is None:
                 # Pass-through request
+                pass_through = ext.pop("pass_through", None)
                 if pass_through is None:
                     raise ValueError("pass_through not supported with manual transport")
-                response = pass_through(method, url, headers, stream, timeout)
+                response = pass_through(method, url, headers, stream, ext)
             else:
                 response = response_template.raw
             return response
@@ -389,23 +368,23 @@ class BaseMockTransport:
         finally:
             self.record(request, response, pattern=pattern)
 
-    async def _async_request(
+    async def arequest(
         self,
         method: bytes,
         url: URL,
         headers: Headers = None,
         stream: AsyncByteStream = None,
-        timeout: TimeoutDict = None,
-        pass_through: Callable[..., Coroutine[Any, Any, Response]] = None,
-    ) -> Response:
+        ext: dict = None,
+    ) -> AsyncResponse:
         pattern, request, response_template = self.match(method, url, headers, stream)
 
         try:
             if response_template is None:
                 # Pass-through request
+                pass_through = ext.pop("pass_through", None)
                 if pass_through is None:
                     raise ValueError("pass_through not supported with manual transport")
-                response = await pass_through(method, url, headers, stream, timeout)
+                response = await pass_through(method, url, headers, stream, ext)
             else:
                 response = await response_template.araw
             return response
@@ -424,24 +403,8 @@ class BaseMockTransport:
 
 
 class SyncMockTransport(BaseMockTransport, SyncHTTPTransport):
-    def request(  # type: ignore
-        self,
-        method: bytes,
-        url: URL,
-        headers: Headers = None,
-        stream: SyncByteStream = None,
-        timeout: TimeoutDict = None,
-    ) -> Response:
-        return self._sync_request(method, url, headers, stream, timeout)
+    ...
 
 
 class AsyncMockTransport(BaseMockTransport, AsyncHTTPTransport):
-    async def request(  # type: ignore
-        self,
-        method: bytes,
-        url: URL,
-        headers: Headers = None,
-        stream: AsyncByteStream = None,
-        timeout: TimeoutDict = None,
-    ) -> Response:
-        return await self._async_request(method, url, headers, stream, timeout)
+    ...

@@ -1,7 +1,7 @@
-from typing import Callable, Optional, Pattern, Union
+from typing import Callable, Optional, Pattern, Union, overload
 
 from .mocks import MockTransport
-from .models import ContentDataTypes, HeaderTypes, RequestPattern
+from .models import ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
 
 mock = MockTransport(assert_all_called=False)
 
@@ -30,6 +30,21 @@ def reset() -> None:
     mock.reset()
 
 
+@overload
+def pop(alias: str) -> RequestPattern:
+    ...
+
+
+@overload
+def pop(alias: str, default: DefaultType) -> Union[RequestPattern, DefaultType]:
+    ...
+
+
+def pop(alias, default=...):
+    global mock
+    return mock.pop(alias=alias, default=default)
+
+
 def add(
     method: Union[str, Callable],
     url: Optional[Union[str, Pattern]] = None,
@@ -42,29 +57,6 @@ def add(
 ) -> RequestPattern:
     global mock
     return mock.add(
-        method,
-        url=url,
-        status_code=status_code,
-        content=content,
-        content_type=content_type,
-        headers=headers,
-        pass_through=pass_through,
-        alias=alias,
-    )
-
-
-def request(
-    method: Union[str, Callable],
-    url: Optional[Union[str, Pattern]] = None,
-    status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
-    headers: Optional[HeaderTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-) -> RequestPattern:
-    global mock
-    return mock.request(
         method,
         url=url,
         status_code=status_code,

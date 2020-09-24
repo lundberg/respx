@@ -1,5 +1,5 @@
 from .__version__ import __version__
-from .mocks import HTTPXMock, MockTransport
+from .mocks import MockTransport
 from .transports import AsyncMockTransport, SyncMockTransport
 
 from .api import (  # isort:skip
@@ -11,8 +11,8 @@ from .api import (  # isort:skip
     stop,
     clear,
     reset,
+    pop,
     add,
-    request,
     get,
     post,
     put,
@@ -27,7 +27,6 @@ __all__ = [
     "MockTransport",
     "AsyncMockTransport",
     "SyncMockTransport",
-    "HTTPXMock",
     "mock",
     "aliases",
     "stats",
@@ -36,8 +35,8 @@ __all__ = [
     "stop",
     "clear",
     "reset",
+    "pop",
     "add",
-    "request",
     "get",
     "post",
     "put",

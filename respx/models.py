@@ -13,6 +13,7 @@ from typing import (
     Pattern,
     Sequence,
     Tuple,
+    TypeVar,
     Union,
 )
 from unittest import mock
@@ -24,20 +25,25 @@ from httpx import Headers as HTTPXHeaders  # TODO: Drop usage
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]
 Headers = List[Tuple[bytes, bytes]]
-TimeoutDict = Dict[str, Optional[float]]
 Request = Tuple[
     bytes,  # http method
     URL,
     Headers,
     Union[SyncByteStream, AsyncByteStream],
 ]
-Response = Tuple[
-    bytes,  # http version
+SyncResponse = Tuple[
     int,  # status code
-    bytes,  # reason
     Headers,
-    Union[SyncByteStream, AsyncByteStream],  # body
+    SyncByteStream,  # body
+    dict,  # ext
 ]
+AsyncResponse = Tuple[
+    int,  # status code
+    Headers,
+    AsyncByteStream,  # body
+    dict,  # ext
+]
+Response = Union[SyncResponse, AsyncResponse]
 
 HeaderTypes = Union[
     HTTPXHeaders,
@@ -46,6 +52,8 @@ HeaderTypes = Union[
     Sequence[Tuple[str, str]],
     Sequence[Tuple[bytes, bytes]],
 ]
+
+DefaultType = TypeVar("DefaultType", bound=Any)
 
 Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]
@@ -61,23 +69,12 @@ def build_request(request: Request) -> Union[httpx.Request, Request]:
     Try to re-build a httpx request from httpcore request args
     """
     try:
-        from httpx import URL as _URL, Request as _Request
+        from httpx import Request as _Request
     except ImportError:  # pragma: no cover
         return request
     else:
         method, url, headers, stream = request
-        scheme, host, port, full_path = url
-        port_str = (
-            ""
-            if not port or port == {b"https": 443, b"http": 80}[scheme]
-            else f":{port}"
-        )
-        return _Request(
-            method.decode(),
-            _URL(f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"),
-            headers=headers or None,
-            stream=stream,  # type: ignore
-        )
+        return _Request(method, url, headers=headers, stream=stream)
 
 
 def build_response(
@@ -95,12 +92,12 @@ def build_response(
     except ImportError:  # pragma: no cover
         return response
     else:
-        http_version, status_code, _, headers, stream = response
+        status_code, headers, stream, ext = response
         httpx_response = _Response(
             status_code,
-            http_version=http_version.decode("ascii"),
             headers=headers,
-            stream=stream,  # type: ignore
+            stream=stream,
+            ext=ext,
             request=request,
         )
 
@@ -194,22 +191,20 @@ class ResponseTemplate:
     def raw(self):
         stream = ContentStream(self.content)
         return (
-            f"HTTP/{self.http_version}".encode("ascii"),
             self.status_code,
-            b"<reason_phrase>",
             self.headers.raw,
             stream,
+            {"http_version": f"HTTP/{self.http_version}".encode("ascii")},
         )
 
     @property
     async def araw(self):
         stream = ContentStream(await self.acontent)
         return (
-            f"HTTP/{self.http_version}".encode("ascii"),
             self.status_code,
-            b"<reason_phrase>",
             self.headers.raw,
             stream,
+            {"http_version": f"HTTP/{self.http_version}".encode("ascii")},
         )
 
 

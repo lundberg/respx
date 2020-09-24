@@ -371,19 +371,6 @@ async def test_proxies():
         assert response.json() == {"foo": "bar"}
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_deprecated():
-    url = "https://foo.bar/"
-    with respx.mock:
-        respx.request("POST", url, status_code=201)
-        with respx.HTTPXMock() as httpx_mock:
-            httpx_mock.request("GET", url)
-            response = httpx.post(url)
-            assert response.status_code == 201
-            response = httpx.get(url)
-            assert response.status_code == 200
-
-
 @pytest.mark.xfail(strict=True)
 @pytest.mark.asyncio
 async def test_uds():  # pragma: no cover

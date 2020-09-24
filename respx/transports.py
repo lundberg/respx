@@ -90,6 +90,7 @@ class BaseMockTransport:
         self,
         method: Union[str, Callable, RequestPattern],
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -125,6 +126,7 @@ class BaseMockTransport:
     def get(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -146,6 +148,7 @@ class BaseMockTransport:
     def post(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -167,6 +170,7 @@ class BaseMockTransport:
     def put(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -188,6 +192,7 @@ class BaseMockTransport:
     def patch(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -209,6 +214,7 @@ class BaseMockTransport:
     def delete(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -230,6 +236,7 @@ class BaseMockTransport:
     def head(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -251,6 +258,7 @@ class BaseMockTransport:
     def options(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,

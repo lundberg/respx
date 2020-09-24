@@ -48,6 +48,7 @@ def pop(alias, default=...):
 def add(
     method: Union[str, Callable],
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -70,6 +71,7 @@ def add(
 
 def get(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -91,6 +93,7 @@ def get(
 
 def post(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -112,6 +115,7 @@ def post(
 
 def put(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -133,6 +137,7 @@ def put(
 
 def patch(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -154,6 +159,7 @@ def patch(
 
 def delete(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -175,6 +181,7 @@ def delete(
 
 def head(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -196,6 +203,7 @@ def head(
 
 def options(
     url: Optional[Union[str, Pattern]] = None,
+    *,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,

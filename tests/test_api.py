@@ -264,8 +264,6 @@ async def test_request_callback(client):
     "parameters,expected",
     [
         ({"method": "GET", "url": "https://example.org/", "pass_through": True}, True),
-        # ({"method": "get", "url": "https://example.org/", "pass_through": True}, True),
-        # ({"method": respx.get, "url": "https://example.org/", "pass_through": True}, True),
         ({"method": lambda request, response: request}, None),
         ({"method": RequestPattern("GET", "http://foo.bar/", pass_through=True)}, True),
     ],

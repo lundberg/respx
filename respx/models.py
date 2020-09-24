@@ -231,7 +231,7 @@ class RequestPattern:
             self.pass_through = None
             self._match_func = method
         else:
-            self.method = method
+            self.method = method.upper()
             self.set_url(url, base=base_url)
             self.pass_through = pass_through
 

@@ -68,7 +68,6 @@ async def test_httpcore_request():
             )
 
             body = b"".join([chunk for chunk in stream])
-            stream.close()
             assert body == b"foobar"
 
         async with httpcore.AsyncConnectionPool() as http:
@@ -77,7 +76,6 @@ async def test_httpcore_request():
             )
 
             body = b"".join([chunk async for chunk in stream])
-            await stream.aclose()
             assert body == b"foobar"
 
 

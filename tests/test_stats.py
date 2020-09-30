@@ -74,9 +74,8 @@ def test_stats(Backend):
         assert isinstance(_response, httpx.Response)
         assert _request.method == "GET"
         assert _request.url == url
-        assert _response.status_code == 202
-        assert _response.status_code == get_response.status_code
-        assert _response.content == get_response.content
+        assert _response.status_code == get_response.status_code == 202
+        assert _response.content == get_response.content == b"get"
         assert id(_response) != id(get_response)  # TODO: Fix this?
 
         _request, _response = foobar2.calls[-1]
@@ -84,9 +83,8 @@ def test_stats(Backend):
         assert isinstance(_response, httpx.Response)
         assert _request.method == "DELETE"
         assert _request.url == url
-        assert _response.status_code == 200
-        assert _response.status_code == del_response.status_code
-        assert _response.content == del_response.content
+        assert _response.status_code == del_response.status_code == 200
+        assert _response.content == del_response.content == b"del"
         assert id(_response) != id(del_response)  # TODO: Fix this?
 
         assert respx.stats.call_count == 2

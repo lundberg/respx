@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2020-09-30
+### Fixed
+- Fixed support for `HTTPX` 0.15. (PR #77)
+
+### Added
+- Added global `respx.pop` api, thanks @paulineribeyre. (PR #72)
+
+### Removed
+- Dropped deprecated `HTTPXMock` in favour of `MockTransport`.
+- Dropped deprecated `respx.request` in favour of `respx.add`.
+- Removed `HTTPX` max version requirement in setup.py.
+
 ## [0.12.1] - 2020-08-21
 ### Fixed
 - Fixed non-iterable pass-through responses. (PR #68)

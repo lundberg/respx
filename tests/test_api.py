@@ -315,3 +315,33 @@ async def test_parallel_requests(client):
     assert response_one.text == "one"
     assert response_two.text == "two"
     assert respx.stats.call_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "method_str, client_method_attr",
+    [
+        ("DELETE", "delete"),
+        ("delete", "delete"),
+        ("GET", "get"),
+        ("get", "get"),
+        ("HEAD", "head"),
+        ("head", "head"),
+        ("OPTIONS", "options"),
+        ("options", "options"),
+        ("PATCH", "patch"),
+        ("patch", "patch"),
+        ("POST", "post"),
+        ("post", "post"),
+        ("PUT", "put"),
+        ("put", "put"),
+    ],
+)
+async def test_add(client, method_str, client_method_attr):
+    url = "https://example.org/"
+    content = {"spam": "lots", "ham": "no, only spam"}
+    async with MockTransport() as respx_mock:
+        request = respx_mock.add(method_str, url, content=content)
+        response = await getattr(client, client_method_attr)(url)
+        assert request.called is True
+        assert response.json() == content

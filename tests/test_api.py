@@ -337,7 +337,7 @@ async def test_parallel_requests(client):
         ("put", "put"),
     ],
 )
-async def test_can_add_by_lowercase_method(client, method_str, client_method_attr):
+async def test_add(client, method_str, client_method_attr):
     url = "https://example.org/"
     content = {"spam": "lots", "ham": "no, only spam"}
     async with MockTransport() as respx_mock:

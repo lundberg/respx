@@ -155,13 +155,17 @@ async def test_headers(client, headers, content_type, expected):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "content,expected", [(b"eldr\xc3\xa4v", "eldräv"), ("äpple", "äpple")]
+    "content,expected",
+    [
+        (b"eldr\xc3\xa4v", "eldräv"),
+        ("äpple", "äpple"),
+        ("Geh&#xE4;usegröße", "Geh&#xE4;usegröße"),
+    ],
 )
 async def test_text_content(client, content, expected):
     async with MockTransport() as respx_mock:
         url = "https://foo.bar/"
-        content_type = "text/plain; charset=utf-8"  # TODO: Remove once respected
-        request = respx_mock.post(url, content=content, content_type=content_type)
+        request = respx_mock.post(url, content=content)
         response = await client.post(url)
         assert request.called is True
         assert response.text == expected

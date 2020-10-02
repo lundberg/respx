@@ -1,6 +1,5 @@
 import asyncio
 import re
-from unittest import mock
 
 import httpx
 import pytest
@@ -21,26 +20,6 @@ async def test_alias():
         assert "foobar" in respx_mock.aliases
         assert respx_mock.aliases["foobar"].url == request.url
         assert respx_mock["foobar"].url == request.url
-
-
-@pytest.mark.xfail(strict=True)
-@pytest.mark.asyncio
-async def test_httpx_exception_handling(client):  # pragma: no cover
-    async with MockTransport() as respx_mock:
-        with mock.patch(
-            "httpx._client.AsyncClient.dispatcher_for_url",
-            side_effect=ValueError("mock"),
-        ):
-            url = "https://foo.bar/"
-            request = respx_mock.get(url)
-            with pytest.raises(ValueError):
-                await client.get(url)
-
-        assert request.called is True
-        assert respx_mock.stats.call_count == 1
-        _request, _response = respx_mock.calls[-1]
-        assert _request is not None
-        assert _response is None
 
 
 @pytest.mark.parametrize("Backend", [AsyncioBackend, TrioBackend])

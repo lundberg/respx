@@ -8,7 +8,7 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern
+from respx.models import RequestPattern, URL, URLPattern
 
 
 @pytest.mark.asyncio
@@ -67,6 +67,11 @@ async def test_http_methods(client):
     "url,pattern",
     [
         ("https://foo.bar", "https://foo.bar"),
+        ("https://foo.bar/", "https://foo.bar"),
+        ("https://foo.bar", "https://foo.bar/"),
+        ("https://foo.bar/?baz=1", "https://foo.bar"),
+        ("https://foo.bar/?baz=1", "https://foo.bar/?baz=1"),
+        ("https://foo.bar/?baz=1&qux=2", "https://foo.bar/?qux=2&baz=1"),
         ("https://foo.bar/baz/", None),
         ("https://foo.bar/baz/", ""),
         ("https://foo.bar/baz/", "https://foo.bar/baz/"),
@@ -349,3 +354,26 @@ async def test_add(client, method_str, client_method_attr):
         response = await getattr(client, client_method_attr)(url)
         assert request.called is True
         assert response.json() == content
+
+
+@pytest.mark.parametrize(
+    "url_parts, url_model, expected_matches",
+    [
+        ((b'http', b'foo.bar', 80, b''), URLPattern('http://foo.bar'), True),
+        ((b'http', b'foo.bar', 80, b'/'), URLPattern('http://foo.bar'), True),
+        ((b'http', b'foo.bar', 80, b'/'), URLPattern('http://foo.bar/'), True),
+        ((b'http', b'foo.bar', 80, b''), URLPattern('http://foo.bar/'), True),
+        ((b'http', b'foo.bar', 80, b'/baz'), URLPattern('http://foo.bar'), False),
+        ((b'https', b'foo.bar', 443, b''), URLPattern('http://foo.bar'), False),
+        ((b'https', b'foo.bar', 443, b''), URLPattern('https://foo.bar'), True),
+        ((b'http', b'foo.bar', 80, b'?baz=1'), URLPattern('http://foo.bar'), True),
+        ((b'http', b'foo.bar', 80, b'?baz=1'), URLPattern('http://foo.bar/?baz=1'), True),
+        ((b'http', b'foo.bar', 80, b'/?baz=1'), URLPattern('http://foo.bar?baz=1'), True),
+        ((b'http', b'foo.bar', 80, b'?baz=1'), URLPattern('http://foo.bar?baz=2'), False),
+        ((b'http', b'foo.bar', 80, b'?baz=1'), URLPattern('http://foo.bar?baz=1&qux=2'), False),
+        ((b'http', b'foo.bar', 80, b'/path?qux=2&baz=1'), URLPattern('http://foo.bar/path?baz=1&qux=2'), True),
+    ],
+)
+def test_url_model_matches(url_parts: URL, url_model: URLPattern, expected_matches: bool) -> None:
+    matches, _ = url_model.matches(url_parts)
+    assert matches == expected_matches

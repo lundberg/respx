@@ -17,7 +17,7 @@ from typing import (
     Union,
 )
 from unittest import mock
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx  # TODO: Drop usage
 from httpcore import AsyncByteStream, SyncByteStream
@@ -227,7 +227,7 @@ class RequestPattern:
             self._match_func = method
         else:
             self.method = method.upper()
-            self.set_url(url, base=base_url)
+            self.url = URLPattern(url, base=base_url)
             self.pass_through = pass_through
 
         self.response = response or ResponseTemplate()
@@ -248,43 +248,6 @@ class RequestPattern:
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
 
-    def get_url(self) -> Optional[URLPatternTypes]:
-        return self._url
-
-    def set_url(
-        self, url: Optional[URLPatternTypes], base: Optional[str] = None
-    ) -> None:
-        url = url or None
-        if url is None:
-            url = base
-        elif isinstance(url, str):
-            url = url if base is None else urljoin(base, url)
-            parsed_url = urlparse(url)
-            if not parsed_url.path:
-                url = parsed_url._replace(path="/").geturl()
-        elif isinstance(url, tuple):
-            url = self.build_url(url)
-        elif isregex(url):
-            url = url if base is None else re.compile(urljoin(base, url.pattern))
-        else:
-            raise ValueError(
-                "Request url pattern must be str or compiled regex, got {}.".format(
-                    type(url).__name__
-                )
-            )
-        self._url = url
-
-    url = property(get_url, set_url)
-
-    def build_url(self, parts: URL) -> str:
-        scheme, host, port, full_path = parts
-        port_str = (
-            ""
-            if not port or port == {b"https": 443, b"http": 80}[scheme]
-            else f":{port}"
-        )
-        return f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"
-
     def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:
         """
         Matches request with configured pattern;
@@ -293,8 +256,6 @@ class RequestPattern:
         Returns None for a non-matching pattern, mocked response for a match,
         or input request for pass-through.
         """
-        matches = False
-        url_params: Kwargs = {}
         _request = build_request(request)
 
         if self.pass_through:
@@ -307,22 +268,84 @@ class RequestPattern:
                 result = request
             return result
 
-        request_method, _request_url, *_ = request
+        request_method, request_url, *_ = request
         if self.method != request_method.decode():
             return None
 
-        request_url = self.build_url(_request_url)
-        if not self._url:
-            matches = True
-        elif isinstance(self._url, str):
-            matches = self._url == request_url
-        else:
-            match = self._url.match(request_url)
-            if match:
-                matches = True
-                url_params = match.groupdict()
+        matches, url_params = self.url.matches(request_url)
 
         if matches:
             return self.response.clone(context={"request": _request, **url_params})
 
         return None
+
+
+class URLPattern:
+
+    def __init__(self, url: URLPatternTypes, base: Optional[str] = None):
+        self._regex: Optional[Pattern[str]] = None
+        self._path: Optional[str] = None
+        self._params: Optional[Dict[str, Any]] = None
+        self._empty = False
+
+        url = url or None
+
+        if url is None:
+            self._empty = True
+            return
+
+        if isinstance(url, str):
+            url = url if base is None else urljoin(base, url)
+            self._path, self._params = self._parse_url(url)
+        elif isinstance(url, tuple):
+            self._path, self._params = self._build_url(url)
+        elif isregex(url):
+            self._regex = url if base is None else re.compile(urljoin(base, url.pattern))
+        else:
+            raise ValueError(
+                "Request url pattern must be str or compiled regex, got {}.".format(
+                    type(url).__name__
+                )
+            )
+
+    def matches(self, url_parts: URL) -> Tuple[bool, Dict[str, Any]]:
+        if self._empty:
+            return True, {}
+
+        path, params = self._build_url(url_parts)
+
+        if self._regex is not None:
+            match = self._regex.match(path)
+            if match:
+                return True, match.groupdict()
+            return False, {}
+
+        if self._params and self._params != params:
+            return False, {}
+
+        if self._path != path:
+            return False, {}
+
+        return True, {}
+
+    @classmethod
+    def _parse_url(cls, url: str) -> Tuple[str, Dict[str, Any]]:
+        parsed_url = urlparse(url)
+        if not parsed_url.path:
+            parsed_url = parsed_url._replace(path="/")
+
+        params = parse_qs(parsed_url.query)
+        url = parsed_url._replace(query='').geturl()
+
+        return url, params
+
+    @classmethod
+    def _build_url(cls, url_parts: URL) -> Tuple[str, Dict[str, Any]]:
+        scheme, host, port, full_path = url_parts
+        port_str = (
+            ""
+            if not port or port == {b"https": 443, b"http": 80}[scheme]
+            else f":{port}"
+        )
+        full_url = f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"
+        return cls._parse_url(full_url)

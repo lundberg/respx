@@ -8,7 +8,7 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern, URL, URLPattern
+from respx.models import URL, RequestPattern, URLPattern
 
 
 @pytest.mark.asyncio

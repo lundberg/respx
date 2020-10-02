@@ -281,7 +281,6 @@ class RequestPattern:
 
 
 class URLPattern:
-
     def __init__(self, url: URLPatternTypes, base: Optional[str] = None):
         self._regex: Optional[Pattern[str]] = None
         self._path: Optional[str] = None
@@ -300,7 +299,9 @@ class URLPattern:
         elif isinstance(url, tuple):
             self._path, self._params = self._build_url(url)
         elif isregex(url):
-            self._regex = url if base is None else re.compile(urljoin(base, url.pattern))
+            self._regex = (
+                url if base is None else re.compile(urljoin(base, url.pattern))
+            )
         else:
             raise ValueError(
                 "Request url pattern must be str or compiled regex, got {}.".format(
@@ -335,7 +336,7 @@ class URLPattern:
             parsed_url = parsed_url._replace(path="/")
 
         params = parse_qs(parsed_url.query)
-        url = parsed_url._replace(query='').geturl()
+        url = parsed_url._replace(query="").geturl()
 
         return url, params
 

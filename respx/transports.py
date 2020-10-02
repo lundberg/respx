@@ -63,13 +63,13 @@ class BaseMockTransport:
 
     @overload
     def pop(self, alias: str) -> RequestPattern:
-        ...
+        ...  # pragma: nocover
 
     @overload
     def pop(
         self, alias: str, default: DefaultType
     ) -> Union[RequestPattern, DefaultType]:
-        ...
+        ...  # pragma: nocover
 
     def pop(self, alias, default=...):
         """

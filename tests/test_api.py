@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import socket
 from unittest import mock
@@ -345,6 +346,28 @@ async def test_pass_through(client, parameters, expected):
         assert connect.called is True
         assert request.called is True
         assert request.pass_through is expected
+
+
+@pytest.mark.skipif(
+    os.environ.get("PASS_THROUGH") is None, reason="External pass-through disabled"
+)
+@pytest.mark.asyncio
+async def test_external_pass_through(client):  # pragma: nocover
+    with respx.mock:
+        url = "https://example.org/"
+        respx.get(url, content=b"", pass_through=True)
+        response = await client.get(url)
+
+        assert response.content is not None
+        assert len(response.content) > 0
+        assert "Content-Length" in response.headers
+        assert int(response.headers["Content-Length"]) > 0
+
+        _, resp = respx.calls[-1]
+        await resp.aread()
+        assert resp.content == b"", "Should be 0, stream already read by real Response!"
+        assert "Content-Length" in resp.headers
+        assert int(resp.headers["Content-Length"]) > 0
 
 
 @respx.mock

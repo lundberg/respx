@@ -248,7 +248,7 @@ class RequestPattern:
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
 
-    def get_url(self) -> Optional['URLPattern']:
+    def get_url(self) -> Optional["URLPattern"]:
         return self._url
 
     def set_url(

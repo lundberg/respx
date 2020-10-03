@@ -1,14 +1,18 @@
 import inspect
 import json as jsonlib
 import re
+from collections import namedtuple
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterator,
     Callable,
     Dict,
+    Generator,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Pattern,
     Sequence,
@@ -22,6 +26,10 @@ from urllib.parse import urljoin, urlparse
 import httpx  # TODO: Drop usage
 from httpcore import AsyncByteStream, SyncByteStream
 from httpx import Headers as HTTPXHeaders  # TODO: Drop usage
+
+if TYPE_CHECKING:
+    from unittest.mock import _CallList
+
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]
 Headers = List[Tuple[bytes, bytes]]
@@ -106,6 +114,27 @@ def build_response(
             httpx_response.read()
 
         return httpx_response
+
+
+class Call(NamedTuple):
+    request: httpx.Request
+    response: Optional[httpx.Response]
+
+
+class CallList(list):
+    def __iter__(self) -> Generator[Call, None, None]:
+        yield from super().__iter__()
+
+    @classmethod
+    def from_unittest_call_list(cls, call_list: "_CallList") -> "CallList":
+        return cls(Call(request, response) for (request, response), _ in call_list)
+
+    @property
+    def last(self) -> Optional[Call]:
+        if self:
+            return self[-1]
+
+        return None
 
 
 class ContentStream(AsyncByteStream, SyncByteStream):
@@ -243,18 +272,8 @@ class RequestPattern:
         return self.stats.call_count
 
     @property
-    def calls(self) -> List[Tuple[Request, ResponseTemplate]]:
-        return [
-            (request, response) for (request, response), _ in self.stats.call_args_list
-        ]
-
-    @property
-    def last_request(self) -> Optional[Request]:
-        calls = self.calls
-        if not calls:
-            return None
-
-        return calls[-1][0]
+    def calls(self) -> CallList:
+        return CallList.from_unittest_call_list(self.stats.call_args_list)
 
     def get_url(self) -> Optional[URLPatternTypes]:
         return self._url

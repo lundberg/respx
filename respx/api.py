@@ -1,13 +1,13 @@
 from typing import Callable, Optional, Pattern, Union, overload
 
 from .mocks import MockTransport
-from .models import ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
+from .models import CallList, ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
 
 mock = MockTransport(assert_all_called=False)
 
 aliases = mock.aliases
 stats = mock.stats
-calls = mock.calls
+calls: CallList = mock.calls
 
 
 def start() -> None:

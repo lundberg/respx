@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
 from unittest import mock
 
-import httpx
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
@@ -19,7 +18,6 @@ from .models import (
     HeaderTypes,
     Request,
     RequestPattern,
-    Response,
     ResponseTemplate,
     SyncResponse,
     build_request,

@@ -1,7 +1,6 @@
 import inspect
 import json as jsonlib
 import re
-from collections import namedtuple
 from functools import partial
 from typing import (
     TYPE_CHECKING,

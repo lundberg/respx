@@ -227,7 +227,7 @@ class RequestPattern:
             self._match_func = method
         else:
             self.method = method.upper()
-            self.url = URLPattern(url, base=base_url)
+            self.set_url(url, base=base_url)
             self.pass_through = pass_through
 
         self.response = response or ResponseTemplate()
@@ -247,6 +247,16 @@ class RequestPattern:
         return [
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
+
+    def get_url(self) -> Optional['URLPattern']:
+        return self._url
+
+    def set_url(
+        self, url: Optional[URLPatternTypes], base: Optional[str] = None
+    ) -> None:
+        self._url = URLPattern(url, base=base)
+
+    url = property(get_url, set_url)
 
     def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:
         """

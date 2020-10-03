@@ -235,18 +235,26 @@ class RequestPattern:
         self.stats = mock.MagicMock()
 
     @property
-    def called(self):
+    def called(self) -> bool:
         return self.stats.called
 
     @property
-    def call_count(self):
+    def call_count(self) -> int:
         return self.stats.call_count
 
     @property
-    def calls(self):
+    def calls(self) -> List[Tuple[Request, ResponseTemplate]]:
         return [
             (request, response) for (request, response), _ in self.stats.call_args_list
         ]
+
+    @property
+    def last_request(self) -> Optional[Request]:
+        calls = self.calls
+        if not calls:
+            return None
+
+        return calls[-1][0]
 
     def get_url(self) -> Optional[URLPatternTypes]:
         return self._url

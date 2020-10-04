@@ -392,6 +392,42 @@ async def test_add(client, method_str, client_method_attr):
             URLPattern("http://foo.bar/path?baz=1&qux=2"),
             True,
         ),
+        (
+            (b"http", b"foo.bar", 80, b""),
+            URLPattern(re.compile(r"http://foo\.bar")),
+            True,
+        ),
+        (
+            (b"http", b"foo.bar", 80, b"?baz=1"),
+            URLPattern(re.compile(r"http://foo\.bar"), params={"baz": 1}),
+            True,
+        ),
+        (
+            (b"http", b"foo.bar/qux", 80, b"?baz=1"),
+            URLPattern(re.compile(r"http://foo\.bar/qux"), params={"baz": 1}),
+            True,
+        ),
+        (
+            (b"http", b"foo.bar/qux", 80, b"?baz=1"),
+            URLPattern(re.compile(r"http://foo\.bar/qux"), params={"baz": 2}),
+            False,
+        ),
+        (
+            (b"http", b"foo.bar", 80, b"?baz=1&qux=2"),
+            URLPattern("http://foo.bar", params={"baz": 1, "qux": 2}),
+            True,
+        ),
+        (
+            (b"http", b"foo.bar", 80, b"?baz=1&qux=2"),
+            URLPattern("http://foo.bar", params={"baz": 1}),
+            False,
+        ),
+        ((b"http", b"foo.bar", 80, b""), URLPattern("http://foo.bar", params={}), True),
+        (
+            (b"http", b"foo.bar", 80, b"?baz=1"),
+            URLPattern("http://foo.bar", params={}),
+            False,
+        ),
     ],
 )
 def test_url_model_matches(
@@ -401,3 +437,21 @@ def test_url_model_matches(
 ) -> None:
     matches, _ = url_model.matches(url_parts)
     assert matches == expected_matches
+
+
+@respx.mock
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url,params,call_url",
+    [
+        ("https://foo/", "foo=bar&foo=foo", "https://foo/"),
+        ("https://foo/", b"foo=bar&foo=foo", "https://foo/"),
+        ("https://foo/", [("foo", "bar"), ("foo", "foo")], "https://foo/"),
+        ("https://foo/", {"foo": "bar"}, "https://foo/"),
+        (re.compile(r"https://foo/(?P<page>\w+)/"), {"foo": "bar"}, "https://foo/baz/"),
+    ],
+)
+async def test_params(client, url, params, call_url):
+    respx.get(url, params=params, content="spam spam")
+    response = await client.get(call_url, params=params)
+    assert response.text == "spam spam"

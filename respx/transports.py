@@ -9,6 +9,7 @@ from httpcore import (
 )
 
 from .models import (
+    QueryParamTypes,
     URL,
     AsyncResponse,
     ContentDataTypes,
@@ -90,6 +91,8 @@ class BaseMockTransport:
         self,
         method: Union[str, Callable, RequestPattern],
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -108,9 +111,10 @@ class BaseMockTransport:
                 status_code, headers, content, content_type=content_type
             )
             pattern = RequestPattern(
-                method,
-                url,
-                response,
+                method=method,
+                url=url,
+                params=params,
+                response=response,
                 pass_through=pass_through,
                 alias=alias,
                 base_url=self._base_url,
@@ -125,6 +129,8 @@ class BaseMockTransport:
     def get(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -135,6 +141,7 @@ class BaseMockTransport:
         return self.add(
             "GET",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -146,6 +153,8 @@ class BaseMockTransport:
     def post(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -156,6 +165,7 @@ class BaseMockTransport:
         return self.add(
             "POST",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -167,6 +177,8 @@ class BaseMockTransport:
     def put(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -177,6 +189,7 @@ class BaseMockTransport:
         return self.add(
             "PUT",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -188,6 +201,8 @@ class BaseMockTransport:
     def patch(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -198,6 +213,7 @@ class BaseMockTransport:
         return self.add(
             "PATCH",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -209,6 +225,8 @@ class BaseMockTransport:
     def delete(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -219,6 +237,7 @@ class BaseMockTransport:
         return self.add(
             "DELETE",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -230,6 +249,8 @@ class BaseMockTransport:
     def head(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -240,6 +261,7 @@ class BaseMockTransport:
         return self.add(
             "HEAD",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,
@@ -251,6 +273,8 @@ class BaseMockTransport:
     def options(
         self,
         url: Optional[Union[str, Pattern]] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
         content: Optional[ContentDataTypes] = None,
         content_type: Optional[str] = None,
@@ -261,6 +285,7 @@ class BaseMockTransport:
         return self.add(
             "OPTIONS",
             url=url,
+            params=params,
             status_code=status_code,
             content=content,
             content_type=content_type,

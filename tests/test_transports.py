@@ -92,7 +92,7 @@ def test_transport_pop():
 
     assert request_pattern.response.status_code == 404
     assert request_pattern.alias == alias
-    assert request_pattern.url._path == url
+    assert str(request_pattern.url._url) == url
 
     assert not transport.aliases
     assert not transport.patterns

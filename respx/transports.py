@@ -9,13 +9,13 @@ from httpcore import (
 )
 
 from .models import (
-    QueryParamTypes,
     URL,
     AsyncResponse,
     ContentDataTypes,
     DefaultType,
     Headers,
     HeaderTypes,
+    QueryParamTypes,
     Request,
     RequestPattern,
     Response,

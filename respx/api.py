@@ -32,12 +32,12 @@ def reset() -> None:
 
 @overload
 def pop(alias: str) -> RequestPattern:
-    ...
+    ...  # pragma: nocover
 
 
 @overload
 def pop(alias: str, default: DefaultType) -> Union[RequestPattern, DefaultType]:
-    ...
+    ...  # pragma: nocover
 
 
 def pop(alias, default=...):

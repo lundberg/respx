@@ -280,10 +280,11 @@ class BaseMockTransport:
         response = decode_response(response, request=request)
 
         # TODO: Skip recording stats for pass_through requests?
-        # Pre-read response, but only if mocked, not pass-through streams streams
+        # Pre-read request/response, but only if mocked, not for pass-through streams
         if response and not isinstance(
             response.stream, (SyncByteStream, AsyncByteStream)
         ):
+            request.read()
             response.read()
 
         if pattern:

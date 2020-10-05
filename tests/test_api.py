@@ -1,4 +1,5 @@
 import asyncio
+import json as jsonlib
 import os
 import re
 import socket
@@ -262,25 +263,33 @@ async def test_raising_content(client):
 async def test_callable_content(client):
     async with MockTransport() as respx_mock:
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
-        content = lambda request, slug: f"hello {slug}"
-        request = respx_mock.get(url_pattern, content=content)
 
-        async_response = await client.get("https://foo.bar/world/")
+        def content_callback(request, slug):
+            request.read()  # TODO: Make this not needed, might affect pass-through
+            content = jsonlib.loads(request.content)
+            return f"hello {slug}{content['x']}"
+
+        request = respx_mock.post(url_pattern, content=content_callback)
+
+        async_response = await client.post("https://foo.bar/world/", json={"x": "."})
         assert request.called is True
         assert async_response.status_code == 200
-        assert async_response.text == "hello world"
+        assert async_response.text == "hello world."
+        assert request.calls[-1][0].content == b'{"x": "."}'
 
         respx_mock.reset()
-        sync_response = httpx.get("https://foo.bar/world/")
+        sync_response = httpx.post("https://foo.bar/jonas/", json={"x": "!"})
         assert request.called is True
         assert sync_response.status_code == 200
-        assert sync_response.text == "hello world"
+        assert sync_response.text == "hello jonas!"
+        assert request.calls[-1][0].content == b'{"x": "!"}'
 
 
 @pytest.mark.asyncio
 async def test_request_callback(client):
     def callback(request, response):
-        if request.url.host == "foo.bar":
+        request.read()
+        if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
             response.headers["X-Foo"] = "bar"
             response.content = lambda request, name: f"hello {name}"
             response.context["name"] = "lundberg"
@@ -289,7 +298,7 @@ async def test_request_callback(client):
 
     async with MockTransport(assert_all_called=False) as respx_mock:
         request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
-        response = await client.get("https://foo.bar/")
+        response = await client.post("https://foo.bar/", json={"foo": "bar"})
 
         assert request.called is True
         assert request.pass_through is None
@@ -354,17 +363,29 @@ async def test_pass_through(client, parameters, expected):
 @pytest.mark.asyncio
 async def test_external_pass_through(client):  # pragma: nocover
     with respx.mock:
-        url = "https://example.org/"
+        # Mock pass-through call
+        url = "https://httpbin.org/post"
         respx.get(url, content=b"", pass_through=True)
-        response = await client.get(url)
+
+        # Mock a non-matching callback pattern pre-reading request data
+        def callback(req, res):
+            req.read()  # TODO: Make this not needed, might affect pass-through
+            assert req.content == b'{"foo": "bar"}'
+            return None
+
+        respx.add(callback)
+
+        # Make external pass-through call
+        response = await client.post(url, json={"foo": "bar"})
 
         assert response.content is not None
         assert len(response.content) > 0
         assert "Content-Length" in response.headers
         assert int(response.headers["Content-Length"]) > 0
+        assert response.json()["json"] == {"foo": "bar"}
 
         _, resp = respx.calls[-1]
-        await resp.aread()
+        await resp.aread()  # Read async pass-through response
         assert resp.content == b"", "Should be 0, stream already read by real Response!"
         assert "Content-Length" in resp.headers
         assert int(resp.headers["Content-Length"]) > 0

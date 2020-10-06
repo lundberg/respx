@@ -25,7 +25,7 @@ import httpx
 from httpcore import AsyncByteStream, SyncByteStream
 
 if TYPE_CHECKING:
-    from unittest.mock import _CallList
+    from unittest.mock import _CallList  # pragma: nocover
 
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]

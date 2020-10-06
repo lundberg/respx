@@ -8,7 +8,6 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    Iterator,
     Iterable,
     List,
     NamedTuple,

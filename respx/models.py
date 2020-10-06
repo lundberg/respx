@@ -130,7 +130,7 @@ class CallList(list):
 
     @property
     def last(self) -> Optional[Call]:
-        return self[-1] if len(self) else None
+        return self[-1] if self else None
 
 
 class ContentStream(AsyncByteStream, SyncByteStream):

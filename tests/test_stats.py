@@ -1,6 +1,5 @@
 import asyncio
 import re
-from unittest import mock
 
 import httpx
 import pytest
@@ -21,26 +20,6 @@ async def test_alias():
         assert "foobar" in respx_mock.aliases
         assert respx_mock.aliases["foobar"].url == request.url
         assert respx_mock["foobar"].url == request.url
-
-
-@pytest.mark.xfail(strict=True)
-@pytest.mark.asyncio
-async def test_httpx_exception_handling(client):  # pragma: no cover
-    async with MockTransport() as respx_mock:
-        with mock.patch(
-            "httpx._client.AsyncClient.dispatcher_for_url",
-            side_effect=ValueError("mock"),
-        ):
-            url = "https://foo.bar/"
-            request = respx_mock.get(url)
-            with pytest.raises(ValueError):
-                await client.get(url)
-
-        assert request.called is True
-        assert respx_mock.stats.call_count == 1
-        _request, _response = respx_mock.calls[-1]
-        assert _request is not None
-        assert _response is None
 
 
 @pytest.mark.parametrize("Backend", [AsyncioBackend, TrioBackend])
@@ -77,9 +56,8 @@ def test_stats(Backend):
         assert foobar1.calls.last.response is _response
         assert _request.method == "GET"
         assert _request.url == url
-        assert _response.status_code == 202
-        assert _response.status_code == get_response.status_code
-        assert _response.content == get_response.content
+        assert _response.status_code == get_response.status_code == 202
+        assert _response.content == get_response.content == b"get"
         assert id(_response) != id(get_response)  # TODO: Fix this?
 
         _request, _response = foobar2.calls[-1]
@@ -87,9 +65,8 @@ def test_stats(Backend):
         assert isinstance(_response, httpx.Response)
         assert _request.method == "DELETE"
         assert _request.url == url
-        assert _response.status_code == 200
-        assert _response.status_code == del_response.status_code
-        assert _response.content == del_response.content
+        assert _response.status_code == del_response.status_code == 200
+        assert _response.content == del_response.content == b"del"
         assert id(_response) != id(del_response)  # TODO: Fix this?
 
         assert respx.stats.call_count == 2

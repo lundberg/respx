@@ -219,7 +219,7 @@ async def test_configured_decorator(client):
         response = await client.get("https://some.thing/")
 
         assert response.status_code == 200
-        assert response.headers == httpx.Headers({"Content-Type": "text/plain"})
+        assert response.headers == httpx.Headers()
         assert response.text == ""
 
         assert request.called is False
@@ -351,7 +351,7 @@ async def test_asgi():
             assert request.called is True
             assert response.status_code == 202
             assert response.headers == httpx.Headers(
-                {"Content-Type": "application/json", **headers}
+                {"Content-Type": "application/json", "Content-Length": "16", **headers}
             )
             assert response.json() == {"status": "ok"}
 

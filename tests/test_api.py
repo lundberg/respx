@@ -1,4 +1,6 @@
 import asyncio
+import json as jsonlib
+import os
 import re
 import socket
 from unittest import mock
@@ -8,7 +10,7 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern
+from respx.models import RequestPattern, ResponseTemplate
 
 
 @pytest.mark.asyncio
@@ -131,7 +133,7 @@ async def test_status_code(client):
 @pytest.mark.parametrize(
     "headers,content_type,expected",
     [
-        ({"X-Foo": "bar"}, None, {"Content-Type": "text/plain", "X-Foo": "bar"}),
+        ({"X-Foo": "bar"}, None, {"X-Foo": "bar"}),
         (
             {"Content-Type": "foo/bar", "X-Foo": "bar"},
             None,
@@ -162,7 +164,7 @@ async def test_headers(client, headers, content_type, expected):
         ("Geh&#xE4;usegröße", "Geh&#xE4;usegröße"),
     ],
 )
-async def test_text_content(client, content, expected):
+async def test_text_encoding(client, content, expected):
     async with MockTransport() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.post(url, content=content)
@@ -173,17 +175,56 @@ async def test_text_content(client, content, expected):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "key,value,expected_content_type",
+    [
+        ("content", b"foobar", None),
+        ("content", "foobar", "text/plain; charset=utf-8"),
+        ("content", ["foo", "bar"], "application/json"),
+        ("content", {"foo": "bar"}, "application/json"),
+        ("text", "foobar", "text/plain; charset=utf-8"),
+        ("html", "<strong>foobar</strong>", "text/html; charset=utf-8"),
+        ("json", {"foo": "bar"}, "application/json"),
+    ],
+)
+async def test_content_variants(client, key, value, expected_content_type):
+    async with MockTransport() as respx_mock:
+        url = "https://foo.bar/"
+        pattern = RequestPattern("GET", url, response=ResponseTemplate(**{key: value}))
+        request = respx_mock.add(pattern)
+
+        async_response = await client.get(url)
+        assert request.called is True
+        assert async_response.headers.get("Content-Type") == expected_content_type
+        assert async_response.content is not None
+
+        respx_mock.reset()
+        sync_response = httpx.get(url)
+        assert request.called is True
+        assert sync_response.headers.get("Content-Type") == expected_content_type
+        assert sync_response.content is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "content,headers,expected_headers",
     [
         (
             {"foo": "bar"},
             {"X-Foo": "bar"},
-            {"Content-Type": "application/json", "X-Foo": "bar"},
+            {
+                "Content-Type": "application/json",
+                "Content-Length": "14",
+                "X-Foo": "bar",
+            },
         ),
         (
             ["foo", "bar"],
             {"Content-Type": "application/json; charset=utf-8", "X-Foo": "bar"},
-            None,
+            {
+                "Content-Type": "application/json; charset=utf-8",
+                "Content-Length": "14",
+                "X-Foo": "bar",
+            },
         ),
     ],
 )
@@ -194,13 +235,13 @@ async def test_json_content(client, content, headers, expected_headers):
 
         async_response = await client.get(url)
         assert request.called is True
-        assert async_response.headers == httpx.Headers(expected_headers or headers)
+        assert async_response.headers == httpx.Headers(expected_headers)
         assert async_response.json() == content
 
         respx_mock.reset()
         sync_response = httpx.get(url)
         assert request.called is True
-        assert sync_response.headers == httpx.Headers(expected_headers or headers)
+        assert sync_response.headers == httpx.Headers(expected_headers)
         assert sync_response.json() == content
 
 
@@ -222,39 +263,54 @@ async def test_raising_content(client):
 async def test_callable_content(client):
     async with MockTransport() as respx_mock:
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
-        content = lambda request, slug: f"hello {slug}"
-        request = respx_mock.get(url_pattern, content=content)
 
-        async_response = await client.get("https://foo.bar/world/")
+        def content_callback(request, slug):
+            request.read()  # TODO: Make this not needed, might affect pass-through
+            content = jsonlib.loads(request.content)
+            return f"hello {slug}{content['x']}"
+
+        request = respx_mock.post(url_pattern, content=content_callback)
+
+        async_response = await client.post("https://foo.bar/world/", json={"x": "."})
         assert request.called is True
         assert async_response.status_code == 200
-        assert async_response.text == "hello world"
+        assert async_response.text == "hello world."
+        assert request.calls[-1][0].content == b'{"x": "."}'
 
         respx_mock.reset()
-        sync_response = httpx.get("https://foo.bar/world/")
+        sync_response = httpx.post("https://foo.bar/jonas/", json={"x": "!"})
         assert request.called is True
         assert sync_response.status_code == 200
-        assert sync_response.text == "hello world"
+        assert sync_response.text == "hello jonas!"
+        assert request.calls[-1][0].content == b'{"x": "!"}'
 
 
 @pytest.mark.asyncio
 async def test_request_callback(client):
     def callback(request, response):
-        if request.url.host == "foo.bar":
+        request.read()
+        if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
             response.headers["X-Foo"] = "bar"
             response.content = lambda request, name: f"hello {name}"
             response.context["name"] = "lundberg"
+            response.http_version = "HTTP/2"
             return response
 
     async with MockTransport(assert_all_called=False) as respx_mock:
         request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
-        response = await client.get("https://foo.bar/")
+        response = await client.post("https://foo.bar/", json={"foo": "bar"})
 
         assert request.called is True
         assert request.pass_through is None
         assert response.status_code == 202
+        assert response.http_version == "HTTP/2"
         assert response.headers == httpx.Headers(
-            {"Content-Type": "text/plain", "X-Ham": "spam", "X-Foo": "bar"}
+            {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Content-Length": "14",
+                "X-Ham": "spam",
+                "X-Foo": "bar",
+            }
         )
         assert response.text == "hello lundberg"
 
@@ -299,6 +355,40 @@ async def test_pass_through(client, parameters, expected):
         assert connect.called is True
         assert request.called is True
         assert request.pass_through is expected
+
+
+@pytest.mark.skipif(
+    os.environ.get("PASS_THROUGH") is None, reason="External pass-through disabled"
+)
+@pytest.mark.asyncio
+async def test_external_pass_through(client):  # pragma: nocover
+    with respx.mock:
+        # Mock pass-through call
+        url = "https://httpbin.org/post"
+        respx.get(url, content=b"", pass_through=True)
+
+        # Mock a non-matching callback pattern pre-reading request data
+        def callback(req, res):
+            req.read()  # TODO: Make this not needed, might affect pass-through
+            assert req.content == b'{"foo": "bar"}'
+            return None
+
+        respx.add(callback)
+
+        # Make external pass-through call
+        response = await client.post(url, json={"foo": "bar"})
+
+        assert response.content is not None
+        assert len(response.content) > 0
+        assert "Content-Length" in response.headers
+        assert int(response.headers["Content-Length"]) > 0
+        assert response.json()["json"] == {"foo": "bar"}
+
+        _, resp = respx.calls[-1]
+        await resp.aread()  # Read async pass-through response
+        assert resp.content == b"", "Should be 0, stream already read by real Response!"
+        assert "Content-Length" in resp.headers
+        assert int(resp.headers["Content-Length"]) > 0
 
 
 @respx.mock
@@ -349,3 +439,10 @@ async def test_add(client, method_str, client_method_attr):
         response = await getattr(client, client_method_attr)(url)
         assert request.called is True
         assert response.json() == content
+
+
+def test_pop():
+    with respx.mock:
+        respx.get("https://foo.bar/", alias="foobar")
+        request_pattern = respx.pop("foobar")
+        assert request_pattern.url == "https://foo.bar/"

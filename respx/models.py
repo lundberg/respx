@@ -1,15 +1,15 @@
 import inspect
-import json as jsonlib
 import re
 from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
+    AsyncIterable,
     Callable,
     Dict,
     Generator,
     Iterator,
+    Iterable,
     List,
     NamedTuple,
     Optional,
@@ -22,9 +22,8 @@ from typing import (
 from unittest import mock
 from urllib.parse import urljoin, urlparse
 
-import httpx  # TODO: Drop usage
+import httpx
 from httpcore import AsyncByteStream, SyncByteStream
-from httpx import Headers as HTTPXHeaders  # TODO: Drop usage
 
 if TYPE_CHECKING:
     from unittest.mock import _CallList
@@ -36,7 +35,7 @@ Request = Tuple[
     bytes,  # http method
     URL,
     Headers,
-    Union[SyncByteStream, AsyncByteStream],
+    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
 ]
 SyncResponse = Tuple[
     int,  # status code
@@ -50,10 +49,15 @@ AsyncResponse = Tuple[
     AsyncByteStream,  # body
     dict,  # ext
 ]
-Response = Union[SyncResponse, AsyncResponse]
+Response = Tuple[
+    int,  # status code
+    Headers,
+    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
+    dict,  # ext
+]
 
 HeaderTypes = Union[
-    HTTPXHeaders,
+    httpx.Headers,
     Dict[str, str],
     Dict[bytes, bytes],
     Sequence[Tuple[str, str]],
@@ -65,54 +69,34 @@ DefaultType = TypeVar("DefaultType", bound=Any)
 Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]
 URLPatternTypes = Union[str, Pattern[str], URL]
-ContentDataTypes = Union[bytes, str, List, Dict, Callable, Exception]
+JSONTypes = Union[str, List, Dict]
+ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
 
 istype = lambda t, o: isinstance(o, t)
 isregex = partial(istype, Regex)
 
 
-def build_request(request: Request) -> Union[httpx.Request, Request]:
+def decode_request(request: Request) -> httpx.Request:
     """
-    Try to re-build a httpx request from httpcore request args
+    Build a httpx Request from httpcore request args.
     """
-    try:
-        from httpx import Request as _Request
-    except ImportError:  # pragma: no cover
-        return request
-    else:
-        method, url, headers, stream = request
-        return _Request(method, url, headers=headers, stream=stream)
+    method, url, headers, stream = request
+    return httpx.Request(method, url, headers=headers, stream=stream)
 
 
-def build_response(
-    response: Optional[Response], request: Union[httpx.Request, Request]
-) -> Optional[Union[httpx.Response, Response]]:
+def decode_response(
+    response: Optional[Response], request: httpx.Request
+) -> Optional[httpx.Response]:
     """
-    Try to re-build a httpx response from httpcore response
+    Build a httpx Response from httpcore response args.
     """
     if response is None:
         return None
-    if not isinstance(request, httpx.Request):  # pragma: no cover
-        return response
-    try:
-        from httpx import Response as _Response
-    except ImportError:  # pragma: no cover
-        return response
-    else:
-        status_code, headers, stream, ext = response
-        httpx_response = _Response(
-            status_code,
-            headers=headers,
-            stream=stream,
-            ext=ext,
-            request=request,
-        )
 
-        # Pre-read response stream, but only if mocked, not pass-through
-        if isinstance(stream, ContentStream):
-            httpx_response.read()
-
-        return httpx_response
+    status_code, headers, stream, ext = response
+    return httpx.Response(
+        status_code, headers=headers, stream=stream, ext=ext, request=request
+    )
 
 
 class Call(NamedTuple):
@@ -133,104 +117,170 @@ class CallList(list):
         return self[-1] if self else None
 
 
-class ContentStream(AsyncByteStream, SyncByteStream):
-    def __init__(self, content: bytes) -> None:
-        self._content = content
-        self.close_func = None
-        self.aclose_func = None
-
-    def __iter__(self) -> Iterator[bytes]:
-        yield self._content
-
-    async def __aiter__(self) -> AsyncIterator[bytes]:
-        yield self._content
-
-
 class ResponseTemplate:
+    _content: Optional[ContentDataTypes]
+    _text: Optional[str]
+    _html: Optional[str]
+    _json: Optional[JSONTypes]
+
     def __init__(
         self,
         status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
+        *,
         content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
+        headers: Optional[HeaderTypes] = None,
         content_type: Optional[str] = None,
+        http_version: Optional[str] = None,
         context: Optional[Kwargs] = None,
     ) -> None:
-        self.http_version = 1.1
+        self.http_version = http_version
         self.status_code = status_code or 200
         self.context = context if context is not None else {}
-        self._content = content if content is not None else b""
-        self._headers = HTTPXHeaders(headers) if headers else HTTPXHeaders()
+
+        self.headers = httpx.Headers(headers) if headers else httpx.Headers()
         if content_type:
-            self._headers["Content-Type"] = content_type
+            self.headers["Content-Type"] = content_type
+
+        # Set body variants in reverse priority order
+        self.json = json
+        self.html = html
+        self.text = text
+        self.content = content
 
     def clone(self, context: Optional[Kwargs] = None) -> "ResponseTemplate":
         return ResponseTemplate(
-            self.status_code, self._headers, self._content, context=context
+            self.status_code,
+            content=self.content,
+            text=self.text,
+            html=self.html,
+            json=self.json,
+            headers=self.headers,
+            http_version=self.http_version,
+            context=context,
+        )
+
+    def prepare(
+        self,
+        content: Optional[ContentDataTypes],
+        *,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
+    ) -> Tuple[
+        Optional[ContentDataTypes], Optional[str], Optional[str], Optional[JSONTypes]
+    ]:
+        if content is not None:
+            text = None
+            html = None
+            json = None
+            if isinstance(content, str):
+                text = content
+                content = None
+            elif isinstance(content, (list, dict)):
+                json = content
+                content = None
+        elif text is not None:
+            html = None
+            json = None
+        elif html is not None:
+            json = None
+
+        return content, text, html, json
+
+    @property
+    def content(self) -> Optional[ContentDataTypes]:
+        return self._content
+
+    @content.setter
+    def content(self, content: Optional[ContentDataTypes]) -> None:
+        self._content, self.text, self.html, self.json = self.prepare(
+            content, text=self.text, html=self.html, json=self.json
         )
 
     @property
-    def headers(self) -> HTTPXHeaders:
-        if "Content-Type" not in self._headers:
-            self._headers["Content-Type"] = "text/plain"
-        return self._headers
+    def text(self) -> Optional[str]:
+        return self._text
+
+    @text.setter
+    def text(self, text: Optional[str]) -> None:
+        self._text = text
+        if text is not None:
+            self._content = None
+            self._html = None
+            self._json = None
 
     @property
-    def content(self) -> bytes:
-        return self.encode_content(self._content)
+    def html(self) -> Optional[str]:
+        return self._html
 
-    @content.setter
-    def content(self, content: ContentDataTypes) -> None:
-        self._content = content
+    @html.setter
+    def html(self, html: Optional[str]) -> None:
+        self._html = html
+        if html is not None:
+            self._content = None
+            self._text = None
+            self._json = None
 
     @property
-    async def acontent(self) -> bytes:
-        content: ContentDataTypes = self._content
+    def json(self) -> Optional[JSONTypes]:
+        return self._json
 
-        # Pre-handle async content callbacks
-        if callable(content) and inspect.iscoroutinefunction(content):
-            content = await content(**self.context)
+    @json.setter
+    def json(self, json: Optional[JSONTypes]) -> None:
+        self._json = json
+        if json is not None:
+            self._content = None
+            self._text = None
+            self._html = None
 
-        return self.encode_content(content)
-
-    def encode_content(self, content: ContentDataTypes) -> bytes:
-        if callable(content):
-            content = content(**self.context)
-
+    def encode_response(self, content: ContentDataTypes) -> Response:
         if isinstance(content, Exception):
             raise content
 
-        if isinstance(content, bytes):
-            return content
+        content, text, html, json = self.prepare(
+            content, text=self.text, html=self.html, json=self.json
+        )
 
-        if isinstance(content, (list, dict)):
-            content = jsonlib.dumps(content)
-            if "Content-Type" not in self._headers:
-                self._headers["Content-Type"] = "application/json"
+        # Comply with httpx Response content type hints
+        assert content is None or isinstance(content, bytes)
 
-        assert isinstance(content, str), "Invalid type of content"
-        content = content.encode("utf-8")  # TODO: Respect charset
+        response = httpx.Response(
+            self.status_code,
+            headers=self.headers,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
+        )
 
-        return content
+        if self.http_version:
+            response.ext["http_version"] = self.http_version
+
+        return (
+            response.status_code,
+            response.headers.raw,
+            response.stream,
+            response.ext,
+        )
 
     @property
     def raw(self):
-        stream = ContentStream(self.content)
-        return (
-            self.status_code,
-            self.headers.raw,
-            stream,
-            {"http_version": f"HTTP/{self.http_version}".encode("ascii")},
-        )
+        content = self._content
+        if callable(content):
+            content = content(**self.context)
+
+        return self.encode_response(content)
 
     @property
     async def araw(self):
-        stream = ContentStream(await self.acontent)
-        return (
-            self.status_code,
-            self.headers.raw,
-            stream,
-            {"http_version": f"HTTP/{self.http_version}".encode("ascii")},
-        )
+        if callable(self._content) and inspect.iscoroutinefunction(self._content):
+            content = await self._content(**self.context)
+            return self.encode_response(content)
+
+        return self.raw
 
 
 class RequestPattern:
@@ -318,7 +368,7 @@ class RequestPattern:
         """
         matches = False
         url_params: Kwargs = {}
-        _request = build_request(request)
+        _request = decode_request(request)
 
         if self.pass_through:
             return request

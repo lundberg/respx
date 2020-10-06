@@ -20,8 +20,8 @@ from .models import (
     RequestPattern,
     ResponseTemplate,
     SyncResponse,
-    build_request,
-    build_response,
+    decode_request,
+    decode_response,
 )
 
 
@@ -63,13 +63,13 @@ class BaseMockTransport:
 
     @overload
     def pop(self, alias: str) -> RequestPattern:
-        ...
+        ...  # pragma: nocover
 
     @overload
     def pop(
         self, alias: str, default: DefaultType
     ) -> Union[RequestPattern, DefaultType]:
-        ...
+        ...  # pragma: nocover
 
     def pop(self, alias, default=...):
         """
@@ -105,7 +105,7 @@ class BaseMockTransport:
 
         else:
             response = ResponseTemplate(
-                status_code, headers, content, content_type=content_type
+                status_code, headers=headers, content=content, content_type=content_type
             )
             pattern = RequestPattern(
                 method,
@@ -275,8 +275,17 @@ class BaseMockTransport:
         response: Optional[Any],
         pattern: Optional[RequestPattern] = None,
     ) -> None:
-        request = build_request(request)
-        response = build_response(response, request=request)
+        # Decode raw request/response as HTTPX models
+        request = decode_request(request)
+        response = decode_response(response, request=request)
+
+        # TODO: Skip recording stats for pass_through requests?
+        # Pre-read request/response, but only if mocked, not for pass-through streams
+        if response and not isinstance(
+            response.stream, (SyncByteStream, AsyncByteStream)
+        ):
+            request.read()
+            response.read()
 
         if pattern:
             pattern.stats(request, response)

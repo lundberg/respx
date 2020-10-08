@@ -9,7 +9,7 @@ lint_requirements = ("flake8", "black", "isort")
 docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
 
 
-@nox.session(python=["3.6", "3.7", "3.8"])
+@nox.session(python=["3.6", "3.7", "3.8", "3.9"])
 def test(session):
     session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
     session.install("-e", ".")

@@ -226,9 +226,11 @@ async def test_configured_decorator(client):
         assert respx.stats.call_count == 0
         assert respx_mock.stats.call_count == 1
 
-        _request, _response = respx_mock.calls[-1]
+        _request, _response = respx_mock.calls.last
         assert _request is not None
         assert _response is not None
+        assert respx_mock.calls.last.request is _request
+        assert respx_mock.calls.last.response is _response
         assert _request.url == "https://some.thing/"
 
     await test()

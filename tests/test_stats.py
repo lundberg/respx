@@ -36,6 +36,7 @@ def test_stats(Backend):
         assert foobar1.called is False
         assert foobar1.call_count == len(foobar1.calls)
         assert foobar1.call_count == 0
+        assert foobar1.calls.last is None
         assert respx.stats.call_count == len(respx.calls)
         assert respx.stats.call_count == 0
 
@@ -51,6 +52,8 @@ def test_stats(Backend):
         _request, _response = foobar1.calls[-1]
         assert isinstance(_request, httpx.Request)
         assert isinstance(_response, httpx.Response)
+        assert foobar1.calls.last.request is _request
+        assert foobar1.calls.last.response is _response
         assert _request.method == "GET"
         assert _request.url == url
         assert _response.status_code == get_response.status_code == 202
@@ -82,8 +85,8 @@ def test_stats(Backend):
     if isinstance(backend, TrioBackend):
         trio.run(test, backend)
     else:
+        loop = asyncio.new_event_loop()
         try:
-            loop = asyncio.new_event_loop()
             loop.run_until_complete(test(backend))
         finally:
             loop.close()

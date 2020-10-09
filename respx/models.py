@@ -2,12 +2,15 @@ import inspect
 import re
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterable,
     Callable,
     Dict,
+    Generator,
     Iterable,
     List,
+    NamedTuple,
     Optional,
     Pattern,
     Sequence,
@@ -20,6 +23,10 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from httpcore import AsyncByteStream, SyncByteStream
+
+if TYPE_CHECKING:
+    from unittest.mock import _CallList  # pragma: nocover
+
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]
 Headers = List[Tuple[bytes, bytes]]
@@ -89,6 +96,24 @@ def decode_response(
     return httpx.Response(
         status_code, headers=headers, stream=stream, ext=ext, request=request
     )
+
+
+class Call(NamedTuple):
+    request: httpx.Request
+    response: Optional[httpx.Response]
+
+
+class CallList(list):
+    def __iter__(self) -> Generator[Call, None, None]:
+        yield from super().__iter__()
+
+    @classmethod
+    def from_unittest_call_list(cls, call_list: "_CallList") -> "CallList":
+        return cls(Call(request, response) for (request, response), _ in call_list)
+
+    @property
+    def last(self) -> Optional[Call]:
+        return self[-1] if self else None
 
 
 class ResponseTemplate:
@@ -284,18 +309,16 @@ class RequestPattern:
         self.stats = mock.MagicMock()
 
     @property
-    def called(self):
+    def called(self) -> bool:
         return self.stats.called
 
     @property
-    def call_count(self):
+    def call_count(self) -> int:
         return self.stats.call_count
 
     @property
-    def calls(self):
-        return [
-            (request, response) for (request, response), _ in self.stats.call_args_list
-        ]
+    def calls(self) -> CallList:
+        return CallList.from_unittest_call_list(self.stats.call_args_list)
 
     def get_url(self) -> Optional[URLPatternTypes]:
         return self._url

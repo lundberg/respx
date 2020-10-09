@@ -11,13 +11,13 @@ from httpcore import (
 from .models import (
     URL,
     AsyncResponse,
+    CallList,
     ContentDataTypes,
     DefaultType,
     Headers,
     HeaderTypes,
     Request,
     RequestPattern,
-    Response,
     ResponseTemplate,
     SyncResponse,
     decode_request,
@@ -40,7 +40,7 @@ class BaseMockTransport:
         self.aliases: Dict[str, RequestPattern] = {}
 
         self.stats = mock.MagicMock()
-        self.calls: List[Tuple[Request, Optional[Response]]] = []
+        self.calls: CallList = CallList()
 
     def clear(self):
         """
@@ -293,9 +293,7 @@ class BaseMockTransport:
         self.stats(request, response)
 
         # Copy stats due to unwanted use of property refs in the high-level api
-        self.calls[:] = (
-            (request, response) for (request, response), _ in self.stats.call_args_list
-        )
+        self.calls[:] = CallList.from_unittest_call_list(self.stats.call_args_list)
 
     def assert_all_called(self) -> None:
         assert all(

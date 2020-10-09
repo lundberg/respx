@@ -1,7 +1,14 @@
 from typing import Callable, Optional, Pattern, Union, overload
 
 from .mocks import MockTransport
-from .models import CallList, ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
+from .models import (
+    CallList,
+    ContentDataTypes,
+    DefaultType,
+    HeaderTypes,
+    QueryParamTypes,
+    RequestPattern,
+)
 
 mock = MockTransport(assert_all_called=False)
 
@@ -49,6 +56,7 @@ def add(
     method: Union[str, Callable],
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -60,6 +68,7 @@ def add(
     return mock.add(
         method,
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -72,6 +81,7 @@ def add(
 def get(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -82,6 +92,7 @@ def get(
     global mock
     return mock.get(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -94,6 +105,7 @@ def get(
 def post(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -104,6 +116,7 @@ def post(
     global mock
     return mock.post(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -116,6 +129,7 @@ def post(
 def put(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -126,6 +140,7 @@ def put(
     global mock
     return mock.put(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -138,6 +153,7 @@ def put(
 def patch(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -148,6 +164,7 @@ def patch(
     global mock
     return mock.patch(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -160,6 +177,7 @@ def patch(
 def delete(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -170,6 +188,7 @@ def delete(
     global mock
     return mock.delete(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -182,6 +201,7 @@ def delete(
 def head(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -192,6 +212,7 @@ def head(
     global mock
     return mock.head(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,
@@ -204,6 +225,7 @@ def head(
 def options(
     url: Optional[Union[str, Pattern]] = None,
     *,
+    params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
     content: Optional[ContentDataTypes] = None,
     content_type: Optional[str] = None,
@@ -214,6 +236,7 @@ def options(
     global mock
     return mock.options(
         url=url,
+        params=params,
         status_code=status_code,
         content=content,
         content_type=content_type,

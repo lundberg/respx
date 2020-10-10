@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
+from typing import Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
 from unittest import mock
 
 from httpcore import (
@@ -18,10 +18,9 @@ from .models import (
     HeaderTypes,
     Request,
     RequestPattern,
+    Response,
     ResponseTemplate,
     SyncResponse,
-    decode_request,
-    decode_response,
 )
 
 
@@ -40,7 +39,7 @@ class BaseMockTransport:
         self.aliases: Dict[str, RequestPattern] = {}
 
         self.stats = mock.MagicMock()
-        self.calls: CallList = CallList()
+        self.calls: CallList = CallList(self.stats.call_args_list)
 
     def clear(self):
         """
@@ -53,10 +52,11 @@ class BaseMockTransport:
         """
         Resets call stats.
         """
-        self.calls.clear()
         self.stats.reset_mock()
+        self.calls.set_new_call_list(self.stats.call_args_list)
+
         for pattern in self.patterns:
-            pattern.stats.reset_mock()
+            pattern.reset()
 
     def __getitem__(self, alias: str) -> Optional[RequestPattern]:
         return self.aliases.get(alias)
@@ -271,29 +271,17 @@ class BaseMockTransport:
 
     def record(
         self,
-        request: Any,
-        response: Optional[Any],
+        request: Request,
+        response: Optional[Response],
         pattern: Optional[RequestPattern] = None,
     ) -> None:
-        # Decode raw request/response as HTTPX models
-        request = decode_request(request)
-        response = decode_response(response, request=request)
-
         # TODO: Skip recording stats for pass_through requests?
-        # Pre-read request/response, but only if mocked, not for pass-through streams
-        if response and not isinstance(
-            response.stream, (SyncByteStream, AsyncByteStream)
-        ):
-            request.read()
-            response.read()
-
+        self.stats(request, response)
         if pattern:
             pattern.stats(request, response)
-
-        self.stats(request, response)
-
-        # Copy stats due to unwanted use of property refs in the high-level api
-        self.calls[:] = CallList.from_unittest_call_list(self.stats.call_args_list)
+            # Decoded request will be lazy written into the call object,
+            # so it should be the same object for both lists
+            pattern.stats.call_args_list[-1] = self.stats.call_args_list[-1]
 
     def assert_all_called(self) -> None:
         assert all(

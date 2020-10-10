@@ -25,7 +25,7 @@ import httpx
 from httpcore import AsyncByteStream, SyncByteStream
 
 if TYPE_CHECKING:
-    from unittest.mock import _CallList  # pragma: nocover
+    from unittest.mock import _Call, _CallList  # pragma: nocover
 
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]
@@ -103,17 +103,53 @@ class Call(NamedTuple):
     response: Optional[httpx.Response]
 
 
-class CallList(list):
-    def __iter__(self) -> Generator[Call, None, None]:
-        yield from super().__iter__()
+class CallList:
+    def __init__(self, call_list: "_CallList"):
+        self._call_list = call_list
 
-    @classmethod
-    def from_unittest_call_list(cls, call_list: "_CallList") -> "CallList":
-        return cls(Call(request, response) for (request, response), _ in call_list)
+    def __iter__(self) -> Generator[Call, None, None]:
+        for raw_call in self._call_list:
+            yield self._extract_call(raw_call)
+
+    def __getitem__(self, item: int) -> Call:
+        raw_call = self._call_list[item]
+        return self._extract_call(raw_call)
+
+    def __len__(self) -> int:
+        return len(self._call_list)
 
     @property
     def last(self) -> Optional[Call]:
-        return self[-1] if self else None
+        return self[-1] if self._call_list else None
+
+    def set_new_call_list(self, call_list: "_CallList") -> None:
+        self._call_list = call_list
+
+    @classmethod
+    def _extract_call(cls, raw_call: "_Call") -> Call:
+        if isinstance(raw_call.decoded_call, Call):
+            return raw_call.decoded_call
+
+        request, response = raw_call[0]
+
+        decoded_call = cls._decode_call(request, response)
+        raw_call.decoded_call = decoded_call  # type: ignore
+        return decoded_call
+
+    @staticmethod
+    def _decode_call(raw_request: Request, raw_response: Response) -> Call:
+        # Decode raw request/response as HTTPX models
+        request = decode_request(raw_request)
+        response = decode_response(raw_response, request=request)
+
+        # Pre-read request/response, but only if mocked, not for pass-through streams
+        if response and not isinstance(
+            response.stream, (SyncByteStream, AsyncByteStream)
+        ):
+            request.read()
+            response.read()
+
+        return Call(request=request, response=response)
 
 
 class ResponseTemplate:
@@ -307,6 +343,7 @@ class RequestPattern:
         self.response = response or ResponseTemplate()
         self.alias = alias
         self.stats = mock.MagicMock()
+        self.calls = CallList(self.stats.call_args_list)
 
     @property
     def called(self) -> bool:
@@ -315,10 +352,6 @@ class RequestPattern:
     @property
     def call_count(self) -> int:
         return self.stats.call_count
-
-    @property
-    def calls(self) -> CallList:
-        return CallList.from_unittest_call_list(self.stats.call_args_list)
 
     def get_url(self) -> Optional[URLPatternTypes]:
         return self._url
@@ -398,3 +431,7 @@ class RequestPattern:
             return self.response.clone(context={"request": _request, **url_params})
 
         return None
+
+    def reset(self) -> None:
+        self.stats.reset_mock()
+        self.calls.set_new_call_list(self.stats.call_args_list)

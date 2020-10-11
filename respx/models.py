@@ -2,7 +2,6 @@ import inspect
 import re
 from functools import partial
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncIterable,
     Callable,
@@ -20,13 +19,10 @@ from typing import (
 )
 from unittest import mock
 from urllib.parse import urljoin, urlparse
+from warnings import warn
 
 import httpx
 from httpcore import AsyncByteStream, SyncByteStream
-
-if TYPE_CHECKING:
-    from unittest.mock import _Call, _CallList  # pragma: nocover
-
 
 URL = Tuple[bytes, bytes, Optional[int], bytes]
 Headers = List[Tuple[bytes, bytes]]
@@ -103,44 +99,24 @@ class Call(NamedTuple):
     response: Optional[httpx.Response]
 
 
-class CallList:
-    def __init__(self, call_list: "_CallList"):
-        self._call_list = call_list
+class RawCall:
+    def __init__(self, raw_request: Request, raw_response: Optional[Response] = None):
+        self.raw_request = raw_request
+        self.raw_response = raw_response
 
-    def __iter__(self) -> Generator[Call, None, None]:
-        for raw_call in self._call_list:
-            yield self._extract_call(raw_call)
-
-    def __getitem__(self, item: int) -> Call:
-        raw_call = self._call_list[item]
-        return self._extract_call(raw_call)
-
-    def __len__(self) -> int:
-        return len(self._call_list)
+        self._call: Optional[Call] = None
 
     @property
-    def last(self) -> Optional[Call]:
-        return self[-1] if self._call_list else None
+    def call(self) -> Call:
+        if self._call is None:
+            self._call = self._decode_call()
 
-    def set_new_call_list(self, call_list: "_CallList") -> None:
-        self._call_list = call_list
+        return self._call
 
-    @classmethod
-    def _extract_call(cls, raw_call: "_Call") -> Call:
-        if isinstance(raw_call.decoded_call, Call):
-            return raw_call.decoded_call
-
-        request, response = raw_call[0]
-
-        decoded_call = cls._decode_call(request, response)
-        raw_call.decoded_call = decoded_call  # type: ignore
-        return decoded_call
-
-    @staticmethod
-    def _decode_call(raw_request: Request, raw_response: Response) -> Call:
+    def _decode_call(self) -> Call:
         # Decode raw request/response as HTTPX models
-        request = decode_request(raw_request)
-        response = decode_response(raw_response, request=request)
+        request = decode_request(self.raw_request)
+        response = decode_response(self.raw_response, request=request)
 
         # Pre-read request/response, but only if mocked, not for pass-through streams
         if response and not isinstance(
@@ -150,6 +126,33 @@ class CallList:
             response.read()
 
         return Call(request=request, response=response)
+
+
+class CallList(list, mock.NonCallableMock):
+    def __iter__(self) -> Generator[Call, None, None]:
+        for raw_call in super().__iter__():
+            yield raw_call.call
+
+    def __getitem__(self, item: int) -> Call:  # type: ignore
+        raw_call: RawCall = super().__getitem__(item)
+        return raw_call.call
+
+    @property
+    def called(self) -> bool:  # type: ignore
+        return bool(self)
+
+    @property
+    def call_count(self) -> int:  # type: ignore
+        return len(self)
+
+    @property
+    def last(self) -> Optional[Call]:
+        return self[-1] if self else None
+
+    def record(self, raw_request: Request, raw_response: Response) -> RawCall:
+        raw_call = RawCall(raw_request=raw_request, raw_response=raw_response)
+        self.append(raw_call)
+        return raw_call
 
 
 class ResponseTemplate:
@@ -342,16 +345,23 @@ class RequestPattern:
 
         self.response = response or ResponseTemplate()
         self.alias = alias
-        self.stats = mock.MagicMock()
-        self.calls = CallList(self.stats.call_args_list)
+        self.calls = CallList()
 
     @property
     def called(self) -> bool:
-        return self.stats.called
+        return self.calls.called
 
     @property
     def call_count(self) -> int:
-        return self.stats.call_count
+        return self.calls.call_count
+
+    @property
+    def stats(self):
+        warn(
+            ".stats property is deprecated. Please, use .calls",
+            category=DeprecationWarning,
+        )
+        return self.calls
 
     def get_url(self) -> Optional[URLPatternTypes]:
         return self._url
@@ -431,7 +441,3 @@ class RequestPattern:
             return self.response.clone(context={"request": _request, **url_params})
 
         return None
-
-    def reset(self) -> None:
-        self.stats.reset_mock()
-        self.calls.set_new_call_list(self.stats.call_args_list)

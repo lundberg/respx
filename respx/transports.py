@@ -1,5 +1,5 @@
 from typing import Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
-from unittest import mock
+from warnings import warn
 
 from httpcore import (
     AsyncByteStream,
@@ -38,8 +38,7 @@ class BaseMockTransport:
         self.patterns: List[RequestPattern] = []
         self.aliases: Dict[str, RequestPattern] = {}
 
-        self.stats = mock.MagicMock()
-        self.calls: CallList = CallList(self.stats.call_args_list)
+        self.calls = CallList()
 
     def clear(self):
         """
@@ -52,11 +51,18 @@ class BaseMockTransport:
         """
         Resets call stats.
         """
-        self.stats.reset_mock()
-        self.calls.set_new_call_list(self.stats.call_args_list)
+        self.calls.clear()
 
         for pattern in self.patterns:
-            pattern.reset()
+            pattern.calls.clear()
+
+    @property
+    def stats(self):
+        warn(
+            ".stats property is deprecated. Please, use .calls",
+            category=DeprecationWarning,
+        )
+        return self.calls
 
     def __getitem__(self, alias: str) -> Optional[RequestPattern]:
         return self.aliases.get(alias)
@@ -276,12 +282,9 @@ class BaseMockTransport:
         pattern: Optional[RequestPattern] = None,
     ) -> None:
         # TODO: Skip recording stats for pass_through requests?
-        self.stats(request, response)
+        call = self.calls.record(request, response)
         if pattern:
-            pattern.stats(request, response)
-            # Decoded request will be lazy written into the call object,
-            # so it should be the same object for both lists
-            pattern.stats.call_args_list[-1] = self.stats.call_args_list[-1]
+            pattern.calls.append(call)
 
     def assert_all_called(self) -> None:
         assert all(
@@ -332,7 +335,7 @@ class BaseMockTransport:
             # Assert we always get a pattern match, if check is enabled
             assert not self._assert_all_mocked, f"RESPX: {request[1]!r} not mocked!"
 
-            # Auto mock a successfull empty response
+            # Auto mock a successful empty response
             response = ResponseTemplate()
 
         return matched_pattern, request, response

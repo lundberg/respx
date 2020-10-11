@@ -37,8 +37,8 @@ def test_stats(Backend):
         assert foobar1.call_count == len(foobar1.calls)
         assert foobar1.call_count == 0
         assert foobar1.calls.last is None
-        assert respx.stats.call_count == len(respx.calls)
-        assert respx.stats.call_count == 0
+        assert respx.calls.call_count == len(respx.calls)
+        assert respx.calls.call_count == 0
 
         async with httpx.AsyncClient() as client:
             get_response = await client.get(url)
@@ -69,7 +69,7 @@ def test_stats(Backend):
         assert _response.content == del_response.content == b"del"
         assert id(_response) != id(del_response)  # TODO: Fix this?
 
-        assert respx.stats.call_count == 2
+        assert respx.calls.call_count == 2
         assert respx.calls[0] == foobar1.calls[-1]
         assert respx.calls[1] == foobar2.calls[-1]
 

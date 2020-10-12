@@ -1,12 +1,21 @@
 from typing import Callable, Optional, Pattern, Union, overload
 
 from .mocks import MockTransport
-from .models import CallList, ContentDataTypes, DefaultType, HeaderTypes, RequestPattern
+from .models import (
+    CallList,
+    ContentDataTypes,
+    DefaultType,
+    HeaderTypes,
+    RequestPattern,
+    _deprecate_object,
+)
 
 mock = MockTransport(assert_all_called=False)
 
 aliases = mock.aliases
-stats = mock.stats
+stats = _deprecate_object(
+    mock.calls, "respx.stats property is deprecated. Please, use respx.calls"
+)
 calls: CallList = mock.calls
 
 

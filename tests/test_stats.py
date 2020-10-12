@@ -1,5 +1,6 @@
 import asyncio
 import re
+import warnings
 
 import httpx
 import pytest
@@ -48,6 +49,9 @@ def test_stats(Backend):
         assert foobar2.called is True
         assert foobar1.call_count == 1
         assert foobar2.call_count == 1
+        with warnings.catch_warnings(record=True) as w:
+            assert foobar1.stats.call_count == 1
+            assert len(w) == 1
 
         _request, _response = foobar1.calls[-1]
         assert isinstance(_request, httpx.Request)
@@ -72,6 +76,11 @@ def test_stats(Backend):
         assert respx.calls.call_count == 2
         assert respx.calls[0] == foobar1.calls[-1]
         assert respx.calls[1] == foobar2.calls[-1]
+
+        with warnings.catch_warnings(record=True) as w:
+            assert respx.stats.call_count == 2
+            assert respx.mock.stats.call_count == 2
+            assert len(w) == 2
 
         alias = respx.aliases["get_foobar"]
         assert alias == foobar1

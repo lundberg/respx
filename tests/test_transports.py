@@ -61,22 +61,23 @@ async def test_transport_assertions():
 @pytest.mark.asyncio
 async def test_httpcore_request():
     async with MockTransport() as transport:
-        transport.add("GET", "https://foo.bar/", content="foobar")
-        with httpcore.SyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = http.request(
-                method=b"GET", url=(b"https", b"foo.bar", 443, b"/")
-            )
+        for url, port in [("https://foo.bar/", None), ("https://foo.bar:443/", 443)]:
+            transport.add("GET", url, content="foobar")
+            with httpcore.SyncConnectionPool() as http:
+                (status_code, headers, stream, ext) = http.request(
+                    method=b"GET", url=(b"https", b"foo.bar", port, b"/")
+                )
 
-            body = b"".join([chunk for chunk in stream])
-            assert body == b"foobar"
+                body = b"".join([chunk for chunk in stream])
+                assert body == b"foobar"
 
-        async with httpcore.AsyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = await http.arequest(
-                method=b"GET", url=(b"https", b"foo.bar", 443, b"/")
-            )
+            async with httpcore.AsyncConnectionPool() as http:
+                (status_code, headers, stream, ext) = await http.arequest(
+                    method=b"GET", url=(b"https", b"foo.bar", port, b"/")
+                )
 
-            body = b"".join([chunk async for chunk in stream])
-            assert body == b"foobar"
+                body = b"".join([chunk async for chunk in stream])
+                assert body == b"foobar"
 
 
 @pytest.mark.asyncio

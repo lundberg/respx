@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 from unittest import mock
 
 from httpcore import (
@@ -22,6 +22,7 @@ from .models import (
     RequestPattern,
     ResponseTemplate,
     SyncResponse,
+    URLPatternTypes,
     decode_request,
     decode_response,
 )
@@ -91,7 +92,7 @@ class BaseMockTransport:
     def add(
         self,
         method: Union[str, Callable, RequestPattern],
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -138,7 +139,7 @@ class BaseMockTransport:
 
     def get(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -168,7 +169,7 @@ class BaseMockTransport:
 
     def post(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -198,7 +199,7 @@ class BaseMockTransport:
 
     def put(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -228,7 +229,7 @@ class BaseMockTransport:
 
     def patch(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -258,7 +259,7 @@ class BaseMockTransport:
 
     def delete(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -288,7 +289,7 @@ class BaseMockTransport:
 
     def head(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
@@ -318,7 +319,7 @@ class BaseMockTransport:
 
     def options(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,

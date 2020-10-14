@@ -1,6 +1,5 @@
 import asyncio
 import re
-from unittest import mock
 
 import httpx
 import pytest
@@ -23,26 +22,6 @@ async def test_alias():
         assert respx_mock["foobar"].url == request.url
 
 
-@pytest.mark.xfail(strict=True)
-@pytest.mark.asyncio
-async def test_httpx_exception_handling(client):  # pragma: no cover
-    async with MockTransport() as respx_mock:
-        with mock.patch(
-            "httpx._client.AsyncClient.dispatcher_for_url",
-            side_effect=ValueError("mock"),
-        ):
-            url = "https://foo.bar/"
-            request = respx_mock.get(url)
-            with pytest.raises(ValueError):
-                await client.get(url)
-
-        assert request.called is True
-        assert respx_mock.stats.call_count == 1
-        _request, _response = respx_mock.calls[-1]
-        assert _request is not None
-        assert _response is None
-
-
 @pytest.mark.parametrize("Backend", [AsyncioBackend, TrioBackend])
 def test_stats(Backend):
     @respx.mock
@@ -57,6 +36,7 @@ def test_stats(Backend):
         assert foobar1.called is False
         assert foobar1.call_count == len(foobar1.calls)
         assert foobar1.call_count == 0
+        assert foobar1.calls.last is None
         assert respx.stats.call_count == len(respx.calls)
         assert respx.stats.call_count == 0
 
@@ -72,11 +52,12 @@ def test_stats(Backend):
         _request, _response = foobar1.calls[-1]
         assert isinstance(_request, httpx.Request)
         assert isinstance(_response, httpx.Response)
+        assert foobar1.calls.last.request is _request
+        assert foobar1.calls.last.response is _response
         assert _request.method == "GET"
         assert _request.url == url
-        assert _response.status_code == 202
-        assert _response.status_code == get_response.status_code
-        assert _response.content == get_response.content
+        assert _response.status_code == get_response.status_code == 202
+        assert _response.content == get_response.content == b"get"
         assert id(_response) != id(get_response)  # TODO: Fix this?
 
         _request, _response = foobar2.calls[-1]
@@ -84,9 +65,8 @@ def test_stats(Backend):
         assert isinstance(_response, httpx.Response)
         assert _request.method == "DELETE"
         assert _request.url == url
-        assert _response.status_code == 200
-        assert _response.status_code == del_response.status_code
-        assert _response.content == del_response.content
+        assert _response.status_code == del_response.status_code == 200
+        assert _response.content == del_response.content == b"del"
         assert id(_response) != id(del_response)  # TODO: Fix this?
 
         assert respx.stats.call_count == 2
@@ -105,8 +85,8 @@ def test_stats(Backend):
     if isinstance(backend, TrioBackend):
         trio.run(test, backend)
     else:
+        loop = asyncio.new_event_loop()
         try:
-            loop = asyncio.new_event_loop()
             loop.run_until_complete(test(backend))
         finally:
             loop.close()

@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Pattern, Union, overload
+from typing import Callable, Optional, Union, overload
 
 from .mocks import MockTransport
 from .models import (
@@ -7,13 +7,21 @@ from .models import (
     HeaderTypes,
     QueryParamTypes,
     RequestPattern,
+    CallList,
+    ContentDataTypes,
+    DefaultType,
+    HeaderTypes,
+    JSONTypes,
+    QueryParamTypes,
+    RequestPattern,
+    URLPatternTypes,
 )
 
 mock = MockTransport(assert_all_called=False)
 
 aliases = mock.aliases
 stats = mock.stats
-calls = mock.calls
+calls: CallList = mock.calls
 
 
 def start() -> None:
@@ -38,12 +46,12 @@ def reset() -> None:
 
 @overload
 def pop(alias: str) -> RequestPattern:
-    ...
+    ...  # pragma: nocover
 
 
 @overload
 def pop(alias: str, default: DefaultType) -> Union[RequestPattern, DefaultType]:
-    ...
+    ...  # pragma: nocover
 
 
 def pop(alias, default=...):
@@ -53,13 +61,16 @@ def pop(alias, default=...):
 
 def add(
     method: Union[str, Callable],
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -69,22 +80,28 @@ def add(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def get(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -93,22 +110,28 @@ def get(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def post(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -117,22 +140,28 @@ def post(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def put(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -141,22 +170,28 @@ def put(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def patch(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -165,22 +200,28 @@ def patch(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def delete(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -189,22 +230,28 @@ def delete(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def head(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -213,22 +260,28 @@ def head(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )
 
 
 def options(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
-    content: Optional[ContentDataTypes] = None,
-    content_type: Optional[str] = None,
     headers: Optional[HeaderTypes] = None,
+    content_type: Optional[str] = None,
+    content: Optional[ContentDataTypes] = None,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
 ) -> RequestPattern:
@@ -237,9 +290,12 @@ def options(
         url=url,
         params=params,
         status_code=status_code,
-        content=content,
-        content_type=content_type,
         headers=headers,
+        content_type=content_type,
+        content=content,
+        text=text,
+        html=html,
+        json=json,
         pass_through=pass_through,
         alias=alias,
     )

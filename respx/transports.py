@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 from unittest import mock
 
 from httpcore import (
@@ -11,18 +11,21 @@ from httpcore import (
 from .models import (
     URL,
     AsyncResponse,
+    CallList,
     ContentDataTypes,
     DefaultType,
     Headers,
     HeaderTypes,
     QueryParamTypes,
+    JSONTypes,
+    QueryParamTypes,
     Request,
     RequestPattern,
-    Response,
     ResponseTemplate,
     SyncResponse,
-    build_request,
-    build_response,
+    URLPatternTypes,
+    decode_request,
+    decode_response,
 )
 
 
@@ -41,7 +44,7 @@ class BaseMockTransport:
         self.aliases: Dict[str, RequestPattern] = {}
 
         self.stats = mock.MagicMock()
-        self.calls: List[Tuple[Request, Optional[Response]]] = []
+        self.calls: CallList = CallList()
 
     def clear(self):
         """
@@ -64,13 +67,13 @@ class BaseMockTransport:
 
     @overload
     def pop(self, alias: str) -> RequestPattern:
-        ...
+        ...  # pragma: nocover
 
     @overload
     def pop(
         self, alias: str, default: DefaultType
     ) -> Union[RequestPattern, DefaultType]:
-        ...
+        ...  # pragma: nocover
 
     def pop(self, alias, default=...):
         """
@@ -90,13 +93,16 @@ class BaseMockTransport:
     def add(
         self,
         method: Union[str, Callable, RequestPattern],
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -108,11 +114,17 @@ class BaseMockTransport:
 
         else:
             response = ResponseTemplate(
-                status_code, headers, content, content_type=content_type
+                status_code,
+                headers=headers,
+                content_type=content_type,
+                content=content,
+                text=text,
+                html=html,
+                json=json,
             )
             pattern = RequestPattern(
-                method=method,
-                url=url,
+                method,
+                url,
                 params=params,
                 response=response,
                 pass_through=pass_through,
@@ -128,13 +140,16 @@ class BaseMockTransport:
 
     def get(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -143,22 +158,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def post(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -167,22 +188,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def put(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -191,22 +218,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def patch(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -215,22 +248,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def delete(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -239,22 +278,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def head(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -263,22 +308,28 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
 
     def options(
         self,
-        url: Optional[Union[str, Pattern]] = None,
+        url: Optional[URLPatternTypes] = None,
         *,
         params: Optional[QueryParamTypes] = None,
         status_code: Optional[int] = None,
-        content: Optional[ContentDataTypes] = None,
-        content_type: Optional[str] = None,
         headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
     ) -> RequestPattern:
@@ -287,9 +338,12 @@ class BaseMockTransport:
             url=url,
             params=params,
             status_code=status_code,
-            content=content,
-            content_type=content_type,
             headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
             pass_through=pass_through,
             alias=alias,
         )
@@ -300,8 +354,17 @@ class BaseMockTransport:
         response: Optional[Any],
         pattern: Optional[RequestPattern] = None,
     ) -> None:
-        request = build_request(request)
-        response = build_response(response, request=request)
+        # Decode raw request/response as HTTPX models
+        request = decode_request(request)
+        response = decode_response(response, request=request)
+
+        # TODO: Skip recording stats for pass_through requests?
+        # Pre-read request/response, but only if mocked, not for pass-through streams
+        if response and not isinstance(
+            response.stream, (SyncByteStream, AsyncByteStream)
+        ):
+            request.read()
+            response.read()
 
         if pattern:
             pattern.stats(request, response)
@@ -309,9 +372,7 @@ class BaseMockTransport:
         self.stats(request, response)
 
         # Copy stats due to unwanted use of property refs in the high-level api
-        self.calls[:] = (
-            (request, response) for (request, response), _ in self.stats.call_args_list
-        )
+        self.calls[:] = CallList.from_unittest_call_list(self.stats.call_args_list)
 
     def assert_all_called(self) -> None:
         assert all(

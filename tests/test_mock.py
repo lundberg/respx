@@ -219,16 +219,18 @@ async def test_configured_decorator(client):
         response = await client.get("https://some.thing/")
 
         assert response.status_code == 200
-        assert response.headers == httpx.Headers({"Content-Type": "text/plain"})
+        assert response.headers == httpx.Headers()
         assert response.text == ""
 
         assert request.called is False
         assert respx.stats.call_count == 0
         assert respx_mock.stats.call_count == 1
 
-        _request, _response = respx_mock.calls[-1]
+        _request, _response = respx_mock.calls.last
         assert _request is not None
         assert _response is not None
+        assert respx_mock.calls.last.request is _request
+        assert respx_mock.calls.last.response is _response
         assert _request.url == "https://some.thing/"
 
     await test()
@@ -349,7 +351,7 @@ async def test_asgi():
             assert request.called is True
             assert response.status_code == 202
             assert response.headers == httpx.Headers(
-                {"Content-Type": "application/json", **headers}
+                {"Content-Type": "application/json", "Content-Length": "16", **headers}
             )
             assert response.json() == {"status": "ok"}
 

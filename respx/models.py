@@ -301,14 +301,18 @@ class ResponseTemplate:
     def raw(self):
         content = self._content
         if callable(content):
-            content = content(**self.context)
+            kwargs = dict(self.context)
+            request = decode_request(kwargs.pop("request"))
+            content = content(request, **kwargs)
 
         return self.encode_response(content)
 
     @property
     async def araw(self):
         if callable(self._content) and inspect.iscoroutinefunction(self._content):
-            content = await self._content(**self.context)
+            kwargs = dict(self.context)
+            request = decode_request(kwargs.pop("request"))
+            content = await self._content(request, **kwargs)
             return self.encode_response(content)
 
         return self.raw
@@ -363,13 +367,13 @@ class RequestPattern:
         """
         matches = False
         url_params: Kwargs = {}
-        _request = decode_request(request)
 
         if self.pass_through:
             return request
 
         if self._match_func:
-            response = self.response.clone(context={"request": _request})
+            _request = decode_request(request)
+            response = self.response.clone(context={"request": request})
             result = self._match_func(_request, response)
             if result == _request:  # Detect pass through
                 result = request
@@ -390,6 +394,6 @@ class RequestPattern:
                 url_params = match.groupdict()
 
         if matches:
-            return self.response.clone(context={"request": _request, **url_params})
+            return self.response.clone(context={"request": request, **url_params})
 
         return None

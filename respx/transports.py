@@ -442,7 +442,9 @@ class BaseMockTransport:
             response = None
             raise
         finally:
-            self.record(request, response, pattern=pattern)
+            self.record(
+                request, response, pattern=pattern
+            )  # pragma: nocover  # python 3.9 bug
 
     async def arequest(
         self,
@@ -468,7 +470,9 @@ class BaseMockTransport:
             response = None
             raise
         finally:
-            self.record(request, response, pattern=pattern)
+            self.record(
+                request, response, pattern=pattern
+            )  # pragma: nocover  # python 3.9 bug
 
     def close(self) -> None:
         if self._assert_all_called:

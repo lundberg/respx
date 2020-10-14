@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Pattern, Union, overload
+from typing import Callable, Optional, Union, overload
 
 from .mocks import MockTransport
 from .models import (
@@ -9,6 +9,7 @@ from .models import (
     JSONTypes,
     QueryParamTypes,
     RequestPattern,
+    URLPatternTypes,
 )
 
 mock = MockTransport(assert_all_called=False)
@@ -55,7 +56,7 @@ def pop(alias, default=...):
 
 def add(
     method: Union[str, Callable],
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -86,7 +87,7 @@ def add(
 
 
 def get(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -116,7 +117,7 @@ def get(
 
 
 def post(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -146,7 +147,7 @@ def post(
 
 
 def put(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -176,7 +177,7 @@ def put(
 
 
 def patch(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -206,7 +207,7 @@ def patch(
 
 
 def delete(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -236,7 +237,7 @@ def delete(
 
 
 def head(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,
@@ -266,7 +267,7 @@ def head(
 
 
 def options(
-    url: Optional[Union[str, Pattern]] = None,
+    url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
     status_code: Optional[int] = None,

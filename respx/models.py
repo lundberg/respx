@@ -71,42 +71,6 @@ ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
 QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 
 
-def build_url(
-    url: Optional[URLPatternTypes] = None,
-    base: Optional[str] = None,
-    params: Optional[QueryParamTypes] = None,
-) -> Optional[Union[httpx.URL, Pattern[str]]]:
-    url = url or ""
-    if not base:
-        base_url = httpx.URL("")
-    elif base.endswith("/"):
-        base_url = httpx.URL(base)
-    else:
-        base_url = httpx.URL(base + "/")
-
-    if not url and not base:
-        return None
-    elif isinstance(url, (str, tuple, httpx.URL)):
-        return base_url.join(httpx.URL(url, params=params))
-    elif isinstance(url, Pattern):
-        if params is not None:
-            if r"\?" in url.pattern and params is not None:
-                raise ValueError(
-                    "Request url pattern contains a query string, which is not "
-                    "supported in conjuction with params argument."
-                )
-            query_params = str(httpx.QueryParams(params))
-            url = re.compile(url.pattern + re.escape(fr"?{query_params}"))
-
-        return re.compile(urljoin(str(base_url), url.pattern))
-    else:
-        raise ValueError(
-            "Request url pattern must be str or compiled regex, got {}.".format(
-                type(url).__name__
-            )
-        )
-
-
 def decode_request(request: Request) -> httpx.Request:
     """
     Build a httpx Request from httpcore request args.
@@ -415,31 +379,34 @@ class URLPattern:
 
         url = url or None
 
+        if not base:
+            base_url = httpx.URL("")
+        else:
+            base_url = httpx.URL(base if base.endswith("/") else base + "/")
+
         if params is not None:
             self._params = httpx.QueryParams(params)
 
-        if isinstance(url, (str, tuple)):
-            if isinstance(url, str) and base is not None:
-                url = urljoin(base, url)
-
-            if isinstance(url, tuple):
-                url = self._clean_port(url)
-
-            self._url = httpx.URL(url)
+        if isinstance(url, (str, tuple, httpx.URL)):
+            self._url = base_url.join(httpx.URL(url))
 
             if self._url.query:
+                self._url, extracted_params = self._extract_params(self._url)
                 if self._params:
-                    raise ValueError(
-                        "URL params must be provided as a part of URL or as a separate kwarg, not together"
-                    )
+                    # kwarg-based params should be more important than URL-based params
+                    extracted_params.update(self._params)
 
-                self._url, self._params = self._extract_params(self._url)
+                self._params = extracted_params
 
             if self._url.path == "/":
                 # add "/" if missing (URL.path returns it with default '/')
                 self._url = self._url.copy_with(raw_path=b"/")
 
-        elif isregex(url):
+        elif isinstance(url, Pattern):
+            if r"\?" in url.pattern:
+                raise ValueError(
+                    'Request url pattern contains a query string. Please, use "params" argument',
+                )
             self._regex = (
                 url if base is None else re.compile(urljoin(base, url.pattern))
             )
@@ -451,7 +418,6 @@ class URLPattern:
             )
 
     def matches(self, url_parts: URL) -> Tuple[bool, Dict[str, Any]]:
-        url_parts = self._clean_port(url_parts)
         url = httpx.URL(url_parts)
         url, params = self._extract_params(url)
 
@@ -474,10 +440,3 @@ class URLPattern:
         params = httpx.QueryParams(url.query)
         url = url.copy_with(raw_path=url.path.encode())
         return url, params
-
-    @staticmethod
-    def _clean_port(url: URL) -> URL:
-        scheme, host, port, full_path = url
-        if scheme == b"https" and port == 443 or scheme == b"http" and port == 80:
-            port = None
-        return scheme, host, port, full_path

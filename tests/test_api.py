@@ -449,72 +449,77 @@ async def test_add(client, method_str, client_method_attr):
 @pytest.mark.parametrize(
     "url_parts, url_model, expected_matches",
     [
-        ((b"http", b"foo.bar", 80, b""), URLPattern("http://foo.bar"), True),
-        ((b"http", b"foo.bar", 80, b"/"), URLPattern("http://foo.bar"), True),
-        ((b"http", b"foo.bar", 80, b"/"), URLPattern("http://foo.bar/"), True),
-        ((b"http", b"foo.bar", 80, b""), URLPattern("http://foo.bar/"), True),
-        ((b"http", b"foo.bar", 80, b"/baz"), URLPattern("http://foo.bar"), False),
-        ((b"https", b"foo.bar", 443, b""), URLPattern("http://foo.bar"), False),
-        ((b"https", b"foo.bar", 443, b""), URLPattern("https://foo.bar"), True),
-        ((b"http", b"foo.bar", 80, b"?baz=1"), URLPattern("http://foo.bar"), True),
+        ((b"http", b"foo.bar", None, b""), URLPattern("http://foo.bar"), True),
+        ((b"http", b"foo.bar", 80, b"/"), URLPattern("http://foo.bar:80"), True),
+        ((b"http", b"foo.bar", None, b"/"), URLPattern("http://foo.bar/"), True),
+        ((b"http", b"foo.bar", None, b""), URLPattern("http://foo.bar/"), True),
+        ((b"http", b"foo.bar", None, b"/baz"), URLPattern("http://foo.bar"), False),
+        ((b"https", b"foo.bar", None, b""), URLPattern("http://foo.bar"), False),
+        ((b"https", b"foo.bar", None, b""), URLPattern("https://foo.bar"), True),
+        ((b"https", b"foo.bar", 443, b""), URLPattern("https://foo.bar:443"), True),
+        ((b"http", b"foo.bar", None, b"?baz=1"), URLPattern("http://foo.bar"), True),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1"),
+            (b"http", b"foo.bar", None, b"?baz=1"),
             URLPattern("http://foo.bar/?baz=1"),
             True,
         ),
         (
-            (b"http", b"foo.bar", 80, b"/?baz=1"),
+            (b"http", b"foo.bar", None, b"/?baz=1"),
             URLPattern("http://foo.bar?baz=1"),
             True,
         ),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1"),
+            (b"http", b"foo.bar", None, b"?baz=1"),
             URLPattern("http://foo.bar?baz=2"),
             False,
         ),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1"),
+            (b"http", b"foo.bar", None, b"?baz=1"),
             URLPattern("http://foo.bar?baz=1&qux=2"),
             False,
         ),
         (
-            (b"http", b"foo.bar", 80, b"/path?qux=2&baz=1"),
+            (b"http", b"foo.bar", None, b"/path?qux=2&baz=1"),
             URLPattern("http://foo.bar/path?baz=1&qux=2"),
             True,
         ),
         (
-            (b"http", b"foo.bar", 80, b""),
+            (b"http", b"foo.bar", None, b""),
             URLPattern(re.compile(r"http://foo\.bar")),
             True,
         ),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1"),
+            (b"http", b"foo.bar", None, b"?baz=1"),
             URLPattern(re.compile(r"http://foo\.bar"), params={"baz": 1}),
             True,
         ),
         (
-            (b"http", b"foo.bar/qux", 80, b"?baz=1"),
+            (b"http", b"foo.bar/qux", None, b"?baz=1"),
             URLPattern(re.compile(r"http://foo\.bar/qux"), params={"baz": 1}),
             True,
         ),
         (
-            (b"http", b"foo.bar/qux", 80, b"?baz=1"),
+            (b"http", b"foo.bar/qux", None, b"?baz=1"),
             URLPattern(re.compile(r"http://foo\.bar/qux"), params={"baz": 2}),
             False,
         ),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1&qux=2"),
+            (b"http", b"foo.bar", None, b"?baz=1&qux=2"),
             URLPattern("http://foo.bar", params={"baz": 1, "qux": 2}),
             True,
         ),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1&qux=2"),
+            (b"http", b"foo.bar", None, b"?baz=1&qux=2"),
             URLPattern("http://foo.bar", params={"baz": 1}),
             False,
         ),
-        ((b"http", b"foo.bar", 80, b""), URLPattern("http://foo.bar", params={}), True),
         (
-            (b"http", b"foo.bar", 80, b"?baz=1"),
+            (b"http", b"foo.bar", None, b""),
+            URLPattern("http://foo.bar", params={}),
+            True,
+        ),
+        (
+            (b"http", b"foo.bar", None, b"?baz=1"),
             URLPattern("http://foo.bar", params={}),
             False,
         ),
@@ -551,7 +556,7 @@ def test_pop():
     with respx.mock:
         respx.get("https://foo.bar/", alias="foobar")
         request_pattern = respx.pop("foobar")
-        assert request_pattern.url == "https://foo.bar/"
+        assert str(request_pattern.url._url) == "https://foo.bar/"
 
 
 @respx.mock

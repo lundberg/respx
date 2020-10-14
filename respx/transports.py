@@ -16,7 +16,6 @@ from .models import (
     DefaultType,
     Headers,
     HeaderTypes,
-    QueryParamTypes,
     JSONTypes,
     QueryParamTypes,
     Request,

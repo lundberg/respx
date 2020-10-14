@@ -384,6 +384,9 @@ class URLPattern:
         else:
             base_url = httpx.URL(base if base.endswith("/") else base + "/")
 
+            if not url:
+                url = base_url
+
         if params is not None:
             self._params = httpx.QueryParams(params)
 

@@ -1,6 +1,5 @@
 import inspect
 import re
-from functools import partial
 from typing import (
     Any,
     AsyncIterable,
@@ -20,6 +19,7 @@ from typing import (
 from unittest import mock
 from urllib.parse import urljoin, urlparse
 from warnings import warn
+from urllib.parse import urljoin
 
 import httpx
 from httpcore import AsyncByteStream, SyncByteStream
@@ -61,14 +61,47 @@ HeaderTypes = Union[
 
 DefaultType = TypeVar("DefaultType", bound=Any)
 
-Regex = type(re.compile(""))
 Kwargs = Dict[str, Any]
-URLPatternTypes = Union[str, Pattern[str], URL]
+URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
 JSONTypes = Union[str, List, Dict]
 ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
+QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 
-istype = lambda t, o: isinstance(o, t)
-isregex = partial(istype, Regex)
+
+def build_url(
+    url: Optional[URLPatternTypes] = None,
+    base: Optional[str] = None,
+    params: Optional[QueryParamTypes] = None,
+) -> Optional[Union[httpx.URL, Pattern[str]]]:
+    url = url or ""
+    if not base:
+        base_url = httpx.URL("")
+    elif base.endswith("/"):
+        base_url = httpx.URL(base)
+    else:
+        base_url = httpx.URL(base + "/")
+
+    if not url and not base:
+        return None
+    elif isinstance(url, (str, tuple, httpx.URL)):
+        return base_url.join(httpx.URL(url, params=params))
+    elif isinstance(url, Pattern):
+        if params is not None:
+            if r"\?" in url.pattern and params is not None:
+                raise ValueError(
+                    "Request url pattern contains a query string, which is not "
+                    "supported in conjuction with params argument."
+                )
+            query_params = str(httpx.QueryParams(params))
+            url = re.compile(url.pattern + re.escape(fr"?{query_params}"))
+
+        return re.compile(urljoin(str(base_url), url.pattern))
+    else:
+        raise ValueError(
+            "Request url pattern must be str or compiled regex, got {}.".format(
+                type(url).__name__
+            )
+        )
 
 
 def _deprecate_object(obj: Any, message: str) -> Any:
@@ -337,14 +370,18 @@ class ResponseTemplate:
     def raw(self):
         content = self._content
         if callable(content):
-            content = content(**self.context)
+            kwargs = dict(self.context)
+            request = decode_request(kwargs.pop("request"))
+            content = content(request, **kwargs)
 
         return self.encode_response(content)
 
     @property
     async def araw(self):
         if callable(self._content) and inspect.iscoroutinefunction(self._content):
-            content = await self._content(**self.context)
+            kwargs = dict(self.context)
+            request = decode_request(kwargs.pop("request"))
+            content = await self._content(request, **kwargs)
             return self.encode_response(content)
 
         return self.raw
@@ -355,6 +392,7 @@ class RequestPattern:
         self,
         method: Union[str, Callable],
         url: Optional[URLPatternTypes],
+        params: Optional[QueryParamTypes] = None,
         response: Optional[ResponseTemplate] = None,
         pass_through: bool = False,
         alias: Optional[str] = None,
@@ -369,7 +407,7 @@ class RequestPattern:
             self._match_func = method
         else:
             self.method = method.upper()
-            self.set_url(url, base=base_url)
+            self.url = build_url(url, base=base_url, params=params)
             self.pass_through = pass_through
 
         self.response = response or ResponseTemplate()
@@ -392,43 +430,6 @@ class RequestPattern:
         )
         return self.calls
 
-    def get_url(self) -> Optional[URLPatternTypes]:
-        return self._url
-
-    def set_url(
-        self, url: Optional[URLPatternTypes], base: Optional[str] = None
-    ) -> None:
-        url = url or None
-        if url is None:
-            url = base
-        elif isinstance(url, str):
-            url = url if base is None else urljoin(base, url)
-            parsed_url = urlparse(url)
-            if not parsed_url.path:
-                url = parsed_url._replace(path="/").geturl()
-        elif isinstance(url, tuple):
-            url = self.build_url(url)
-        elif isregex(url):
-            url = url if base is None else re.compile(urljoin(base, url.pattern))
-        else:
-            raise ValueError(
-                "Request url pattern must be str or compiled regex, got {}.".format(
-                    type(url).__name__
-                )
-            )
-        self._url = url
-
-    url = property(get_url, set_url)
-
-    def build_url(self, parts: URL) -> str:
-        scheme, host, port, full_path = parts
-        port_str = (
-            ""
-            if not port or port == {b"https": 443, b"http": 80}[scheme]
-            else f":{port}"
-        )
-        return f"{scheme.decode()}://{host.decode()}{port_str}{full_path.decode()}"
-
     def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:
         """
         Matches request with configured pattern;
@@ -439,13 +440,13 @@ class RequestPattern:
         """
         matches = False
         url_params: Kwargs = {}
-        _request = decode_request(request)
 
         if self.pass_through:
             return request
 
         if self._match_func:
-            response = self.response.clone(context={"request": _request})
+            _request = decode_request(request)
+            response = self.response.clone(context={"request": request})
             result = self._match_func(_request, response)
             if result == _request:  # Detect pass through
                 result = request
@@ -455,18 +456,17 @@ class RequestPattern:
         if self.method != request_method.decode():
             return None
 
-        request_url = self.build_url(_request_url)
-        if not self._url:
+        if not self.url:
             matches = True
-        elif isinstance(self._url, str):
-            matches = self._url == request_url
+        elif isinstance(self.url, httpx.URL):
+            matches = self.url.raw == _request_url
         else:
-            match = self._url.match(request_url)
+            match = self.url.match(str(httpx.URL(_request_url)))
             if match:
                 matches = True
                 url_params = match.groupdict()
 
         if matches:
-            return self.response.clone(context={"request": _request, **url_params})
+            return self.response.clone(context={"request": request, **url_params})
 
         return None

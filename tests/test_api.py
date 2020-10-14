@@ -10,7 +10,7 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern, ResponseTemplate
+from respx.models import RequestPattern
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,8 @@ async def test_http_methods(client):
         ("https://foo.bar/baz/", ""),
         ("https://foo.bar/baz/", "https://foo.bar/baz/"),
         ("https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")),
-        ("https://foo.bar/baz/", (b"https", b"foo.bar", 443, b"/baz/")),
+        ("https://foo.bar/baz/", (b"https", b"foo.bar", None, b"/baz/")),
+        ("https://foo.bar:443/baz/", (b"https", b"foo.bar", 443, b"/baz/")),
     ],
 )
 async def test_url_match(client, url, pattern):
@@ -189,8 +190,7 @@ async def test_text_encoding(client, content, expected):
 async def test_content_variants(client, key, value, expected_content_type):
     async with MockTransport() as respx_mock:
         url = "https://foo.bar/"
-        pattern = RequestPattern("GET", url, response=ResponseTemplate(**{key: value}))
-        request = respx_mock.add(pattern)
+        request = respx_mock.get(url, **{key: value})
 
         async_response = await client.get(url)
         assert request.called is True
@@ -446,3 +446,56 @@ def test_pop():
         respx.get("https://foo.bar/", alias="foobar")
         request_pattern = respx.pop("foobar")
         assert request_pattern.url == "https://foo.bar/"
+
+
+@respx.mock
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url,params,call_url,call_params",
+    [
+        ("https://foo/", "foo=bar", "https://foo/", "foo=bar"),
+        ("https://foo/", b"foo=bar", "https://foo/", b"foo=bar"),
+        ("https://foo/", [("foo", "bar")], "https://foo/", [("foo", "bar")]),
+        ("https://foo/", {"foo": "bar"}, "https://foo/", {"foo": "bar"}),
+        ("https://foo?foo=bar", "baz=qux", "https://foo?foo=bar", "baz=qux"),
+        ("https://foo?foo=bar", "baz=qux", "https://foo?foo=bar&baz=qux", None),
+        (re.compile(r"https://foo/(\w+)/"), "foo=bar", "https://foo/bar/", "foo=bar"),
+        (httpx.URL("https://foo/"), "foo=bar", "https://foo/", "foo=bar"),
+        (
+            httpx.URL("https://foo?foo=bar"),
+            "baz=qux",
+            "https://foo?foo=bar&baz=qux",
+            None,
+        ),
+    ],
+)
+async def test_params_match(client, url, params, call_url, call_params):
+    respx.get(url, params=params, content="spam spam")
+    response = await client.get(call_url, params=call_params)
+    assert response.text == "spam spam"
+
+
+@pytest.mark.asyncio
+async def test_build_url_invalid_regex_params(client):
+    with pytest.raises(ValueError):
+        respx.get(re.compile(r"https://foo.bar/\?foo=bar"), params="baz=qux")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "base,url",
+    [
+        (None, "https://foo.bar/baz/"),
+        ("", "https://foo.bar/baz/"),
+        ("https://foo.bar", "baz/"),
+        ("https://foo.bar/", "baz/"),
+        ("https://foo.bar/", "/baz/"),
+        ("https://foo.bar/baz/", None),
+        ("https://foo.bar/", re.compile(r"/(\w+)/")),
+    ],
+)
+async def test_build_url_base(client, base, url):
+    with respx.mock(base_url=base) as respx_mock:
+        respx_mock.get(url, content="spam spam")
+        response = await client.get("https://foo.bar/baz/")
+        assert response.text == "spam spam"

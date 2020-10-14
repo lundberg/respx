@@ -31,4 +31,4 @@ jobs:
       run: |
         git config user.email ${{ secrets.GITHUB_EMAIL }}
         git remote set-url origin https://${{ secrets.GITHUB_USER }}:${{ secrets.GITHUB_PAGES_TOKEN }}@github.com/lundberg/respx.git
-        ./.nox/docs/bin/mkdocs gh-deploy
+        ./.nox/docs/bin/mkdocs gh-deploy --force

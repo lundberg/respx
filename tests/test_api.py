@@ -10,7 +10,7 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern, ResponseTemplate
+from respx.models import RequestPattern
 
 
 @pytest.mark.asyncio
@@ -190,8 +190,7 @@ async def test_text_encoding(client, content, expected):
 async def test_content_variants(client, key, value, expected_content_type):
     async with MockTransport() as respx_mock:
         url = "https://foo.bar/"
-        pattern = RequestPattern("GET", url, response=ResponseTemplate(**{key: value}))
-        request = respx_mock.add(pattern)
+        request = respx_mock.get(url, **{key: value})
 
         async_response = await client.get(url)
         assert request.called is True

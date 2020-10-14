@@ -17,9 +17,8 @@ from typing import (
     Union,
 )
 from unittest import mock
-from urllib.parse import urljoin, urlparse
-from warnings import warn
 from urllib.parse import urljoin
+from warnings import warn
 
 import httpx
 from httpcore import AsyncByteStream, SyncByteStream
@@ -102,35 +101,6 @@ def build_url(
                 type(url).__name__
             )
         )
-
-
-def _deprecate_object(obj: Any, message: str) -> Any:
-    """
-    This function creates an object with all methods of the given object
-    and on any call (including magic methods) throws the Deprecation Warning and
-    passes the call to the base object.
-    """
-    obj_class = type(obj)
-
-    def deprecate(method_name: str) -> Callable[[Any], Any]:
-        def decorator(
-            _instance: Optional[Any] = None, *args: Any, **kwargs: Any
-        ) -> Any:
-            warn(message, category=DeprecationWarning)
-
-            method = getattr(obj, method_name)
-
-            return method(*args, **kwargs)
-
-        return decorator
-
-    dct = {
-        method_name: deprecate(method_name)
-        for method_name in dir(obj_class)
-        if callable(getattr(obj_class, method_name))
-        and method_name not in ("__new__", "__init__")
-    }
-    return type(obj_class.__name__, (object,), dct)()
 
 
 def decode_request(request: Request) -> httpx.Request:

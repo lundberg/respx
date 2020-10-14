@@ -6,12 +6,6 @@ from .models import (
     ContentDataTypes,
     DefaultType,
     HeaderTypes,
-    RequestPattern,
-    _deprecate_object,
-    CallList,
-    ContentDataTypes,
-    DefaultType,
-    HeaderTypes,
     JSONTypes,
     QueryParamTypes,
     RequestPattern,
@@ -21,9 +15,7 @@ from .models import (
 mock = MockTransport(assert_all_called=False)
 
 aliases = mock.aliases
-stats = _deprecate_object(
-    mock.calls, "respx.stats property is deprecated. Please, use respx.calls"
-)
+stats = mock.calls
 calls: CallList = mock.calls
 
 

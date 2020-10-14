@@ -78,9 +78,11 @@ def test_stats(Backend):
         assert respx.calls[1] == foobar2.calls[-1]
 
         with warnings.catch_warnings(record=True) as w:
-            assert respx.stats.call_count == 2
             assert respx.mock.stats.call_count == 2
-            assert len(w) == 2
+            assert len(w) == 1
+
+            assert respx.stats.call_count == 2
+            assert len(w) == 1
 
         alias = respx.aliases["get_foobar"]
         assert alias == foobar1

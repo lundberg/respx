@@ -1,7 +1,5 @@
-from typing import Callable, Dict, List, Optional, Pattern, Tuple, Union, overload
+from typing import Callable, Dict, List, Optional, Tuple, Union, overload
 from warnings import warn
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
-from unittest import mock
 
 from httpcore import (
     AsyncByteStream,
@@ -26,8 +24,6 @@ from .models import (
     ResponseTemplate,
     SyncResponse,
     URLPatternTypes,
-    decode_request,
-    decode_response,
 )
 
 

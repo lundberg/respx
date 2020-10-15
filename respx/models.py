@@ -424,7 +424,7 @@ class URLPattern:
         url = httpx.URL(url_parts)
         url, params = self._extract_params(url)
 
-        if self._params is not None and self._params != params:
+        if self._params and self._params != params:
             return False, {}
 
         if self._regex is not None:

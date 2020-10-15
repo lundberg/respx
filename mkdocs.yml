@@ -15,7 +15,7 @@ edit_uri: ""
 
 nav:
   - Introduction: "index.md"
-  - Mocking HTTPX: "mocking.md"
+  - Mock HTTPX: "mocking.md"
   - Developer Interface: "api.md"
 
 markdown_extensions:

@@ -15,7 +15,7 @@ from .models import (
 mock = MockTransport(assert_all_called=False)
 
 aliases = mock.aliases
-stats = mock.stats
+stats = mock.calls
 calls: CallList = mock.calls
 
 

@@ -33,16 +33,24 @@ For full control, use the core `add` method.
 >
 > * **method** - *str | callable | RequestPattern*  
 >   Request HTTP method, or [Request callback](#request-callback), to match.
-> * **url** - *(optional) str | pattern*  
+> * **url** - *(optional) str | pattern | tuple (httpcore) | httpx.URL*  
 >   Request exact URL, or [URL pattern](#url-pattern), to match.
+> * **params** - *(optional) str | list | dict*  
+>   Request URL params to merge with url.
 > * **status_code** - *(optional) int - default: `200`*  
 >   Response status code to mock.
-> * **content** - *(optional) bytes | str | list | dict | callable | exception - default `b""`*  
->   Response content to mock. - *See [Response Content](#response-content).*
-> * **content_type** - *(optional) str - default `text/plain`*  
->   Response Content-Type header value to mock.
 > * **headers** - *(optional) dict*  
 >   Response headers to mock.
+> * **content_type** - *(optional) str*  
+>   Response Content-Type header value to mock.
+> * **content** - *(optional) bytes | str | list | dict | callable | exception - default `b""`*  
+>   Response content to mock. - *See [Response Content](#response-content).*
+> * **text** - *(optional) str*  
+>   Response *text* content to mock, with automatic content type header.
+> * **html** - *(optional) str*  
+>   Response *html* content to mock, with automatic content type header.
+> * **json** - *(optional) str | list | dict*  
+>   Response *json* content to mock, with automatic content type header.
 > * **pass_through** - *(optional) bool - default `False`*  
 >   Mark matched request to pass-through to real server, *e.g. don't mock*.
 > * **alias** - *(optional) str*  
@@ -288,13 +296,13 @@ def test_something(respx_mock):
 
     response = httpx.get("https://foo.bar/")
     assert response.status_code == 200
-    assert respx_mock.stats.call_count == 1
+    assert respx_mock.calls.call_count == 1
 ```
 ``` python
 with respx.mock(assert_all_mocked=False) as respx_mock:
     response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
-    assert respx_mock.stats.call_count == 1
+    assert respx_mock.calls.call_count == 1
 ```
 
 !!! attention "Without Parentheses"
@@ -302,14 +310,35 @@ with respx.mock(assert_all_mocked=False) as respx_mock:
 
 ---
 
-## Call Statistics
+## Call History
 
-The `respx` API includes a `.calls` list, containing captured (`request`, `response`) tuples, and a `.stats` MagicMock object with all its *bells and whistles*, i.e. `call_count`, `assert_called` etc.
+The `respx` API includes a `.calls` object, containing captured (`request`, `response`) named tuples and MagicMock's *bells and whistles*, i.e. `call_count`, `assert_called` etc.
 
-Each mocked response *request pattern* has its own `.calls` and `.stats`, along with `.called` and `.call_count ` stats shortcuts.
 
-To reset stats without stop mocking, use `respx.reset()`.
+### Retreiving mocked calls
+A matched and mocked `Call` can be retrived from call history, by either unpacking...
 
+``` python
+request, response = respx.calls.last
+request, response = respx.calls[-2]  # by call order
+```
+
+...or by accessing `request` or `response` directly...
+
+``` python
+last_response = respx.calls.last.response
+
+assert respx.calls.last.request.call_count == 1
+assert respx.calls.last.response.status_code == 200
+```
+
+!!! attention "Deprecation Warning"
+    As of version `0.14.0`, statistics via `respx.stats` is deprecated, in favour of `respx.calls`.
+
+### Request Pattern calls
+Each mocked response *request pattern* has its own `.calls`, along with `.called` and `.call_count ` stats shortcuts.
+
+Example using locally added request pattern:
 ``` python
 import httpx
 import respx
@@ -321,19 +350,84 @@ def test_something():
     httpx.post("https://foo.bar/baz/")
     assert request.called
     assert request.call_count == 1
+    assert request.calls.last.response.status_code == 201
+    request.calls.assert_called_once()
+```
 
-    respx.get("https://foo.bar/", alias="index")
+Example using globally aliased request pattern:
+``` python
+import httpx
+import respx
+
+# Added somewhere outside the test
+respx.get("https://foo.bar/", alias="index")
+
+@respx.mock
+def test_something():
     httpx.get("https://foo.bar/")
     assert respx.aliases["index"].called
     assert respx.aliases["index"].call_count == 1
+    last_index_response = respx.aliases["index"].calls.last.response
+```
 
-    assert respx.stats.call_count == 2
+### Reset stats
+To reset stats during a test case, *without stop mocking*, use `respx.reset()`.
 
-    request, response = respx.calls[-1]
-    assert request.method == "GET"
-    assert response.status_code == 200
+``` python
+import httpx
+import respx
+
+
+@respx.mock
+def test_something():
+    respx.post("https://foo.bar/baz/")
+    httpx.post("https://foo.bar/baz/")
+    assert respx.calls.call_count == 1
+    request.calls.assert_called_once()
 
     respx.reset()
     assert len(respx.calls) == 0
-    assert respx.stats.call_count == 0
+    assert respx.calls.call_count == 0
+    respx.calls.assert_not_called()
+```
+
+### Examples
+Here's a handful example usages of the call stats API.
+
+``` python
+import httpx
+import respx
+
+
+@respx.mock
+def test_something():
+    # Mock some calls
+    respx.get("https://foo.bar/", alias="index")
+    baz_request = respx.post("https://foo.bar/baz/", status_code=201)
+
+    # Make some calls
+    httpx.get("https://foo.bar/")
+    httpx.post("https://foo.bar/baz/")
+
+    # Assert mocked
+    assert respx.aliases["index"].called
+    assert respx.aliases["index"].call_count == 1
+
+    assert baz_request.called
+    assert baz_request.call_count == 1
+    baz_request.calls.assert_called_once()
+
+    # Global stats increased
+    assert respx.calls.call_count == 2
+
+    # Assert responses
+    assert respx.aliases["index"].calls.last.response.status_code == 200
+    assert respx.calls.last.response is baz_request.calls.last.response
+    assert respx.calls.last.response.status_code == 201
+
+    # Reset
+    respx.reset()
+    assert len(respx.calls) == 0
+    assert respx.calls.call_count == 0
+    respx.calls.assert_not_called()
 ```

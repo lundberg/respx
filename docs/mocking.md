@@ -1,4 +1,4 @@
-# Mocking HTTPX
+# Mock HTTPX
 
 To mock out `HTTPX` *and/or* `HTTP Core`, use the `respx.mock` decorator / context manager.
 

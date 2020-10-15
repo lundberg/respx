@@ -1,5 +1,5 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
-from unittest import mock
+from typing import Callable, Dict, List, Optional, Tuple, Union, overload
+from warnings import warn
 
 from httpcore import (
     AsyncByteStream,
@@ -20,11 +20,10 @@ from .models import (
     QueryParamTypes,
     Request,
     RequestPattern,
+    Response,
     ResponseTemplate,
     SyncResponse,
     URLPatternTypes,
-    decode_request,
-    decode_response,
 )
 
 
@@ -42,8 +41,7 @@ class BaseMockTransport:
         self.patterns: List[RequestPattern] = []
         self.aliases: Dict[str, RequestPattern] = {}
 
-        self.stats = mock.MagicMock()
-        self.calls: CallList = CallList()
+        self.calls = CallList()
 
     def clear(self):
         """
@@ -57,9 +55,17 @@ class BaseMockTransport:
         Resets call stats.
         """
         self.calls.clear()
-        self.stats.reset_mock()
+
         for pattern in self.patterns:
-            pattern.stats.reset_mock()
+            pattern.calls.clear()
+
+    @property
+    def stats(self):
+        warn(
+            ".stats property is deprecated. Please, use .calls",
+            category=DeprecationWarning,
+        )
+        return self.calls
 
     def __getitem__(self, alias: str) -> Optional[RequestPattern]:
         return self.aliases.get(alias)
@@ -349,29 +355,14 @@ class BaseMockTransport:
 
     def record(
         self,
-        request: Any,
-        response: Optional[Any],
+        request: Request,
+        response: Optional[Response],
         pattern: Optional[RequestPattern] = None,
     ) -> None:
-        # Decode raw request/response as HTTPX models
-        request = decode_request(request)
-        response = decode_response(response, request=request)
-
         # TODO: Skip recording stats for pass_through requests?
-        # Pre-read request/response, but only if mocked, not for pass-through streams
-        if response and not isinstance(
-            response.stream, (SyncByteStream, AsyncByteStream)
-        ):
-            request.read()
-            response.read()
-
+        call = self.calls.record(request, response)
         if pattern:
-            pattern.stats(request, response)
-
-        self.stats(request, response)
-
-        # Copy stats due to unwanted use of property refs in the high-level api
-        self.calls[:] = CallList.from_unittest_call_list(self.stats.call_args_list)
+            pattern.calls.append(call)
 
     def assert_all_called(self) -> None:
         assert all(
@@ -422,7 +413,7 @@ class BaseMockTransport:
             # Assert we always get a pattern match, if check is enabled
             assert not self._assert_all_mocked, f"RESPX: {request[1]!r} not mocked!"
 
-            # Auto mock a successfull empty response
+            # Auto mock a successful empty response
             response = ResponseTemplate()
 
         return matched_pattern, request, response
@@ -451,7 +442,9 @@ class BaseMockTransport:
             response = None
             raise
         finally:
-            self.record(request, response, pattern=pattern)
+            self.record(
+                request, response, pattern=pattern
+            )  # pragma: nocover  # python 3.9 bug
 
     async def arequest(
         self,
@@ -477,7 +470,9 @@ class BaseMockTransport:
             response = None
             raise
         finally:
-            self.record(request, response, pattern=pattern)
+            self.record(
+                request, response, pattern=pattern
+            )  # pragma: nocover  # python 3.9 bug
 
     def close(self) -> None:
         if self._assert_all_called:

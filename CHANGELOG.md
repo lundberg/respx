@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2020-10-15
+### Added
+- Added `text`, `html` and `json` content shorthands to ResponseTemplate. (PR #82)
+- Added `text`, `html` and `json` content shorthands to high level API. (PR #93)
+- Added support to set `http_version` for a mocked response. (PR #82)
+- Added support for mocking by lowercase http methods, thanks @lbillinghamtn. (PR #80)
+- Added query `params` to align with HTTPX API, thanks @jocke-l. (PR #81)
+- Easier API to get request/response from call stats, thanks @SlavaSkvortsov. (PR #85)
+- Enhanced test to verify better content encoding by HTTPX. (PR #78)
+- Added Python 3.9 to supported versions and test suite, thanks @jairhenrique. (PR #89)
+
+### Changed
+- `ResponseTemplate.content` as proper getter, i.e. no resolve/encode to bytes. (PR #82)
+- Enhanced headers by using HTTPX Response when encoding raw responses. (PR #82)
+- Deprecated `respx.stats` in favour of `respx.calls`, thanks @SlavaSkvortsov. (PR #92)
+
+### Fixed
+- Recorded requests in call stats are pre-read like the responses. (PR #86)
+- Postponed request decoding for enhanced performance. (PR #91)
+- Lazy call history for enhanced performance, thanks @SlavaSkvortsov. (PR #92)
+
+### Removed
+- Removed auto setting the `Content-Type: text/plain` header. (PR #82)
+
 ## [0.13.0] - 2020-09-30
 ### Fixed
 - Fixed support for `HTTPX` 0.15. (PR #77)

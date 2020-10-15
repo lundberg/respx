@@ -288,13 +288,13 @@ def test_something(respx_mock):
 
     response = httpx.get("https://foo.bar/")
     assert response.status_code == 200
-    assert respx_mock.stats.call_count == 1
+    assert respx_mock.calls.call_count == 1
 ```
 ``` python
 with respx.mock(assert_all_mocked=False) as respx_mock:
     response = httpx.get("https://foo.bar/")  # OK
     assert response.status_code == 200
-    assert respx_mock.stats.call_count == 1
+    assert respx_mock.calls.call_count == 1
 ```
 
 !!! attention "Without Parentheses"
@@ -304,9 +304,9 @@ with respx.mock(assert_all_mocked=False) as respx_mock:
 
 ## Call Statistics
 
-The `respx` API includes a `.calls` list, containing captured (`request`, `response`) tuples, and a `.stats` MagicMock object with all its *bells and whistles*, i.e. `call_count`, `assert_called` etc.
+The `respx` API includes a `.calls` object, containing captured (`request`, `response`) tuples and MagicMock's *bells and whistles*, i.e. `call_count`, `assert_called` etc.
 
-Each mocked response *request pattern* has its own `.calls` and `.stats`, along with `.called` and `.call_count ` stats shortcuts.
+Each mocked response *request pattern* has its own `.calls`, along with `.called` and `.call_count ` stats shortcuts.
 
 To reset stats without stop mocking, use `respx.reset()`.
 
@@ -327,7 +327,7 @@ def test_something():
     assert respx.aliases["index"].called
     assert respx.aliases["index"].call_count == 1
 
-    assert respx.stats.call_count == 2
+    assert respx.calls.call_count == 2
 
     request, response = respx.calls[-1]
     assert request.method == "GET"
@@ -335,5 +335,5 @@ def test_something():
 
     respx.reset()
     assert len(respx.calls) == 0
-    assert respx.stats.call_count == 0
+    assert respx.calls.call_count == 0
 ```

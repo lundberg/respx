@@ -61,7 +61,7 @@ async def test_http_methods(client):
         assert response.status_code == 501
 
         assert m.called is True
-        assert respx.stats.call_count == 7 * 2
+        assert respx.calls.call_count == 7 * 2
 
 
 @pytest.mark.asyncio
@@ -106,16 +106,16 @@ async def test_repeated_pattern(client):
         assert response1.status_code == 201
         assert response2.status_code == 409
         assert response3.status_code == 409
-        assert respx_mock.stats.call_count == 3
+        assert respx_mock.calls.call_count == 3
 
         assert one.called is True
         assert one.call_count == 1
-        statuses = [response.status_code for _, response in one.calls]
+        statuses = [call.response.status_code for call in one.calls]
         assert statuses == [201]
 
         assert two.called is True
         assert two.call_count == 2
-        statuses = [response.status_code for _, response in two.calls]
+        statuses = [call.response.status_code for call in two.calls]
         assert statuses == [409, 409]
 
 
@@ -408,7 +408,7 @@ async def test_parallel_requests(client):
 
     assert response_one.text == "one"
     assert response_two.text == "two"
-    assert respx.stats.call_count == 2
+    assert respx.calls.call_count == 2
 
 
 @pytest.mark.asyncio

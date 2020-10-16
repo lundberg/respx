@@ -8,10 +8,10 @@ from httpcore import (
     SyncHTTPTransport,
 )
 
-from .models import (
+from .models import CallList, RequestPattern, ResponseTemplate
+from .types import (
     URL,
     AsyncResponse,
-    CallList,
     ContentDataTypes,
     DefaultType,
     Headers,
@@ -19,9 +19,7 @@ from .models import (
     JSONTypes,
     QueryParamTypes,
     Request,
-    RequestPattern,
     Response,
-    ResponseTemplate,
     SyncResponse,
     URLPatternTypes,
 )

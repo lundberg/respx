@@ -1,14 +1,13 @@
 from typing import Callable, Optional, Union, overload
 
 from .mocks import MockTransport
-from .models import (
-    CallList,
+from .models import CallList, RequestPattern
+from .types import (
     ContentDataTypes,
     DefaultType,
     HeaderTypes,
     JSONTypes,
     QueryParamTypes,
-    RequestPattern,
     URLPatternTypes,
 )
 

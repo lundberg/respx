@@ -1,3 +1,5 @@
+import warnings
+
 import httpcore
 import httpx
 import pytest
@@ -8,7 +10,9 @@ from respx import AsyncMockTransport, MockTransport, SyncMockTransport
 def test_sync_transport():
     url = "https://foo.bar/"
 
-    transport = SyncMockTransport(assert_all_called=False)
+    with warnings.catch_warnings(record=True) as w:
+        transport = SyncMockTransport(assert_all_called=False)
+        assert len(w) == 1
     transport.get(url, status_code=404)
     transport.get(url, content={"foo": "bar"})
     transport.post(url, pass_through=True)
@@ -28,7 +32,9 @@ def test_sync_transport():
 async def test_async_transport():
     url = "https://foo.bar/"
 
-    transport = AsyncMockTransport(assert_all_called=False)
+    with warnings.catch_warnings(record=True) as w:
+        transport = AsyncMockTransport(assert_all_called=False)
+        assert len(w) == 1
     transport.get(url, status_code=404)
     transport.get(url, content={"foo": "bar"})
     transport.post(url, pass_through=True)
@@ -48,7 +54,9 @@ async def test_async_transport():
 async def test_transport_assertions():
     url = "https://foo.bar/"
 
-    transport = AsyncMockTransport()
+    with warnings.catch_warnings(record=True) as w:
+        transport = AsyncMockTransport()
+        assert len(w) == 1
     transport.get(url, status_code=404)
     transport.post(url, content={"foo": "bar"})
 
@@ -83,21 +91,22 @@ async def test_httpcore_request():
 @pytest.mark.asyncio
 async def test_transport_pop():
     url = "https://foo.bar/"
-    alias = "get_alias"
+    name = "ny_named_route"
 
-    transport = AsyncMockTransport()
-    transport.get(url, status_code=404, alias=alias)
+    with warnings.catch_warnings(record=True) as w:
+        transport = AsyncMockTransport()
+        assert len(w) == 1
+    transport.get(url, status_code=404, name=name)
 
-    request_pattern = transport.pop(alias)
+    request_pattern = transport.pop(name)
 
-    assert request_pattern.response.status_code == 404
-    assert request_pattern.alias == alias
-    assert request_pattern.url == url
+    assert request_pattern.get_response().status_code == 404
+    assert request_pattern.name == name
 
     assert not transport.aliases
-    assert not transport.patterns
+    assert not transport.routes
 
     with pytest.raises(KeyError):
-        transport.pop(alias)
+        transport.pop(name)
 
-    assert transport.pop(alias, "custom default") == "custom default"
+    assert transport.pop(name, "custom default") == "custom default"

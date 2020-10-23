@@ -1,9 +1,12 @@
 from .__version__ import __version__
 from .mocks import MockTransport
+from .models import MockResponse, Route
+from .router import Router
 from .transports import AsyncMockTransport, SyncMockTransport
 
 from .api import (  # isort:skip
     mock,
+    routes,
     aliases,
     stats,
     calls,
@@ -12,6 +15,7 @@ from .api import (  # isort:skip
     clear,
     reset,
     pop,
+    route,
     add,
     get,
     post,
@@ -27,7 +31,11 @@ __all__ = [
     "MockTransport",
     "AsyncMockTransport",
     "SyncMockTransport",
+    "Router",
+    "Route",
+    "MockResponse",
     "mock",
+    "routes",
     "aliases",
     "stats",
     "calls",
@@ -36,6 +44,7 @@ __all__ = [
     "clear",
     "reset",
     "pop",
+    "route",
     "add",
     "get",
     "post",

@@ -1,7 +1,8 @@
-from typing import Callable, Optional, Union, overload
+from typing import Any, Callable, Optional, Union, overload
 
 from .mocks import MockTransport
-from .models import CallList, RequestPattern
+from .models import CallList, Route
+from .patterns import Pattern
 from .types import (
     ContentDataTypes,
     DefaultType,
@@ -13,7 +14,8 @@ from .types import (
 
 mock = MockTransport(assert_all_called=False)
 
-aliases = mock.aliases
+aliases = mock.routes
+routes = mock.routes
 stats = mock.calls
 calls: CallList = mock.calls
 
@@ -39,22 +41,27 @@ def reset() -> None:
 
 
 @overload
-def pop(alias: str) -> RequestPattern:
+def pop(name: str) -> Route:
     ...  # pragma: nocover
 
 
 @overload
-def pop(alias: str, default: DefaultType) -> Union[RequestPattern, DefaultType]:
+def pop(name: str, default: DefaultType) -> Union[Route, DefaultType]:
     ...  # pragma: nocover
 
 
-def pop(alias, default=...):
+def pop(name, default=...):
     global mock
-    return mock.pop(alias=alias, default=default)
+    return mock.pop(name, default=default)
+
+
+def route(*patterns: Pattern, name: Optional[str] = None, **lookups: Any) -> Route:
+    global mock
+    return mock.route(*patterns, name=name, **lookups)
 
 
 def add(
-    method: Union[str, Callable],
+    method: Union[str, Callable, Route],
     url: Optional[URLPatternTypes] = None,
     *,
     params: Optional[QueryParamTypes] = None,
@@ -67,7 +74,8 @@ def add(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.add(
         method,
@@ -82,6 +90,7 @@ def add(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -98,7 +107,8 @@ def get(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.get(
         url=url,
@@ -112,6 +122,7 @@ def get(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -128,7 +139,8 @@ def post(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.post(
         url=url,
@@ -142,6 +154,7 @@ def post(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -158,7 +171,8 @@ def put(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.put(
         url=url,
@@ -172,6 +186,7 @@ def put(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -188,7 +203,8 @@ def patch(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.patch(
         url=url,
@@ -202,6 +218,7 @@ def patch(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -218,7 +235,8 @@ def delete(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.delete(
         url=url,
@@ -232,6 +250,7 @@ def delete(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -248,7 +267,8 @@ def head(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.head(
         url=url,
@@ -262,6 +282,7 @@ def head(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )
 
 
@@ -278,7 +299,8 @@ def options(
     json: Optional[JSONTypes] = None,
     pass_through: bool = False,
     alias: Optional[str] = None,
-) -> RequestPattern:
+    name: Optional[str] = None,
+) -> Route:
     global mock
     return mock.options(
         url=url,
@@ -292,4 +314,5 @@ def options(
         json=json,
         pass_through=pass_through,
         alias=alias,
+        name=name,
     )

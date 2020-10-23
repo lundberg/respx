@@ -13,12 +13,14 @@ from respx import MockTransport
 async def test_decorating_test(client):
     assert respx.calls.call_count == 0
     respx.calls.assert_not_called()
-    request = respx.get("https://foo.bar/", status_code=202)
+    request = respx.route(url="https://foo.bar/", name="home").respond(202)
     response = await client.get("https://foo.bar/")
     assert request.called is True
     assert response.status_code == 202
     assert respx.calls.call_count == 1
+    assert respx.routes["home"].call_count == 1
     respx.calls.assert_called_once()
+    respx.routes["home"].calls.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -67,7 +69,7 @@ def test_global_sync_decorator():
     @respx.mock
     def test():
         assert respx.calls.call_count == 0
-        request = respx.get("https://foo.bar/", status_code=202)
+        request = respx.get("https://foo.bar/") % httpx.Response(202)
         response = httpx.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -83,7 +85,7 @@ async def test_global_async_decorator(client):
     @respx.mock
     async def test():
         assert respx.calls.call_count == 0
-        request = respx.get("https://foo.bar/", status_code=202)
+        request = respx.get("https://foo.bar/") % httpx.Response(202)
         response = await client.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -281,17 +283,17 @@ async def test_start_stop(client):
         assert respx.calls.call_count == 1
 
         respx.stop(clear=False, reset=False)
-        assert len(respx.mock.patterns) == 1
+        assert len(respx.routes) == 1
         assert respx.calls.call_count == 1
         assert request.called is True
 
         respx.reset()
-        assert len(respx.mock.patterns) == 1
+        assert len(respx.routes) == 1
         assert respx.calls.call_count == 0
         assert request.called is False
 
         respx.clear()
-        assert len(respx.mock.patterns) == 0
+        assert len(respx.routes) == 0
 
     except Exception:  # pragma: nocover
         respx.stop()  # Cleanup global state on error, to not affect other tests

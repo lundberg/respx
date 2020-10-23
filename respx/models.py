@@ -1,114 +1,55 @@
 import inspect
-import re
 from typing import (
     Any,
-    AsyncIterable,
     Callable,
     Dict,
     Generator,
-    Iterable,
     List,
     NamedTuple,
     Optional,
-    Pattern,
-    Sequence,
     Tuple,
-    TypeVar,
     Union,
 )
 from unittest import mock
-from urllib.parse import urljoin
 from warnings import warn
 
 import httpx
 from httpcore import AsyncByteStream, SyncByteStream
 
-URL = Tuple[bytes, bytes, Optional[int], bytes]
-Headers = List[Tuple[bytes, bytes]]
-Request = Tuple[
-    bytes,  # http method
-    URL,
-    Headers,
-    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
-]
-SyncResponse = Tuple[
-    int,  # status code
-    Headers,
-    SyncByteStream,  # body
-    dict,  # ext
-]
-AsyncResponse = Tuple[
-    int,  # status code
-    Headers,
-    AsyncByteStream,  # body
-    dict,  # ext
-]
-Response = Tuple[
-    int,  # status code
-    Headers,
-    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
-    dict,  # ext
-]
-
-HeaderTypes = Union[
-    httpx.Headers,
-    Dict[str, str],
-    Dict[bytes, bytes],
-    Sequence[Tuple[str, str]],
-    Sequence[Tuple[bytes, bytes]],
-]
-
-DefaultType = TypeVar("DefaultType", bound=Any)
-
-Kwargs = Dict[str, Any]
-URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
-JSONTypes = Union[str, List, Dict]
-ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
-QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
+from .patterns import M, Pattern
+from .types import (
+    ContentDataTypes,
+    HeaderTypes,
+    JSONTypes,
+    Kwargs,
+    QueryParamTypes,
+    Request,
+    RequestTypes,
+    Response,
+    URLPatternTypes,
+)
 
 
-def build_url(
-    url: Optional[URLPatternTypes] = None,
-    base: Optional[str] = None,
-    params: Optional[QueryParamTypes] = None,
-) -> Optional[Union[httpx.URL, Pattern[str]]]:
-    url = url or ""
-    if not base:
-        base_url = httpx.URL("")
-    elif base.endswith("/"):
-        base_url = httpx.URL(base)
-    else:
-        base_url = httpx.URL(base + "/")
-
-    if not url and not base:
-        return None
-    elif isinstance(url, (str, tuple, httpx.URL)):
-        return base_url.join(httpx.URL(url, params=params))
-    elif isinstance(url, Pattern):
-        if params is not None:
-            if r"\?" in url.pattern and params is not None:
-                raise ValueError(
-                    "Request url pattern contains a query string, which is not "
-                    "supported in conjuction with params argument."
-                )
-            query_params = str(httpx.QueryParams(params))
-            url = re.compile(url.pattern + re.escape(fr"?{query_params}"))
-
-        return re.compile(urljoin(str(base_url), url.pattern))
-    else:
-        raise ValueError(
-            "Request url pattern must be str or compiled regex, got {}.".format(
-                type(url).__name__
-            )
-        )
-
-
-def decode_request(request: Request) -> httpx.Request:
+def decode_request(request: RequestTypes) -> httpx.Request:
     """
     Build a httpx Request from httpcore request args.
     """
+    if isinstance(request, httpx.Request):
+        return request
     method, url, headers, stream = request
     return httpx.Request(method, url, headers=headers, stream=stream)
+
+
+def encode_response(response: httpx.Response) -> Response:
+    """
+    Builds a raw response tuple from httpx Response.
+    """
+    return (
+        response.status_code,
+        response.headers.raw,
+        response.stream,
+        response.ext,
+    )
 
 
 def decode_response(
@@ -187,7 +128,7 @@ class CallList(list, mock.NonCallableMock):
         return raw_call
 
 
-class ResponseTemplate:
+class MockResponse:
     _content: Optional[ContentDataTypes]
     _text: Optional[str]
     _html: Optional[str]
@@ -220,8 +161,8 @@ class ResponseTemplate:
         self.text = text
         self.content = content
 
-    def clone(self, context: Optional[Kwargs] = None) -> "ResponseTemplate":
-        return ResponseTemplate(
+    def clone(self, context: Optional[Kwargs] = None) -> "MockResponse":
+        return MockResponse(
             self.status_code,
             content=self.content,
             text=self.text,
@@ -329,12 +270,7 @@ class ResponseTemplate:
         if self.http_version:
             response.ext["http_version"] = self.http_version
 
-        return (
-            response.status_code,
-            response.headers.raw,
-            response.stream,
-            response.ext,
-        )
+        return encode_response(response)
 
     @property
     def raw(self):
@@ -357,32 +293,118 @@ class ResponseTemplate:
         return self.raw
 
 
-class RequestPattern:
+class ResponseTemplate(MockResponse):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warn(
+            "ResponseTemplate is deprecated. Please use MockResponse.",
+            category=DeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class Route:
     def __init__(
         self,
-        method: Union[str, Callable],
-        url: Optional[URLPatternTypes],
-        params: Optional[QueryParamTypes] = None,
-        response: Optional[ResponseTemplate] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
-        base_url: Optional[str] = None,
+        *patterns: Pattern,
+        **lookups: Any,
     ) -> None:
-        self._match_func: Optional[Callable] = None
-
-        if callable(method):
-            self.method = None
-            self.url = None
-            self.pass_through = None
-            self._match_func = method
-        else:
-            self.method = method.upper()
-            self.url = build_url(url, base=base_url, params=params)
-            self.pass_through = pass_through
-
-        self.response = response or ResponseTemplate()
-        self.alias = alias
+        self.pattern = M(*patterns, **lookups)
+        self.name: Optional[str] = None
         self.calls = CallList()
+        self._responses: List[Union[MockResponse, httpx.Response]] = []
+        self._pass_through: Optional[bool] = None
+        self._callback: Optional[Callable] = None
+
+    def __hash__(self):
+        if self.pattern:
+            return hash(self.pattern)
+        elif self._pass_through is not None:
+            return hash(self._pass_through)
+        elif self._callback:
+            return hash(self._callback)
+        return id(self)
+
+    def __mod__(
+        self, response: Union[int, Dict[str, Any], MockResponse, httpx.Response]
+    ) -> "Route":
+        if isinstance(response, int):
+            response = httpx.Response(response)
+        if isinstance(response, dict):
+            response.setdefault("status_code", 200)
+            response = httpx.Response(**response)
+        return self.add_response(response)
+
+    def respond(
+        self,
+        status_code: Optional[int] = None,
+        *,
+        headers: Optional[HeaderTypes] = None,
+        content_type: Optional[str] = None,
+        content: Optional[ContentDataTypes] = None,
+        text: Optional[str] = None,
+        html: Optional[str] = None,
+        json: Optional[JSONTypes] = None,
+        http_version: Optional[str] = None,
+    ) -> "Route":
+        response = MockResponse(
+            status_code,
+            headers=headers,
+            content_type=content_type,
+            content=content,
+            text=text,
+            html=html,
+            json=json,
+            http_version=http_version,
+        )
+        return self.add_response(response)
+
+    def add_response(self, response: Union[MockResponse, httpx.Response]) -> "Route":
+        self._responses.append(response)
+        return self
+
+    def get_response(self, **context: Any) -> Union[MockResponse, httpx.Response]:
+        response: Union[MockResponse, httpx.Response]
+
+        if len(self._responses) == 0:
+            response = MockResponse()
+            self.add_response(response)
+        elif len(self._responses) == 1:
+            response = self._responses[0]
+        else:
+            response = self._responses.pop(0)  # Pop stacked responses in order
+
+        if isinstance(response, MockResponse):
+            return response.clone(context=context)
+
+        return response
+
+    def callback(self, callback: Callable) -> "Route":
+        self._callback = callback
+        self._pass_through = None
+        return self
+
+    def pass_through(self, value: bool = True) -> "Route":
+        self._pass_through = value
+        if value:
+            self._callback = None
+            self._responses.clear()
+        return self
+
+    @property
+    def is_callback(self) -> bool:
+        return bool(self._callback)
+
+    @property
+    def is_pass_through(self) -> bool:
+        return bool(self._pass_through)
+
+    @property
+    def alias(self) -> Optional[str]:
+        warn(
+            ".alias property is deprecated. Please, use .name",
+            category=DeprecationWarning,
+        )
+        return self.name
 
     @property
     def called(self) -> bool:
@@ -400,43 +422,73 @@ class RequestPattern:
         )
         return self.calls
 
-    def match(self, request: Request) -> Optional[Union[Request, ResponseTemplate]]:
+    def match(
+        self, request: RequestTypes
+    ) -> Optional[Union[RequestTypes, MockResponse, httpx.Response]]:
         """
-        Matches request with configured pattern;
-        custom matcher function or http method + url pattern.
+        Matches request with given patterns.
 
         Returns None for a non-matching pattern, mocked response for a match,
         or input request for pass-through.
         """
-        matches = False
-        url_params: Kwargs = {}
+        response: Union[RequestTypes, MockResponse, httpx.Response]
+        context = {}
 
-        if self.pass_through:
-            return request
-
-        if self._match_func:
-            _request = decode_request(request)
-            response = self.response.clone(context={"request": request})
-            result = self._match_func(_request, response)
-            if result == _request:  # Detect pass through
-                result = request
-            return result
-
-        request_method, _request_url, *_ = request
-        if self.method != request_method.decode():
+        if not any((self.pattern, self._pass_through, self._callback)):
             return None
 
-        if not self.url:
-            matches = True
-        elif isinstance(self.url, httpx.URL):
-            matches = self.url.raw == _request_url
-        else:
-            match = self.url.match(str(httpx.URL(_request_url)))
-            if match:
-                matches = True
-                url_params = match.groupdict()
+        if self.pattern:
+            match = self.pattern.match(request)
+            if not match:
+                return None
+            context = match.context
 
-        if matches:
-            return self.response.clone(context={"request": request, **url_params})
+        if self._pass_through:
+            return request
 
-        return None
+        if self._callback:
+            _request = decode_request(request)
+            response = self.get_response(request=request)
+
+            result = self._callback(_request, response)
+
+            if result == _request:  # Detect pass through
+                result = request
+
+            return result
+
+        return self.get_response(request=request, **context)
+
+
+class RequestPattern(Route):
+    def __init__(
+        self,
+        method: Union[str, Callable] = None,
+        url: Optional[URLPatternTypes] = None,
+        *,
+        params: Optional[QueryParamTypes] = None,
+        response: Optional[MockResponse] = None,
+        pass_through: bool = False,
+        alias: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ) -> None:
+        warn(
+            "RequestPattern is deprecated. Please use Route.",
+            category=DeprecationWarning,
+        )
+
+        super().__init__(
+            method=method if not callable(method) else None,
+            base_url=base_url,
+            url=url,
+            params=params,
+        )
+
+        self.name = alias
+        self._pass_through = pass_through
+
+        if callable(method):
+            self.callback(method)
+
+        if response:
+            self.add_response(response)

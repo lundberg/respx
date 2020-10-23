@@ -9,6 +9,7 @@ __all__ = ["MockTransport"]
 
 
 class MockTransport(BaseMockTransport):
+    _local = False
     _patches: List[mock._patch] = []
     transports: List["MockTransport"] = []
     targets = [
@@ -21,20 +22,6 @@ class MockTransport(BaseMockTransport):
         "httpx._transports.asgi.ASGITransport",
         "httpx._transports.wsgi.WSGITransport",
     ]
-
-    def __init__(
-        self,
-        assert_all_called: bool = True,
-        assert_all_mocked: bool = True,
-        base_url: Optional[str] = None,
-        local: bool = False,
-    ) -> None:
-        self._local = local
-        super().__init__(
-            assert_all_called=assert_all_called,
-            assert_all_mocked=assert_all_mocked,
-            base_url=base_url,
-        )
 
     def __call__(
         self,
@@ -56,13 +43,14 @@ class MockTransport(BaseMockTransport):
             #   FYI, global ctx `with respx.mock:` hits __enter__ directly
             settings: Dict[str, Any] = {
                 "base_url": base_url,
-                "local": True,
             }
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
                 settings["assert_all_mocked"] = assert_all_mocked
-            return self.__class__(**settings)
+            respx_mock = self.__class__(**settings)
+            respx_mock._local = True
+            return respx_mock
 
         # Async Decorator
         @wraps(func)

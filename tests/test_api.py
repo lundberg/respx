@@ -3,6 +3,7 @@ import json as jsonlib
 import os
 import re
 import socket
+import warnings
 from unittest import mock
 
 import httpx
@@ -10,20 +11,20 @@ import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern
+from respx.models import RequestPattern, ResponseTemplate, Route
 
 
 @pytest.mark.asyncio
 async def test_http_methods(client):
     async with respx.mock:
         url = "https://foo.bar/"
-        m = respx.get(url, status_code=404)
-        respx.post(url, status_code=201)
-        respx.put(url, status_code=202)
-        respx.patch(url, status_code=500)
-        respx.delete(url, status_code=204)
-        respx.head(url, status_code=405)
-        respx.options(url, status_code=501)
+        route = respx.get(url) % 404
+        respx.post(url).respond(201)
+        respx.put(url).respond(202)
+        respx.patch(url).respond(500)
+        respx.delete(url).respond(204)
+        respx.head(url).respond(405)
+        respx.options(url).respond(status_code=501)
 
         response = httpx.get(url)
         assert response.status_code == 404
@@ -60,7 +61,7 @@ async def test_http_methods(client):
         response = await client.options(url)
         assert response.status_code == 501
 
-        assert m.called is True
+        assert route.called is True
         assert respx.calls.call_count == 7 * 2
 
 
@@ -99,6 +100,10 @@ async def test_repeated_pattern(client):
         url = "https://foo/bar/baz/"
         one = respx_mock.post(url, status_code=201)
         two = respx_mock.post(url, status_code=409)
+
+        assert one is two
+        assert len(one._responses) == 2
+
         response1 = await client.post(url, json={})
         response2 = await client.post(url, json={})
         response3 = await client.post(url, json={})
@@ -109,14 +114,9 @@ async def test_repeated_pattern(client):
         assert respx_mock.calls.call_count == 3
 
         assert one.called is True
-        assert one.call_count == 1
+        assert one.call_count == 3
         statuses = [call.response.status_code for call in one.calls]
-        assert statuses == [201]
-
-        assert two.called is True
-        assert two.call_count == 2
-        statuses = [call.response.status_code for call in two.calls]
-        assert statuses == [409, 409]
+        assert statuses == [201, 409, 409]
 
 
 @pytest.mark.asyncio
@@ -298,10 +298,12 @@ async def test_request_callback(client):
 
     async with MockTransport(assert_all_called=False) as respx_mock:
         request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
-        response = await client.post("https://foo.bar/", json={"foo": "bar"})
+        _request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
+        assert request is _request
 
+        response = await client.post("https://foo.bar/", json={"foo": "bar"})
         assert request.called is True
-        assert request.pass_through is None
+        assert not request.is_pass_through
         assert response.status_code == 202
         assert response.http_version == "HTTP/2"
         assert response.headers == httpx.Headers(
@@ -321,16 +323,20 @@ async def test_request_callback(client):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "parameters,expected",
+    "args,kwargs,expected",
     [
-        ({"method": "GET", "url": "https://example.org/", "pass_through": True}, True),
-        ({"method": lambda request, response: request}, None),
-        ({"method": RequestPattern("GET", "http://foo.bar/", pass_through=True)}, True),
+        (
+            [],
+            {"method": "GET", "url": "https://example.org/", "pass_through": True},
+            True,
+        ),
+        ([lambda request, response: request], {}, False),
+        ([Route().pass_through()], {}, True),
     ],
 )
-async def test_pass_through(client, parameters, expected):
+async def test_pass_through(client, args, kwargs, expected):
     async with MockTransport() as respx_mock:
-        request = respx_mock.add(**parameters)
+        request = respx_mock.add(*args, **kwargs)
 
         with mock.patch(
             "asyncio.open_connection",
@@ -341,10 +347,10 @@ async def test_pass_through(client, parameters, expected):
 
         assert open_connection.called is True
         assert request.called is True
-        assert request.pass_through is expected
+        assert request.is_pass_through is expected
 
     with MockTransport() as respx_mock:
-        request = respx_mock.add(**parameters)
+        request = respx_mock.add(*args, **kwargs)
 
         with mock.patch(
             "socket.socket.connect", side_effect=socket.error("test request blocked")
@@ -354,7 +360,7 @@ async def test_pass_through(client, parameters, expected):
 
         assert connect.called is True
         assert request.called is True
-        assert request.pass_through is expected
+        assert request.is_pass_through is expected
 
 
 @pytest.mark.skipif(
@@ -365,7 +371,7 @@ async def test_external_pass_through(client):  # pragma: nocover
     with respx.mock:
         # Mock pass-through call
         url = "https://httpbin.org/post"
-        respx.get(url, content=b"", pass_through=True)
+        route = respx.post(url).respond(content=b"").pass_through()
 
         # Mock a non-matching callback pattern pre-reading request data
         def callback(req, res):
@@ -376,6 +382,7 @@ async def test_external_pass_through(client):  # pragma: nocover
         respx.add(callback)
 
         # Make external pass-through call
+        assert route.call_count == 0
         response = await client.post(url, json={"foo": "bar"})
 
         assert response.content is not None
@@ -384,11 +391,15 @@ async def test_external_pass_through(client):  # pragma: nocover
         assert int(response.headers["Content-Length"]) > 0
         assert response.json()["json"] == {"foo": "bar"}
 
-        _, resp = respx.calls[-1]
+        resp = respx.calls.last.response
         await resp.aread()  # Read async pass-through response
         assert resp.content == b"", "Should be 0, stream already read by real Response!"
         assert "Content-Length" in resp.headers
         assert int(resp.headers["Content-Length"]) > 0
+
+        # TODO: Routed and recorded twice; AsyncConnectionPool + AsyncHTTPConnection
+        assert route.call_count == 2
+        assert respx.calls.call_count == 2
 
 
 @respx.mock
@@ -443,9 +454,9 @@ async def test_add(client, method_str, client_method_attr):
 
 def test_pop():
     with respx.mock:
-        respx.get("https://foo.bar/", alias="foobar")
-        request_pattern = respx.pop("foobar")
-        assert request_pattern.url == "https://foo.bar/"
+        request = respx.get("https://foo.bar/", name="foobar")
+        popped = respx.pop("foobar")
+        assert popped is request
 
 
 @respx.mock
@@ -476,12 +487,6 @@ async def test_params_match(client, url, params, call_url, call_params):
 
 
 @pytest.mark.asyncio
-async def test_build_url_invalid_regex_params(client):
-    with pytest.raises(ValueError):
-        respx.get(re.compile(r"https://foo.bar/\?foo=bar"), params="baz=qux")
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "base,url",
     [
@@ -499,3 +504,52 @@ async def test_build_url_base(client, base, url):
         respx_mock.get(url, content="spam spam")
         response = await client.get("https://foo.bar/baz/")
         assert response.text == "spam spam"
+
+
+def test_deprecated_apis():
+    with respx.mock:
+        url = "https://foo.bar/"
+
+        # Response kwargs among request kwargs
+        with warnings.catch_warnings(record=True) as w:
+            respx.get(url, status_code=201)
+            respx.get(url, headers={})
+            respx.get(url, content_type="foo/bar")
+            respx.get(url, content="")
+            respx.get(url, text="")
+            respx.get(url, html="")
+            respx.get(url, json={})
+            respx.get(url, pass_through=True)
+            assert len(w) == 8
+
+        # Add route by http method string
+        with warnings.catch_warnings(record=True) as w:
+            respx.add("GET", url)
+            assert len(w) == 1
+
+        # Alias and aliases
+        with warnings.catch_warnings(record=True) as w:
+            request_pattern = respx.get(url, alias="index")
+            name = request_pattern.alias
+            aliased_pattern = respx.mock.aliases["index"]
+            assert aliased_pattern is request_pattern
+            assert name == request_pattern.name
+            assert len(w) == 3
+
+        # RequestPattern
+        with warnings.catch_warnings(record=True) as w:
+            callback = lambda req, res: res  # pragma: nocover
+            request_pattern = RequestPattern(callback)
+            assert request_pattern.is_callback
+
+            request_pattern = RequestPattern(
+                "GET", "https://foo.bar/", pass_through=True
+            )
+            assert request_pattern.is_pass_through
+            assert len(w) == 2
+
+        # ResponseTemplate
+        with warnings.catch_warnings(record=True) as w:
+            request_pattern = RequestPattern(callback, response=ResponseTemplate(201))
+            assert request_pattern.get_response().status_code == 201
+            assert len(w) == 2

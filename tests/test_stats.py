@@ -15,12 +15,11 @@ from respx import MockTransport
 @pytest.mark.asyncio
 async def test_alias():
     async with MockTransport(assert_all_called=False) as respx_mock:
-        url = "https://foo.bar/"
-        request = respx_mock.get(url, alias="foobar")
+        request = respx_mock.get("https://foo.bar/", content="foo bar", name="foobar")
         assert "foobar" not in respx.aliases
         assert "foobar" in respx_mock.aliases
-        assert respx_mock.aliases["foobar"].url == request.url
-        assert respx_mock["foobar"].url == request.url
+        assert respx_mock.aliases["foobar"] is request
+        assert respx_mock["foobar"] is request
 
 
 @pytest.mark.parametrize("Backend", [AsyncioBackend, TrioBackend])
@@ -31,8 +30,8 @@ def test_stats(Backend):
         respx.get(re.compile("https://some.thing"))
         respx.delete("https://some.thing")
 
-        foobar1 = respx.get(url, status_code=202, alias="get_foobar", content="get")
-        foobar2 = respx.delete(url, status_code=200, alias="del_foobar", content="del")
+        foobar1 = respx.get(url, status_code=202, name="get_foobar", content="get")
+        foobar2 = respx.delete(url, status_code=200, name="del_foobar", content="del")
 
         assert foobar1.called is False
         assert foobar1.call_count == len(foobar1.calls)
@@ -84,13 +83,13 @@ def test_stats(Backend):
             assert respx.stats.call_count == 2
             assert len(w) == 1
 
-        alias = respx.aliases["get_foobar"]
-        assert alias == foobar1
-        assert alias.alias == foobar1.alias
+        route = respx.aliases["get_foobar"]
+        assert route == foobar1
+        assert route.name == foobar1.name
 
-        alias = respx.aliases["del_foobar"]
-        assert alias == foobar2
-        assert alias.alias == foobar2.alias
+        route = respx.aliases["del_foobar"]
+        assert route == foobar2
+        assert route.name == foobar2.name
 
     backend = Backend()
     if isinstance(backend, TrioBackend):

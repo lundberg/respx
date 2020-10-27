@@ -3,7 +3,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     List,
     NamedTuple,
     Optional,
@@ -14,7 +13,6 @@ from unittest import mock
 from warnings import warn
 
 import httpx
-from httpcore import AsyncByteStream, SyncByteStream
 
 from .patterns import M, Pattern
 from .types import (
@@ -23,7 +21,6 @@ from .types import (
     JSONTypes,
     Kwargs,
     QueryParamTypes,
-    Request,
     RequestTypes,
     Response,
     URLPatternTypes,
@@ -52,64 +49,12 @@ def encode_response(response: httpx.Response) -> Response:
     )
 
 
-def decode_response(
-    response: Optional[Response], request: httpx.Request
-) -> Optional[httpx.Response]:
-    """
-    Build a httpx Response from httpcore response args.
-    """
-    if response is None:
-        return None
-
-    status_code, headers, stream, ext = response
-    return httpx.Response(
-        status_code, headers=headers, stream=stream, ext=ext, request=request
-    )
-
-
 class Call(NamedTuple):
     request: httpx.Request
     response: Optional[httpx.Response]
 
 
-class RawCall:
-    def __init__(self, raw_request: Request, raw_response: Optional[Response] = None):
-        self.raw_request = raw_request
-        self.raw_response = raw_response
-
-        self._call: Optional[Call] = None
-
-    @property
-    def call(self) -> Call:
-        if self._call is None:
-            self._call = self._decode_call()
-
-        return self._call
-
-    def _decode_call(self) -> Call:
-        # Decode raw request/response as HTTPX models
-        request = decode_request(self.raw_request)
-        response = decode_response(self.raw_response, request=request)
-
-        # Pre-read request/response, but only if mocked, not for pass-through streams
-        if response and not isinstance(
-            response.stream, (SyncByteStream, AsyncByteStream)
-        ):
-            request.read()
-            response.read()
-
-        return Call(request=request, response=response)
-
-
 class CallList(list, mock.NonCallableMock):
-    def __iter__(self) -> Generator[Call, None, None]:
-        for raw_call in super().__iter__():
-            yield raw_call.call
-
-    def __getitem__(self, item: int) -> Call:  # type: ignore
-        raw_call: RawCall = super().__getitem__(item)
-        return raw_call.call
-
     @property
     def called(self) -> bool:  # type: ignore
         return bool(self)
@@ -122,10 +67,12 @@ class CallList(list, mock.NonCallableMock):
     def last(self) -> Optional[Call]:
         return self[-1] if self else None
 
-    def record(self, raw_request: Request, raw_response: Response) -> RawCall:
-        raw_call = RawCall(raw_request=raw_request, raw_response=raw_response)
-        self.append(raw_call)
-        return raw_call
+    def record(
+        self, request: httpx.Request, response: Optional[httpx.Response]
+    ) -> Call:
+        call = Call(request=request, response=response)
+        self.append(call)
+        return call
 
 
 class MockResponse:

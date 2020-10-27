@@ -6,12 +6,13 @@ import socket
 import warnings
 from unittest import mock
 
+import httpcore
 import httpx
 import pytest
 
 import respx
 from respx import MockTransport
-from respx.models import RequestPattern, ResponseTemplate, Route
+from respx.models import MockResponse, RequestPattern, ResponseTemplate, Route
 
 
 @pytest.mark.asyncio
@@ -258,6 +259,15 @@ async def test_raising_content(client):
         assert _request is not None
         assert _response is None
 
+        # Test httpx exception class get instantiated
+        route = respx_mock.get(url).side_effect(httpx.ConnectError)
+        with pytest.raises(httpx.ConnectError):
+            await client.get(url)
+
+        assert route.called is True
+        assert route.calls.last.request is not None
+        assert route.calls.last.response is None
+
 
 @pytest.mark.asyncio
 async def test_callable_content(client):
@@ -290,6 +300,7 @@ async def test_request_callback(client):
     def callback(request, response):
         request.read()
         if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
+            response.status_code = 202
             response.headers["X-Foo"] = "bar"
             response.content = lambda request, name: f"hello {name}"
             response.context["name"] = "lundberg"
@@ -297,8 +308,8 @@ async def test_request_callback(client):
             return response
 
     async with MockTransport(assert_all_called=False) as respx_mock:
-        request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
-        _request = respx_mock.add(callback, status_code=202, headers={"X-Ham": "spam"})
+        request = respx_mock.add(callback)
+        _request = respx_mock.add(callback)
         assert request is _request
 
         response = await client.post("https://foo.bar/", json={"foo": "bar"})
@@ -310,15 +321,22 @@ async def test_request_callback(client):
             {
                 "Content-Type": "text/plain; charset=utf-8",
                 "Content-Length": "14",
-                "X-Ham": "spam",
                 "X-Foo": "bar",
             }
         )
         assert response.text == "hello lundberg"
 
         with pytest.raises(ValueError):
-            respx_mock.add(lambda req, res: "invalid")
+            respx_mock.get("https://ham.spam/").side_effect(lambda req, res: "invalid")
             await client.get("https://ham.spam/")
+
+        with pytest.raises(httpx.NetworkError):
+
+            def _callback(request):
+                raise httpcore.NetworkError()
+
+            respx_mock.get("https://egg.plant").side_effect(_callback)
+            await client.get("https://egg.plant/")
 
 
 @pytest.mark.asyncio
@@ -331,6 +349,7 @@ async def test_request_callback(client):
             True,
         ),
         ([lambda request, response: request], {}, False),
+        ([lambda request: request], {}, False),
         ([Route().pass_through()], {}, True),
     ],
 )
@@ -405,8 +424,7 @@ async def test_external_pass_through(client):  # pragma: nocover
 @respx.mock
 @pytest.mark.asyncio
 async def test_parallel_requests(client):
-    async def content(request, page):
-        await asyncio.sleep(0.2 if page == "one" else 0.1)
+    def content(request, page):
         return page
 
     url_pattern = re.compile(r"https://foo/(?P<page>\w+)/$")
@@ -506,7 +524,8 @@ async def test_build_url_base(client, base, url):
         assert response.text == "spam spam"
 
 
-def test_deprecated_apis():
+@pytest.mark.asyncio
+async def test_deprecated_apis():
     with respx.mock:
         url = "https://foo.bar/"
 
@@ -540,7 +559,7 @@ def test_deprecated_apis():
         with warnings.catch_warnings(record=True) as w:
             callback = lambda req, res: res  # pragma: nocover
             request_pattern = RequestPattern(callback)
-            assert request_pattern.is_callback
+            assert request_pattern.has_side_effect
 
             request_pattern = RequestPattern(
                 "GET", "https://foo.bar/", pass_through=True
@@ -550,6 +569,28 @@ def test_deprecated_apis():
 
         # ResponseTemplate
         with warnings.catch_warnings(record=True) as w:
-            request_pattern = RequestPattern(callback, response=ResponseTemplate(201))
-            assert request_pattern.get_response().status_code == 201
-            assert len(w) == 2
+            request = httpx.Request("GET", "https://foo.bar/")
+
+            callback = lambda request: ResponseTemplate(201)
+            request_pattern = RequestPattern(callback, response=ResponseTemplate(444))
+            assert request_pattern.resolve(request).status_code == 201
+
+            request_pattern = RequestPattern("GET", response=ResponseTemplate(444))
+            assert request_pattern.resolve(request).status_code == 444
+
+            assert len(w) == 5
+
+        # Mixing callback and response details
+        with pytest.raises(NotImplementedError):
+            callback = lambda request: ResponseTemplate(201)  # pragma: nocover
+            respx.Router().add(callback, status_code=201)
+
+        # Async callback
+        with pytest.raises(NotImplementedError):
+
+            async def callback(request):
+                return None  # pragma: nocover
+
+            mock_response = MockResponse(content=callback)
+            request = httpx.Request("GET", "http://foo.bar/")
+            mock_response.as_response(request)

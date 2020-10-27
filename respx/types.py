@@ -23,11 +23,12 @@ URL = Tuple[
     bytes,  # path
 ]
 Headers = List[Tuple[bytes, bytes]]
+ByteStream = Union[Iterable[bytes], AsyncIterable[bytes]]
 Request = Tuple[
     bytes,  # http method
     URL,
     Headers,
-    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
+    ByteStream,  # body
 ]
 SyncResponse = Tuple[
     int,  # status code
@@ -44,7 +45,7 @@ AsyncResponse = Tuple[
 Response = Tuple[
     int,  # status code
     Headers,
-    Union[Iterable[bytes], AsyncIterable[bytes]],  # body
+    ByteStream,  # body
     dict,  # ext
 ]
 

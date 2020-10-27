@@ -3,27 +3,27 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     List,
     NamedTuple,
     Optional,
     Tuple,
+    Type,
     Union,
+    cast,
 )
 from unittest import mock
 from warnings import warn
 
 import httpx
-from httpcore import AsyncByteStream, SyncByteStream
 
 from .patterns import M, Pattern
 from .types import (
+    ByteStream,
     ContentDataTypes,
     HeaderTypes,
     JSONTypes,
     Kwargs,
     QueryParamTypes,
-    Request,
     RequestTypes,
     Response,
     URLPatternTypes,
@@ -52,64 +52,12 @@ def encode_response(response: httpx.Response) -> Response:
     )
 
 
-def decode_response(
-    response: Optional[Response], request: httpx.Request
-) -> Optional[httpx.Response]:
-    """
-    Build a httpx Response from httpcore response args.
-    """
-    if response is None:
-        return None
-
-    status_code, headers, stream, ext = response
-    return httpx.Response(
-        status_code, headers=headers, stream=stream, ext=ext, request=request
-    )
-
-
 class Call(NamedTuple):
     request: httpx.Request
     response: Optional[httpx.Response]
 
 
-class RawCall:
-    def __init__(self, raw_request: Request, raw_response: Optional[Response] = None):
-        self.raw_request = raw_request
-        self.raw_response = raw_response
-
-        self._call: Optional[Call] = None
-
-    @property
-    def call(self) -> Call:
-        if self._call is None:
-            self._call = self._decode_call()
-
-        return self._call
-
-    def _decode_call(self) -> Call:
-        # Decode raw request/response as HTTPX models
-        request = decode_request(self.raw_request)
-        response = decode_response(self.raw_response, request=request)
-
-        # Pre-read request/response, but only if mocked, not for pass-through streams
-        if response and not isinstance(
-            response.stream, (SyncByteStream, AsyncByteStream)
-        ):
-            request.read()
-            response.read()
-
-        return Call(request=request, response=response)
-
-
 class CallList(list, mock.NonCallableMock):
-    def __iter__(self) -> Generator[Call, None, None]:
-        for raw_call in super().__iter__():
-            yield raw_call.call
-
-    def __getitem__(self, item: int) -> Call:  # type: ignore
-        raw_call: RawCall = super().__getitem__(item)
-        return raw_call.call
-
     @property
     def called(self) -> bool:  # type: ignore
         return bool(self)
@@ -122,10 +70,12 @@ class CallList(list, mock.NonCallableMock):
     def last(self) -> Optional[Call]:
         return self[-1] if self else None
 
-    def record(self, raw_request: Request, raw_response: Response) -> RawCall:
-        raw_call = RawCall(raw_request=raw_request, raw_response=raw_response)
-        self.append(raw_call)
-        return raw_call
+    def record(
+        self, request: httpx.Request, response: Optional[httpx.Response]
+    ) -> Call:
+        call = Call(request=request, response=response)
+        self.append(call)
+        return call
 
 
 class MockResponse:
@@ -161,7 +111,7 @@ class MockResponse:
         self.text = text
         self.content = content
 
-    def clone(self, context: Optional[Kwargs] = None) -> "MockResponse":
+    def clone(self, **context: Any) -> "MockResponse":
         return MockResponse(
             self.status_code,
             content=self.content,
@@ -247,7 +197,16 @@ class MockResponse:
             self._text = None
             self._html = None
 
-    def encode_response(self, content: ContentDataTypes) -> Response:
+    def as_response(self, request: Optional[httpx.Request]) -> httpx.Response:
+        content = self._content
+
+        if callable(content):
+            if inspect.iscoroutinefunction(self._content):
+                raise NotImplementedError("Async content callback no longer supported.")
+            kwargs = dict(self.context)
+            request = decode_request(kwargs.pop("request"))
+            content = content(request, **kwargs)
+
         if isinstance(content, Exception):
             raise content
 
@@ -265,32 +224,13 @@ class MockResponse:
             text=text,
             html=html,
             json=json,
+            request=decode_request(self.context.get("request")),
         )
 
         if self.http_version:
             response.ext["http_version"] = self.http_version
 
-        return encode_response(response)
-
-    @property
-    def raw(self):
-        content = self._content
-        if callable(content):
-            kwargs = dict(self.context)
-            request = decode_request(kwargs.pop("request"))
-            content = content(request, **kwargs)
-
-        return self.encode_response(content)
-
-    @property
-    async def araw(self):
-        if callable(self._content) and inspect.iscoroutinefunction(self._content):
-            kwargs = dict(self.context)
-            request = decode_request(kwargs.pop("request"))
-            content = await self._content(request, **kwargs)
-            return self.encode_response(content)
-
-        return self.raw
+        return response
 
 
 class ResponseTemplate(MockResponse):
@@ -309,19 +249,19 @@ class Route:
         **lookups: Any,
     ) -> None:
         self.pattern = M(*patterns, **lookups)
-        self.name: Optional[str] = None
+        self.name: Optional[str] = None  # TODO: Drop or add setter to prevent change
         self.calls = CallList()
         self._responses: List[Union[MockResponse, httpx.Response]] = []
+        self._side_effect: Optional[Union[Callable, Exception, Type[Exception]]] = None
         self._pass_through: Optional[bool] = None
-        self._callback: Optional[Callable] = None
 
     def __hash__(self):
         if self.pattern:
             return hash(self.pattern)
         elif self._pass_through is not None:
             return hash(self._pass_through)
-        elif self._callback:
-            return hash(self._callback)
+        elif self._side_effect:
+            return hash(self._side_effect)
         return id(self)
 
     def __mod__(
@@ -336,25 +276,25 @@ class Route:
 
     def respond(
         self,
-        status_code: Optional[int] = None,
+        status_code: int = 200,
         *,
         headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
+        content: Optional[Union[str, bytes, ByteStream]] = None,
         text: Optional[str] = None,
         html: Optional[str] = None,
         json: Optional[JSONTypes] = None,
-        http_version: Optional[str] = None,
+        stream: Optional[ByteStream] = None,
+        **kwargs: Any,
     ) -> "Route":
-        response = MockResponse(
+        response = httpx.Response(
             status_code,
             headers=headers,
-            content_type=content_type,
             content=content,
             text=text,
             html=html,
             json=json,
-            http_version=http_version,
+            stream=stream,
+            **kwargs,
         )
         return self.add_response(response)
 
@@ -362,37 +302,29 @@ class Route:
         self._responses.append(response)
         return self
 
-    def get_response(self, **context: Any) -> Union[MockResponse, httpx.Response]:
-        response: Union[MockResponse, httpx.Response]
-
-        if len(self._responses) == 0:
-            response = MockResponse()
-            self.add_response(response)
-        elif len(self._responses) == 1:
-            response = self._responses[0]
+    def side_effect(
+        self, side_effect: Union[Callable, Exception, List[httpx.Response]]
+    ) -> "Route":
+        self.pass_through(None)
+        if isinstance(side_effect, list):
+            self._responses[:] = side_effect
+            self._side_effect = None
+        elif isinstance(side_effect, Exception):
+            self._side_effect = side_effect
         else:
-            response = self._responses.pop(0)  # Pop stacked responses in order
-
-        if isinstance(response, MockResponse):
-            return response.clone(context=context)
-
-        return response
-
-    def callback(self, callback: Callable) -> "Route":
-        self._callback = callback
-        self._pass_through = None
+            self._side_effect = side_effect
         return self
 
     def pass_through(self, value: bool = True) -> "Route":
         self._pass_through = value
-        if value:
-            self._callback = None
+        if value is not None:
+            self._side_effect = None
             self._responses.clear()
         return self
 
     @property
-    def is_callback(self) -> bool:
-        return bool(self._callback)
+    def has_side_effect(self) -> bool:
+        return bool(self._side_effect)
 
     @property
     def is_pass_through(self) -> bool:
@@ -422,19 +354,105 @@ class Route:
         )
         return self.calls
 
-    def match(
-        self, request: RequestTypes
-    ) -> Optional[Union[RequestTypes, MockResponse, httpx.Response]]:
-        """
-        Matches request with given patterns.
+    def resolve(
+        self, request: httpx.Request, **kwargs: Any
+    ) -> Optional[Union[httpx.Request, httpx.Response]]:
+        response: Optional[Union[MockResponse, httpx.Response, httpx.Request]] = None
 
-        Returns None for a non-matching pattern, mocked response for a match,
+        if self._side_effect:
+            Error: Type[Exception] = cast(Type[Exception], self._side_effect)
+
+            if isinstance(self._side_effect, Exception):
+                # Eception instance
+                raise self._side_effect
+
+            elif isinstance(self._side_effect, type) and issubclass(Error, Exception):
+                # Exception type
+                if issubclass(Error, httpx.HTTPError):
+                    raise Error("Mock Error", request=request)
+                else:
+                    raise Error()
+
+            else:
+                # Callable
+                argspec = inspect.getfullargspec(self._side_effect)
+                if "response" in argspec.args or len(argspec.args) > 1:
+                    warn(
+                        "Side effect (callback) `response` arg is deprecated. "
+                        "Please instantiate httpx.Response inside your function.",
+                        category=DeprecationWarning,
+                    )
+                    args = (
+                        request,
+                        MockResponse(context=kwargs),
+                    )
+                else:
+                    args = (request,)  # type: ignore
+
+                try:
+                    # Call side effect
+                    response = self._side_effect(*args, **kwargs)
+                except Exception as error:
+                    raise SideEffectError(self, origin=error) from error
+
+                if response and not isinstance(
+                    response, (httpx.Response, MockResponse, httpx.Request)
+                ):
+                    raise ValueError(
+                        f"Side effects must return; either `httpx.Response` or "
+                        f"`MockResponse`, `httpx.Request` for pass-through, "
+                        f"or `None` for a non-match. Got {response!r}"
+                    )
+
+                if response is None:
+                    # Side effect resolved as a non-matching route
+                    return None
+
+        elif len(self._responses) == 1:
+            # Single repeated response
+            response = self._responses[0]
+
+        elif len(self._responses) > 1:
+            # Stacked response, pop in added order
+            response = self._responses.pop(0)
+
+        if isinstance(response, MockResponse):
+            # Resolve MockResponse as httpx.Response
+            try:
+                mock_response = response.clone(request=request, **kwargs)
+                response = mock_response.as_response(request)
+            except Exception as error:
+                raise SideEffectError(self, origin=error) from error
+
+        if response is None:
+            # Create new response
+            response = httpx.Response(200, request=request)
+
+        elif isinstance(response, httpx.Response) and not response._request:
+            # Clone existing response for immutability
+            response = httpx.Response(
+                response.status_code,
+                headers=response.headers,
+                stream=response.stream,
+                request=request,
+                ext=dict(response.ext),
+            )
+            response.read()
+
+        return response
+
+    def match(
+        self, request: httpx.Request
+    ) -> Optional[Union[httpx.Request, httpx.Response]]:
+        """
+        Matches and resolves request with given patterns and optional side effect.
+
+        Returns None for a non-matching route, mocked response for a match,
         or input request for pass-through.
         """
-        response: Union[RequestTypes, MockResponse, httpx.Response]
         context = {}
 
-        if not any((self.pattern, self._pass_through, self._callback)):
+        if not self.pattern and not self._side_effect and self._pass_through is None:
             return None
 
         if self.pattern:
@@ -446,18 +464,9 @@ class Route:
         if self._pass_through:
             return request
 
-        if self._callback:
-            _request = decode_request(request)
-            response = self.get_response(request=request)
+        response = self.resolve(request, **context)
 
-            result = self._callback(_request, response)
-
-            if result == _request:  # Detect pass through
-                result = request
-
-            return result
-
-        return self.get_response(request=request, **context)
+        return response
 
 
 class RequestPattern(Route):
@@ -488,7 +497,13 @@ class RequestPattern(Route):
         self._pass_through = pass_through
 
         if callable(method):
-            self.callback(method)
+            self.side_effect(method)
 
-        if response:
+        elif response:
             self.add_response(response)
+
+
+class SideEffectError(Exception):
+    def __init__(self, route: Route, origin: Exception) -> None:
+        self.route = route
+        self.origin = origin

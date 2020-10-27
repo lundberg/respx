@@ -3,7 +3,6 @@ import re
 import httpx
 import pytest
 
-from respx.models import Request
 from respx.patterns import (
     URL,
     BaseURL,
@@ -16,6 +15,7 @@ from respx.patterns import (
     Port,
     Scheme,
 )
+from respx.types import Request
 
 
 def encode(request: httpx.Request) -> Request:

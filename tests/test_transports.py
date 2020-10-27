@@ -98,10 +98,10 @@ async def test_transport_pop():
         assert len(w) == 1
     transport.get(url, status_code=404, name=name)
 
-    request_pattern = transport.pop(name)
+    route = transport.pop(name)
 
-    assert request_pattern.get_response().status_code == 404
-    assert request_pattern.name == name
+    assert route.resolve(httpx.Request("GET", "https://foo.bar/")).status_code == 404
+    assert route.name == name
 
     assert not transport.aliases
     assert not transport.routes

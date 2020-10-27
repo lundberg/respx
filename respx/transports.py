@@ -7,7 +7,7 @@ from httpcore import (
     SyncHTTPTransport,
 )
 
-from .models import MockResponse, encode_response
+from .models import decode_request, encode_response
 from .router import Router
 from .types import URL, AsyncResponse, Headers, SyncResponse
 
@@ -21,29 +21,19 @@ class BaseMockTransport(Router):
         stream: SyncByteStream = None,
         ext: dict = None,
     ) -> SyncResponse:
-        request = (method, url, headers, stream)
-        mock_response, route = self.match(request)
+        raw_request = (method, url, headers, stream)
+        request = decode_request(raw_request)
+        response = self.resolve(request)
 
-        try:
-            if mock_response is None:
-                # Pass-through request
-                pass_through = ext.pop("pass_through", None)
-                if pass_through is None:
-                    raise ValueError("pass_through not supported with manual transport")
-                response = pass_through(method, url, headers, stream, ext)
-            else:
-                if isinstance(mock_response, MockResponse):
-                    response = mock_response.raw
-                else:
-                    response = encode_response(mock_response)
-            return response
-        except Exception:
-            response = None
-            raise
-        finally:
-            self.record(
-                request, response, route=route
-            )  # pragma: nocover  # python 3.9 bug
+        if response is None:
+            pass_through = ext.pop("pass_through", None)
+            if pass_through is None:
+                raise ValueError("pass_through not supported with manual transport")
+            raw_response = pass_through(method, url, headers, stream, ext)
+        else:
+            raw_response = encode_response(response)
+
+        return raw_response
 
     async def arequest(
         self,
@@ -53,30 +43,19 @@ class BaseMockTransport(Router):
         stream: AsyncByteStream = None,
         ext: dict = None,
     ) -> AsyncResponse:
-        request = (method, url, headers, stream)
-        mock_response, route = self.match(request)
+        raw_request = (method, url, headers, stream)
+        request = decode_request(raw_request)
+        response = self.resolve(request)
 
-        try:
-            if mock_response is None:
-                # Pass-through request
-                pass_through = ext.pop("pass_through", None)
-                if pass_through is None:
-                    raise ValueError("pass_through not supported with manual transport")
-                response = await pass_through(method, url, headers, stream, ext)
-            else:
-                if isinstance(mock_response, MockResponse):
-                    response = await mock_response.araw
-                else:
-                    response = encode_response(mock_response)
+        if response is None:
+            pass_through = ext.pop("pass_through", None)
+            if pass_through is None:
+                raise ValueError("pass_through not supported with manual transport")
+            raw_response = await pass_through(method, url, headers, stream, ext)
+        else:
+            raw_response = encode_response(response)
 
-            return response
-        except Exception:
-            response = None
-            raise
-        finally:
-            self.record(
-                request, response, route=route
-            )  # pragma: nocover  # python 3.9 bug
+        return raw_response
 
     def close(self) -> None:
         if self._assert_all_called:

@@ -12,7 +12,7 @@ from warnings import warn
 
 import httpx
 
-from .models import CallList, MockResponse, Route, decode_request
+from .models import CallList, MockResponse, Route, SideEffectError
 from .patterns import BaseURL, Pattern
 from .types import (
     ContentDataTypes,
@@ -20,8 +20,6 @@ from .types import (
     HeaderTypes,
     JSONTypes,
     QueryParamTypes,
-    Request,
-    Response,
     URLPatternTypes,
 )
 
@@ -131,7 +129,7 @@ class Router:
         Adds a route with given mocked response details.
         """
         if callable(route):
-            route = Route().callback(route)
+            route = Route().side_effect(route)
 
         elif isinstance(route, str):
             warn(
@@ -159,6 +157,11 @@ class Router:
             or json is not None
             or pass_through is True
         ):
+            if route.has_side_effect:
+                raise NotImplementedError(
+                    "Mixing callback with response details is no longer supported"
+                )
+
             warn(
                 "Response kwargs among request pattern kwargs is deprecated. "
                 "Please, use .respond(...) or % operator.",
@@ -427,53 +430,60 @@ class Router:
 
     def record(
         self,
-        request: Request,
-        response: Optional[Response],
+        request: httpx.Request,
+        *,
+        response: Optional[httpx.Response] = None,
         route: Optional[Route] = None,
     ) -> None:
-        # TODO: Skip recording stats for pass_through requests?
         call = self.calls.record(request, response)
         if route:
             route.calls.append(call)
 
     def match(
-        self, request: Union[Request, httpx.Request]
-    ) -> Tuple[Union[MockResponse, httpx.Response], Optional[Route]]:
-        if isinstance(request, tuple):
-            request = decode_request(request)
+        self,
+        request: httpx.Request,
+    ) -> Tuple[Optional[Route], Optional[Union[httpx.Request, httpx.Response]]]:
 
-        matched_route: Optional[Route] = None
-        response: Optional[Union[MockResponse, httpx.Response]] = None
+        route: Optional[Route] = None
+        response: Optional[Union[httpx.Request, httpx.Response]] = None
 
         # TODO: Support routes with absolute url not matching base_url?
         if not self._base_url_pattern or self._base_url_pattern.match(request):
-            for route in self.routes.values():
-                match = route.match(request)
-                if not match:
-                    continue
+            for prospect in self.routes.values():
+                response = prospect.match(request)
+                if response:
+                    route = prospect
+                    break
 
-                if isinstance(match, (MockResponse, httpx.Response)):
-                    # Mock response
-                    response = match
-                elif match == request:
-                    # Pass-through request
-                    response = None
-                else:
-                    raise ValueError(
-                        (
-                            "Matched route must return either a "
-                            'MockResponse or a Request, got "{}"'
-                        ).format(type(match))
-                    )
+        return route, response
 
-                matched_route = route
-                break
+    def resolve(self, request: httpx.Request) -> httpx.Response:
+        route: Optional[Route] = None
+        response: Optional[httpx.Response] = None
 
-        if matched_route is None:
-            # Assert we always get a route match, if check is enabled
-            assert not self._assert_all_mocked, f"RESPX: {request!r} not mocked!"
+        try:
+            route, mock = self.match(request)
 
-            # Auto mock a successful empty response
-            response = MockResponse()
+            if route is None:
+                # Assert we always get a route match, if check is enabled
+                assert not self._assert_all_mocked, f"RESPX: {request!r} not mocked!"
 
-        return response, matched_route
+                # Auto mock a successful empty response
+                response = httpx.Response(200)
+
+            elif mock == request:
+                # Pass-through request
+                response = None
+
+            else:
+                # Mocked response
+                assert isinstance(mock, httpx.Response)
+                response = mock
+
+        except SideEffectError as error:
+            self.record(request, response=None, route=error.route)
+            raise error.origin
+        else:
+            self.record(request, response=response, route=route)
+
+        return response

@@ -393,7 +393,7 @@ async def test_external_pass_through(client):  # pragma: nocover
         route = respx.post(url).respond(content=b"").pass_through()
 
         # Mock a non-matching callback pattern pre-reading request data
-        def callback(req, res):
+        def callback(req):
             req.read()  # TODO: Make this not needed, might affect pass-through
             assert req.content == b'{"foo": "bar"}'
             return None
@@ -410,11 +410,8 @@ async def test_external_pass_through(client):  # pragma: nocover
         assert int(response.headers["Content-Length"]) > 0
         assert response.json()["json"] == {"foo": "bar"}
 
-        resp = respx.calls.last.response
-        await resp.aread()  # Read async pass-through response
-        assert resp.content == b"", "Should be 0, stream already read by real Response!"
-        assert "Content-Length" in resp.headers
-        assert int(resp.headers["Content-Length"]) > 0
+        assert respx.calls.last.request.url == url
+        assert respx.calls.last.response is None
 
         # TODO: Routed and recorded twice; AsyncConnectionPool + AsyncHTTPConnection
         assert route.call_count == 2

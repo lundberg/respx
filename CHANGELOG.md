@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [master]
+### Added
+- Added `respx.route(...)` with enhanced request pattern matching. (PR #96)
+- Added support for AND/OR when request pattern matching. (PR #96)
+- Added support for adding responses to a route using % operator. (PR #96)
+- Added support for both `httpx.Response` and `MockResponse`. (PR #96)
+- Enhanced Route (RequestPattern) with `.respond(...)` response details. (PR #96)
+- Enhanced Route (RequestPattern) with `.pass_through()`. (PR #96)
+- Introduced Route `.side_effect(...)` in favour of callbacks. (PR #97)
+
+### Changed
+- Deprecated mixing of request pattern and response details in all API's. (PR #96)
+- Deprecated passing http method as arg in `respx.add` in favour of `method=`. (PR #96)
+- Deprecated `alias=...` in favour of `name=...` when adding routes. (PR #96)
+- Deprecated `respx.aliases` in favour of `respx.routes`. (PR #96)
+- Deprecated `RequestPattern` in favour of `Route`. (PR #96)
+- Deprecated `ResponseTemplate` in favour of `MockResponse`. (PR #96)
+- Deprecated `pass_through=` in favour of `.pass_through()` (PR #96)
+- Deprecated `response` arg in side effects (callbacks). (PR #97)
+- Stacked responses are now recorded on same route calls. (PR #96)
+- Pass-through routes no longer capture real response in call stats. (PR #97)
+
+### Removed
+- Dropped support for `async` side effects (callbacks). (PR #97)
+- Dropped support for mixing side effect (callback) and response details. (PR #97)
+
 ## [0.14.0] - 2020-10-15
 ### Added
 - Added `text`, `html` and `json` content shorthands to ResponseTemplate. (PR #82)

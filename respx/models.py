@@ -376,7 +376,7 @@ class Route:
             else:
                 # Callable
                 argspec = inspect.getfullargspec(self._side_effect)
-                if "response" in argspec.args or len(argspec.args) > 1:
+                if "response" in argspec.args or len(argspec.args) > 1 + len(kwargs):
                     warn(
                         "Side effect (callback) `response` arg is deprecated. "
                         "Please instantiate httpx.Response inside your function.",

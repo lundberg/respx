@@ -171,3 +171,25 @@ def test_side_effect_exception():
     request = httpx.Request("GET", "https://egg.plant")
     with pytest.raises(httpcore.NetworkError) as e:
         router.resolve(request)
+
+
+def test_side_effect_decorator():
+    router = Router()
+
+    @router.route(host="ham.spam", path__regex=r"/(?P<slug>\w+)/")
+    def foobar(request, slug):
+        return httpx.Response(200, json={"slug": slug})
+
+    @router.post("https://example.org/")
+    def example(request):
+        return httpx.Response(201, json={"message": "OK"})
+
+    request = httpx.Request("GET", "https://ham.spam/egg/")
+    response = router.resolve(request)
+    assert response.status_code == 200
+    assert response.json() == {"slug": "egg"}
+
+    request = httpx.Request("POST", "https://example.org/")
+    response = router.resolve(request)
+    assert response.status_code == 201
+    assert response.json() == {"message": "OK"}

@@ -128,7 +128,7 @@ class Router:
         """
         Adds a route with given mocked response details.
         """
-        if callable(route):
+        if callable(route) and not isinstance(route, Route):
             route = Route().side_effect(route)
 
         elif isinstance(route, str):

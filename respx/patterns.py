@@ -24,8 +24,9 @@ class Lookup(Enum):
     EXACT = "exact"
     REGEX = "regex"
     STARTS_WITH = "startswith"
-    # TODO: Add more lookups
-    # NOT_EQUAL = "ne"
+    # TODO: Add more lookups and use Pattern.lookups[0] as default
+    # CONTAINS = "contains"
+    # IN = "in"
     # RANGE = "range"
 
 

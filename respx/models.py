@@ -264,6 +264,10 @@ class Route:
             return hash(self._side_effect)
         return id(self)
 
+    def __call__(self, side_effect: Callable) -> Callable:
+        self.side_effect(side_effect)
+        return side_effect
+
     def __mod__(
         self, response: Union[int, Dict[str, Any], MockResponse, httpx.Response]
     ) -> "Route":
@@ -376,7 +380,7 @@ class Route:
             else:
                 # Callable
                 argspec = inspect.getfullargspec(self._side_effect)
-                if "response" in argspec.args or len(argspec.args) > 1:
+                if "response" in argspec.args or len(argspec.args) > 1 + len(kwargs):
                     warn(
                         "Side effect (callback) `response` arg is deprecated. "
                         "Please instantiate httpx.Response inside your function.",

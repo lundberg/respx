@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from .types import QueryParamTypes, RequestTypes, URLPatternTypes
+from .types import HeaderTypes, QueryParamTypes, RequestTypes, URLPatternTypes
 
 
 class Lookup(Enum):
@@ -185,6 +185,23 @@ class MultiItemsMixin:
                 return Match(False)
 
         return Match(True)
+
+
+class Headers(MultiItemsMixin, Pattern):
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    value: httpx.Headers
+
+    def clean(self, value: HeaderTypes) -> httpx.Headers:
+        return httpx.Headers(value)
+
+    def parse(self, request: RequestTypes) -> httpx.Headers:
+        if isinstance(request, httpx.Request):
+            headers = request.headers
+        else:
+            _, _, _headers, *_ = request
+            headers = httpx.Headers(_headers)
+
+        return headers
 
 
 class Scheme(Pattern):
@@ -365,6 +382,7 @@ class BaseURL(URL):
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:
     mapping = {
         "method": Method,
+        "headers": Headers,
         "scheme": Scheme,
         "host": Host,
         "port": Port,

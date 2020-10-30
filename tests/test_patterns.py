@@ -6,6 +6,7 @@ import pytest
 from respx.patterns import (
     URL,
     BaseURL,
+    Headers,
     Host,
     Lookup,
     M,
@@ -84,6 +85,20 @@ def test_method_pattern(lookup, value, expected):
 
 
 @pytest.mark.parametrize(
+    "lookup,headers,request_headers,expected",
+    [
+        (Lookup.CONTAINS, {"X-Foo": "bar"}, {"x-foo": "bar"}, True),
+        (Lookup.CONTAINS, {"content-type": "text/plain"}, "", False),
+    ],
+)
+def test_headers_pattern(lookup, headers, request_headers, expected):
+    _request = httpx.Request(
+        "GET", "http://foo.bar/", headers=request_headers, json={"foo": "bar"}
+    )
+    for request in (_request, encode(_request)):
+        assert bool(Headers(headers, lookup=lookup).match(request)) is expected
+
+
 @pytest.mark.parametrize(
     "lookup,scheme,expected",
     [

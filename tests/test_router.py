@@ -15,13 +15,19 @@ from respx.patterns import Host, M, Method
         ((Method("POST"),), dict(host="foo.bar"), False),
         ((~Method("GET"),), dict(), False),
         ((~M(url__regex=r"/baz/$"),), dict(), False),
+        (tuple(), dict(headers={"host": "foo.bar"}), True),
+        (tuple(), dict(headers={"Content-Type": "text/plain"}), False),
+        (tuple(), dict(headers={"cookie": "foo=bar"}), False),
+        (tuple(), dict(cookies={"ham": "spam"}), True),
     ],
 )
 def test_match_and_resolve(args, kwargs, expected):
     router = Router(assert_all_mocked=False)
     route = router.route(*args, **kwargs).respond(status_code=201)
 
-    request = httpx.Request("GET", "https://foo.bar/baz/")
+    request = httpx.Request(
+        "GET", "https://foo.bar/baz/", cookies={"foo": "bar", "ham": "spam"}
+    )
     matched_route, response = router.match(request)
 
     assert bool(matched_route is route) is expected

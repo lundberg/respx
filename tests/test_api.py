@@ -91,7 +91,7 @@ async def test_url_match(client, url, pattern):
 @pytest.mark.asyncio
 async def test_invalid_url_pattern():
     async with MockTransport() as respx_mock:
-        with pytest.raises(ValueError):
+        with pytest.raises(AssertionError):
             respx_mock.get(["invalid"])
 
 

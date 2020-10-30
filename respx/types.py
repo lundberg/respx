@@ -56,6 +56,7 @@ HeaderTypes = Union[
     Sequence[Tuple[str, str]],
     Sequence[Tuple[bytes, bytes]],
 ]
+CookieTypes = Union[Dict[str, str], Sequence[Tuple[str, str]]]
 
 DefaultType = TypeVar("DefaultType", bound=Any)
 

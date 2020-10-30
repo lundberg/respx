@@ -69,24 +69,40 @@ def test_match_context():
 
 
 @pytest.mark.parametrize(
-    "scheme,expected",
+    "lookup,value,expected",
     [
-        ("https", True),
-        ("HTTPS", True),
-        ("http", False),
+        (Lookup.EQUAL, "GET", True),
+        (Lookup.EQUAL, "POST", False),
+        (Lookup.IN, ["GET", "POST"], True),
+        (Lookup.IN, ["POST", "PUT"], False),
     ],
 )
-def test_scheme_pattern(scheme, expected):
+def test_method_pattern(lookup, value, expected):
     _request = httpx.Request("GET", "https://foo.bar/")
     for request in (_request, encode(_request)):
-        assert bool(Scheme(scheme).match(request)) is expected
+        assert bool(Method(value, lookup=lookup).match(request)) is expected
+
+
+@pytest.mark.parametrize(
+@pytest.mark.parametrize(
+    "lookup,scheme,expected",
+    [
+        (Lookup.EQUAL, "https", True),
+        (Lookup.EQUAL, "HTTPS", True),
+        (Lookup.EQUAL, "http", False),
+        (Lookup.IN, ["http", "https"], True),
+    ],
+)
+def test_scheme_pattern(lookup, scheme, expected):
+    _request = httpx.Request("GET", "https://foo.bar/")
+    for request in (_request, encode(_request)):
+        assert bool(Scheme(scheme, lookup=lookup).match(request)) is expected
 
 
 @pytest.mark.parametrize(
     "host,expected",
     [
         ("foo.bar", True),
-        ("Foo.bar", True),
         ("ham.spam", False),
     ],
 )
@@ -97,23 +113,30 @@ def test_host_pattern(host, expected):
 
 
 @pytest.mark.parametrize(
-    "port,url,expected",
+    "lookup,port,url,expected",
     [
-        (443, "https://foo.bar/", True),
-        (80, "https://foo.bar/", False),
-        (80, "http://foo.bar/", True),
-        (8080, "https://foo.bar:8080/baz/", True),
-        (22, "//foo.bar:22/baz/", True),
-        (None, "//foo.bar/", True),
+        (Lookup.EQUAL, 443, "https://foo.bar/", True),
+        (Lookup.EQUAL, 80, "https://foo.bar/", False),
+        (Lookup.EQUAL, 80, "http://foo.bar/", True),
+        (Lookup.EQUAL, 8080, "https://foo.bar:8080/baz/", True),
+        (Lookup.EQUAL, 22, "//foo.bar:22/baz/", True),
+        (Lookup.EQUAL, None, "//foo.bar/", True),
+        (Lookup.IN, [80, 443], "http://foo.bar/", True),
+        (Lookup.IN, [80, 443], "https://foo.bar/", True),
+        (Lookup.IN, [80, 443], "https://foo.bar:8080/", False),
     ],
 )
-def test_port_pattern(port, url, expected):
+def test_port_pattern(lookup, port, url, expected):
     _request = httpx.Request("GET", url)
     for request in (_request, encode(_request)):
-        assert bool(Port(port).match(request)) is expected
+        assert bool(Port(port, lookup=lookup).match(request)) is expected
 
 
 def test_path_pattern():
+    _request = httpx.Request("GET", "https://foo.bar")
+    for request in (_request, encode(_request)):
+        assert Path("/").match(request)
+
     _request = httpx.Request("GET", "https://foo.bar/baz/")
     for request in (_request, encode(_request)):
         assert Path("/baz/").match(request)
@@ -131,19 +154,28 @@ def test_path_pattern():
         match = Path(re.compile(r"^/ham/"), Lookup.REGEX).match(request)
         assert bool(match) is False
 
+    _request = httpx.Request("GET", "https://foo.bar/baz/")
+    for request in (_request, encode(_request)):
+        assert Path(["/egg/", "/baz/"], lookup=Lookup.IN).match(request)
+
 
 @pytest.mark.parametrize(
-    "params,url,expected",
+    "lookup,params,url,expected",
     [
-        ("", "https://foo.bar/", True),
-        ("x=1", "https://foo.bar/?x=1", True),
-        ("x=1&y=2", "https://foo.bar/?x=1", False),
+        (Lookup.CONTAINS, "", "https://foo.bar/", True),
+        (Lookup.CONTAINS, "x=1", "https://foo.bar/?x=1", True),
+        (Lookup.CONTAINS, "y=2", "https://foo.bar/?x=1", False),
+        (Lookup.CONTAINS, "x=1&y=2", "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, "", "https://foo.bar/", True),
+        (Lookup.EQUAL, "x=1", "https://foo.bar/?x=1", True),
+        (Lookup.EQUAL, "y=2", "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, "x=1&y=2", "https://foo.bar/?x=1", False),
     ],
 )
-def test_params_pattern(params, url, expected):
+def test_params_pattern(lookup, params, url, expected):
     _request = httpx.Request("GET", url)
     for request in (_request, encode(_request)):
-        assert bool(Params(params).match(request)) is expected
+        assert bool(Params(params, lookup=lookup).match(request)) is expected
 
 
 @pytest.mark.parametrize(
@@ -152,8 +184,8 @@ def test_params_pattern(params, url, expected):
         (Lookup.REGEX, r"https?://foo.bar/(?P<slug>\w+)/", {"slug": "baz"}, True),
         (Lookup.REGEX, re.compile(r"^https://foo.bar/.+$"), {}, True),
         (Lookup.REGEX, r"https://ham.spam/baz/", {}, False),
-        (Lookup.EXACT, "https://foo.bar/baz/", {}, True),
-        (Lookup.EXACT, "https://foo.bar/ham/", {}, False),
+        (Lookup.EQUAL, "https://foo.bar/baz/", {}, True),
+        (Lookup.EQUAL, "https://foo.bar/ham/", {}, False),
         (Lookup.STARTS_WITH, "https://foo.bar/b", {}, True),
     ],
 )
@@ -181,10 +213,10 @@ def test_url_pattern(lookup, url, context, expected):
         ("https://foo.bar/ham/", False),
     ],
 )
-def test_url_pattern__eq(url, expected):
+def test_url_pattern__contains(url, expected):
     _request = httpx.Request("GET", "https://foo.bar/baz/?ham=spam&egg=yolk")
     for request in (_request, encode(_request)):
-        assert bool(URL(url).match(request)) is expected
+        assert bool(URL(url, lookup=Lookup.CONTAINS).match(request)) is expected
 
 
 def test_url_pattern_invalid():
@@ -193,9 +225,9 @@ def test_url_pattern_invalid():
 
 
 def test_invalid_pattern():
-    with pytest.raises(ValueError, match="is not a valid Pattern"):
+    with pytest.raises(KeyError, match="is not a valid Pattern"):
         M(foo="baz")
-    with pytest.raises(ValueError, match="is not a valid Lookup"):
+    with pytest.raises(NotImplementedError, match="is not a valid Lookup"):
         Scheme("http", Lookup.REGEX)
     with pytest.raises(ValueError, match="is not a valid Lookup"):
         M(scheme__baz="zoo")

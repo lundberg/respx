@@ -21,13 +21,10 @@ from .types import QueryParamTypes, RequestTypes, URLPatternTypes
 
 class Lookup(Enum):
     EQUAL = "eq"
-    EXACT = "exact"
     REGEX = "regex"
     STARTS_WITH = "startswith"
-    # TODO: Add more lookups and use Pattern.lookups[0] as default
-    # CONTAINS = "contains"
-    # IN = "in"
-    # RANGE = "range"
+    CONTAINS = "contains"
+    IN = "in"
 
 
 class Match:
@@ -47,16 +44,16 @@ class Match:
 
 
 class Pattern:
-    lookups = {Lookup.EQUAL}
+    lookups: Tuple[Lookup, ...] = (Lookup.EQUAL,)
     lookup: Lookup
     value: Any
 
-    def __init__(self, value: Any, lookup: Lookup = Lookup.EQUAL) -> None:
-        if lookup not in self.lookups:
-            raise ValueError(
-                f"{lookup.value} is not a valid Lookup for {self.__class__.__name__}"
+    def __init__(self, value: Any, lookup: Optional[Lookup] = None) -> None:
+        if lookup and lookup not in self.lookups:
+            raise NotImplementedError(
+                f"{lookup.value!r} is not a valid Lookup for {self.__class__.__name__!r}"
             )
-        self.lookup = lookup
+        self.lookup = lookup or self.lookups[0]
         self.value = self.clean(value)
 
     def __and__(self, other: "Pattern") -> "Pattern":
@@ -94,9 +91,6 @@ class Pattern:
     def _eq(self, value: Any) -> Match:
         return Match(value == self.value)
 
-    def _exact(self, value: Any) -> Match:
-        return self._eq(value)
-
     def _regex(self, value: str) -> Match:
         match = self.value.search(value)
         if match is None:
@@ -105,6 +99,12 @@ class Pattern:
 
     def _startswith(self, value: str) -> Match:
         return Match(value.startswith(self.value))
+
+    def _contains(self, value: Any) -> Match:  # pragma: nocover
+        raise NotImplementedError()
+
+    def _in(self, value: Any) -> Match:
+        return Match(value in self.value)
 
 
 class _And(Pattern):
@@ -149,11 +149,13 @@ class _Invert(Pattern):
 
 
 class Method(Pattern):
-    lookups = {Lookup.EQUAL}
-    value: str
+    lookups = (Lookup.EQUAL, Lookup.IN)
+    value: Union[str, Sequence[str]]
 
-    def clean(self, value: str) -> str:
-        return value.upper()
+    def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
+        if isinstance(value, str):
+            return value.upper()
+        return value
 
     def parse(self, request: RequestTypes) -> str:
         if isinstance(request, httpx.Request):
@@ -164,12 +166,35 @@ class Method(Pattern):
         return method
 
 
-class Scheme(Pattern):
-    lookups = {Lookup.EQUAL}
-    value: str
+class MultiItemsMixin:
+    lookup: Lookup
+    value: Any
 
-    def clean(self, value: str) -> str:
-        return value.lower()
+    def __hash__(self):
+        return hash((self.__class__, self.lookup, str(self.value)))
+
+    def _contains(self, value: Any) -> Match:
+        value_list = self.value.multi_items()
+        request_list = value.multi_items()
+
+        if len(value_list) > len(request_list):
+            return Match(False)
+
+        for item in value_list:
+            if item not in request_list:
+                return Match(False)
+
+        return Match(True)
+
+
+class Scheme(Pattern):
+    lookups = (Lookup.EQUAL, Lookup.IN)
+    value: Union[str, Sequence[str]]
+
+    def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
+        if isinstance(value, str):
+            return value.lower()
+        return value
 
     def parse(self, request: RequestTypes) -> str:
         if isinstance(request, httpx.Request):
@@ -181,11 +206,8 @@ class Scheme(Pattern):
 
 
 class Host(Pattern):
-    lookups = {Lookup.EQUAL}
-    value: str
-
-    def clean(self, value: str) -> str:
-        return value.lower()
+    lookups = (Lookup.EQUAL, Lookup.IN)
+    value: Union[str, Sequence[str]]
 
     def parse(self, request: RequestTypes) -> str:
         if isinstance(request, httpx.Request):
@@ -193,11 +215,11 @@ class Host(Pattern):
         else:
             _, (_, _host, *_), *_ = request
             host = _host.decode("ascii")
-        return host.lower()
+        return host
 
 
 class Port(Pattern):
-    lookups = {Lookup.EQUAL}
+    lookups = (Lookup.EQUAL, Lookup.IN)
     value: Optional[int]
 
     def parse(self, request: RequestTypes) -> Optional[int]:
@@ -214,8 +236,8 @@ class Port(Pattern):
 
 
 class Path(Pattern):
-    lookups = {Lookup.EQUAL, Lookup.REGEX, Lookup.STARTS_WITH}
-    value: Union[str, RegexPattern[str]]
+    lookups = (Lookup.EQUAL, Lookup.REGEX, Lookup.STARTS_WITH, Lookup.IN)
+    value: Union[str, Sequence[str], RegexPattern[str]]
 
     def clean(
         self, value: Union[str, RegexPattern[str]]
@@ -237,37 +259,30 @@ class Path(Pattern):
         return path
 
 
-class Params(Pattern):
-    lookups = {Lookup.EQUAL}  # TODO: Add support for EXACT
+class Params(MultiItemsMixin, Pattern):
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     value: httpx.QueryParams
-
-    def __hash__(self):
-        return hash((self.__class__, str(self.value)))
 
     def clean(self, value: QueryParamTypes) -> httpx.QueryParams:
         return httpx.QueryParams(value)
 
-    def match(self, request: RequestTypes) -> Match:
+    def parse(self, request: RequestTypes) -> httpx.QueryParams:
         if isinstance(request, httpx.Request):
             query = request.url.query
         else:
             _, url, *_ = request
             query = httpx.URL(url).query
 
-        params = httpx.QueryParams(query)  # TODO: Cache params on request?
-        params_list = params.multi_items()
-
-        # TODO: Better partial match logic?
-        for item in self.value.multi_items():
-            if item not in params_list:
-                return Match(False)
-            params_list.remove(item)
-
-        return Match(True)
+        return httpx.QueryParams(query)  # TODO: Cache params on request?
 
 
 class URL(Pattern):
-    lookups = {Lookup.EQUAL, Lookup.EXACT, Lookup.REGEX, Lookup.STARTS_WITH}
+    lookups: Tuple[Lookup, ...] = (
+        Lookup.EQUAL,
+        Lookup.CONTAINS,
+        Lookup.REGEX,
+        Lookup.STARTS_WITH,
+    )
     value: Union[Pattern, str, RegexPattern[str]]
 
     def __hash__(self):
@@ -277,30 +292,31 @@ class URL(Pattern):
             return super().__hash__()
 
     def clean(self, value: URLPatternTypes) -> Union[Pattern, str, RegexPattern[str]]:
-        if self.lookup is Lookup.EQUAL:
+        if self.lookup in (Lookup.EQUAL, Lookup.CONTAINS):
             pattern = None
             if isinstance(value, (str, tuple)):
                 value = httpx.URL(value)
 
-            if isinstance(value, httpx.URL):
-                patterns: List[Pattern] = []
-                port = get_default_port(value.scheme, value.port)
-                if value.scheme:
-                    patterns.append(Scheme(value.scheme))
-                if value.host:
-                    patterns.append(Host(value.host))
-                if port:
-                    patterns.append(Port(port))
-                if value._uri_reference.path:  # URL.path always returns "/"
-                    patterns.append(Path(value.path))
-                if value.query:
-                    patterns.append(Params(value.query))
-                if patterns:
-                    pattern = combine(patterns)
+            assert isinstance(value, httpx.URL)
 
-            if pattern is None:
+            patterns: List[Pattern] = []
+            port = get_default_port(value.scheme, value.port)
+
+            if value.scheme:
+                patterns.append(Scheme(value.scheme, lookup=Lookup.EQUAL))
+            if value.host:
+                patterns.append(Host(value.host, lookup=Lookup.EQUAL))
+            if port:
+                patterns.append(Port(port, lookup=Lookup.EQUAL))
+            if value._uri_reference.path:  # URL.path always returns "/"
+                patterns.append(Path(value.path, lookup=Lookup.EQUAL))
+            if value.query:
+                patterns.append(Params(value.query, lookup=self.lookup))
+
+            if not patterns:
                 raise ValueError(f"Invalid url: {value!r}")
 
+            pattern = combine(patterns)
             return pattern
 
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
@@ -326,7 +342,7 @@ class URL(Pattern):
 
 
 class BaseURL(URL):
-    lookups = {Lookup.EQUAL}
+    lookups = (Lookup.EQUAL,)
     value: Pattern
 
     def clean(self, value: URLPatternTypes) -> Pattern:
@@ -347,12 +363,6 @@ class BaseURL(URL):
 
 
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:
-    pattern: Pattern = None
-
-    patterns = tuple(filter(None, patterns))
-    if patterns:
-        pattern = combine(patterns)
-
     mapping = {
         "method": Method,
         "scheme": Scheme,
@@ -370,17 +380,13 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
 
         pattern_name, __, lookup_value = pattern__lookup.partition("__")
         if pattern_name not in mapping:
-            raise ValueError(f"{pattern_name!r} is not a valid Pattern")
+            raise KeyError(f"{pattern_name!r} is not a valid Pattern")
 
-        lookup = Lookup.EQUAL if not lookup_value else Lookup(lookup_value)
-        _pattern = mapping[pattern_name](value, lookup=lookup)
+        lookup = None if not lookup_value else Lookup(lookup_value)
+        pattern = mapping[pattern_name](value, lookup=lookup)
+        patterns += (pattern,)
 
-        if pattern is None:
-            pattern = _pattern
-        else:
-            pattern &= _pattern
-
-    return pattern
+    return combine(patterns)
 
 
 def get_default_port(scheme: Optional[str], port: Optional[int]) -> Optional[int]:
@@ -392,5 +398,10 @@ def get_default_port(scheme: Optional[str], port: Optional[int]) -> Optional[int
     return None
 
 
-def combine(patterns: Sequence[Pattern], op: Callable = operator.and_) -> Pattern:
+def combine(
+    patterns: Sequence[Pattern], op: Callable = operator.and_
+) -> Optional[Pattern]:
+    patterns = tuple(filter(None, patterns))
+    if not patterns:
+        return None
     return reduce(op, patterns)

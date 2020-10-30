@@ -141,7 +141,7 @@ class Router:
             route = None
 
         if route is None:
-            url__lookup = "url__regex" if isinstance(url, Regex) else "url__eq"
+            url__lookup = "url__regex" if isinstance(url, Regex) else "url__contains"
             route = Route(
                 **{"method": method, url__lookup: url, "params": params},
             )

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced Route (RequestPattern) with `.respond(...)` response details. (PR #96)
 - Enhanced Route (RequestPattern) with `.pass_through()`. (PR #96)
 - Introduced Route `.side_effect(...)` in favour of callbacks. (PR #97)
+- Add support for using route as side effect decorator. (PR #98)
+- Add headers and cookies patterns. (PR #99)
+- Add contains and in lookups. (PR #99)
 
 ### Changed
 - Deprecated mixing of request pattern and response details in all API's. (PR #96)

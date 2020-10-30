@@ -264,6 +264,10 @@ class Route:
             return hash(self._side_effect)
         return id(self)
 
+    def __call__(self, side_effect: Callable) -> Callable:
+        self.side_effect(side_effect)
+        return side_effect
+
     def __mod__(
         self, response: Union[int, Dict[str, Any], MockResponse, httpx.Response]
     ) -> "Route":

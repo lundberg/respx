@@ -6,6 +6,7 @@ import pytest
 from respx.patterns import (
     URL,
     BaseURL,
+    Cookies,
     Headers,
     Host,
     Lookup,
@@ -97,6 +98,26 @@ def test_headers_pattern(lookup, headers, request_headers, expected):
     )
     for request in (_request, encode(_request)):
         assert bool(Headers(headers, lookup=lookup).match(request)) is expected
+
+
+@pytest.mark.parametrize(
+    "lookup,cookies,request_cookies,expected",
+    [
+        (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam", "foo": "bar"}, True),
+        (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam"}, False),
+        (Lookup.EQUAL, {"foo": "bar"}, {"foo": "bar"}, True),
+        (Lookup.EQUAL, [("foo", "bar")], {"foo": "bar"}, True),
+        (Lookup.EQUAL, {}, {}, True),
+        (Lookup.EQUAL, {}, None, True),
+        (Lookup.EQUAL, {"foo": "bar"}, {"ham": "spam"}, False),
+    ],
+)
+def test_cookies_pattern(lookup, cookies, request_cookies, expected):
+    _request = httpx.Request(
+        "GET", "http://foo.bar/", cookies=request_cookies, json={"foo": "bar"}
+    )
+    for request in (_request, encode(_request)):
+        assert bool(Cookies(cookies, lookup=lookup).match(request)) is expected
 
 
 @pytest.mark.parametrize(

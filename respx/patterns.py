@@ -2,6 +2,7 @@ import operator
 import re
 from enum import Enum
 from functools import reduce
+from http.cookies import SimpleCookie
 from typing import (
     Any,
     Callable,
@@ -9,6 +10,7 @@ from typing import (
     Optional,
     Pattern as RegexPattern,
     Sequence,
+    Set,
     Tuple,
     Union,
 )
@@ -16,7 +18,13 @@ from urllib.parse import urljoin
 
 import httpx
 
-from .types import HeaderTypes, QueryParamTypes, RequestTypes, URLPatternTypes
+from .types import (
+    CookieTypes,
+    HeaderTypes,
+    QueryParamTypes,
+    RequestTypes,
+    URLPatternTypes,
+)
 
 
 class Lookup(Enum):
@@ -204,6 +212,39 @@ class Headers(MultiItemsMixin, Pattern):
         return headers
 
 
+class Cookies(Pattern):
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    value: Set[Tuple[str, str]]
+
+    def __hash__(self):
+        return hash((self.__class__, self.lookup, tuple(sorted(self.value))))
+
+    def clean(self, value: CookieTypes) -> Set[Tuple[str, str]]:
+        if isinstance(value, dict):
+            return set(value.items())
+
+        return set(value)
+
+    def parse(self, request: RequestTypes) -> Set[Tuple[str, str]]:
+        if isinstance(request, httpx.Request):
+            headers = request.headers
+        else:
+            _, _, _headers, *_ = request
+            headers = httpx.Headers(_headers)
+
+        cookie_header = headers.get("cookie")
+        if not cookie_header:
+            return set()
+
+        cookies: SimpleCookie = SimpleCookie()
+        cookies.load(rawdata=cookie_header)
+
+        return {(cookie.key, cookie.value) for cookie in cookies.values()}
+
+    def _contains(self, value: Set[Tuple[str, str]]) -> Match:
+        return Match(bool(self.value & value))
+
+
 class Scheme(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
     value: Union[str, Sequence[str]]
@@ -383,6 +424,7 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
     mapping = {
         "method": Method,
         "headers": Headers,
+        "cookies": Cookies,
         "scheme": Scheme,
         "host": Host,
         "port": Port,

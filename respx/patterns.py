@@ -292,8 +292,8 @@ class Port(Pattern):
             _, (_scheme, _, port, _), *_ = request
             if _scheme:
                 scheme = _scheme.decode("ascii")
-        port = get_default_port(scheme, port)
-        return port
+        scheme_port = get_scheme_port(scheme)
+        return port or scheme_port
 
 
 class Path(Pattern):
@@ -361,14 +361,14 @@ class URL(Pattern):
             assert isinstance(value, httpx.URL)
 
             patterns: List[Pattern] = []
-            port = get_default_port(value.scheme, value.port)
+            scheme_port = get_scheme_port(value.scheme)
 
             if value.scheme:
                 patterns.append(Scheme(value.scheme, lookup=Lookup.EQUAL))
             if value.host:
                 patterns.append(Host(value.host, lookup=Lookup.EQUAL))
-            if port:
-                patterns.append(Port(port, lookup=Lookup.EQUAL))
+            if value.port and value.port != scheme_port:
+                patterns.append(Port(value.port, lookup=Lookup.EQUAL))
             if value._uri_reference.path:  # URL.path always returns "/"
                 patterns.append(Path(value.path, lookup=Lookup.EQUAL))
             if value.query:
@@ -452,13 +452,8 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
     return combine(patterns)
 
 
-def get_default_port(scheme: Optional[str], port: Optional[int]) -> Optional[int]:
-    if port:
-        return port
-    schemes = {"http": 80, "https": 443}
-    if scheme in schemes:
-        return schemes[scheme]
-    return None
+def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
+    return {"http": 80, "https": 443}.get(scheme)
 
 
 def combine(

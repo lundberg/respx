@@ -264,6 +264,9 @@ class Route:
             return hash(self._side_effect)
         return id(self)
 
+    def __repr__(self):
+        return f"<Route {self.pattern!r}>"  # pragma: no cover
+
     def __call__(self, side_effect: Callable) -> Callable:
         self.side_effect(side_effect)
         return side_effect

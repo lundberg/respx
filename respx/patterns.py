@@ -74,7 +74,7 @@ class Pattern:
         return _Invert(self)
 
     def __repr__(self):  # pragma: nocover
-        return f"<{self.__class__.__name__} {repr(self.value)}>"
+        return f"<{self.__class__.__name__} {self.lookup.value} {repr(self.value)}>"
 
     def __hash__(self):
         return hash((self.__class__, self.lookup, self.value))

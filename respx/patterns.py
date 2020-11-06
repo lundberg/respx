@@ -339,8 +339,8 @@ class Params(MultiItemsMixin, Pattern):
 
 class URL(Pattern):
     lookups: Tuple[Lookup, ...] = (
-        Lookup.EQUAL,
         Lookup.CONTAINS,
+        Lookup.EQUAL,
         Lookup.REGEX,
         Lookup.STARTS_WITH,
     )

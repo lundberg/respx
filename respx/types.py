@@ -9,6 +9,7 @@ from typing import (
     Pattern,
     Sequence,
     Tuple,
+    Type,
     TypeVar,
     Union,
 )
@@ -66,3 +67,9 @@ JSONTypes = Union[str, List, Dict]
 ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
 QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 RequestTypes = Union[Request, httpx.Request]
+SideEffectTypes = Union[
+    Callable,
+    Exception,
+    Type[Exception],
+    List[Union[httpx.Response, Exception, Type[Exception]]],
+]

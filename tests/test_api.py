@@ -21,6 +21,7 @@ async def test_http_methods(client):
         url = "https://foo.bar/"
         route = respx.get(url) % 404
         respx.post(url).respond(201)
+        respx.post(url).respond(201)
         respx.put(url).respond(202)
         respx.patch(url).respond(500)
         respx.delete(url).respond(204)
@@ -99,11 +100,11 @@ async def test_invalid_url_pattern():
 async def test_repeated_pattern(client):
     async with MockTransport() as respx_mock:
         url = "https://foo/bar/baz/"
-        one = respx_mock.post(url, status_code=201)
-        two = respx_mock.post(url, status_code=409)
-
-        assert one is two
-        assert len(one._responses) == 2
+        route = respx_mock.post(url)
+        route.side_effect = [
+            httpx.Response(201),
+            httpx.Response(409),
+        ]
 
         response1 = await client.post(url, json={})
         response2 = await client.post(url, json={})
@@ -114,9 +115,9 @@ async def test_repeated_pattern(client):
         assert response3.status_code == 409
         assert respx_mock.calls.call_count == 3
 
-        assert one.called is True
-        assert one.call_count == 3
-        statuses = [call.response.status_code for call in one.calls]
+        assert route.called is True
+        assert route.call_count == 3
+        statuses = [call.response.status_code for call in route.calls]
         assert statuses == [201, 409, 409]
 
 
@@ -260,11 +261,11 @@ async def test_raising_content(client):
         assert _response is None
 
         # Test httpx exception class get instantiated
-        route = respx_mock.get(url).side_effect(httpx.ConnectError)
+        route = respx_mock.get(url).mock(side_effect=httpx.ConnectError)
         with pytest.raises(httpx.ConnectError):
             await client.get(url)
 
-        assert route.called is True
+        assert route.call_count == 2
         assert route.calls.last.request is not None
         assert route.calls.last.response is None
 
@@ -309,8 +310,6 @@ async def test_request_callback(client):
 
     async with MockTransport(assert_all_called=False) as respx_mock:
         request = respx_mock.add(callback)
-        _request = respx_mock.add(callback)
-        assert request is _request
 
         response = await client.post("https://foo.bar/", json={"foo": "bar"})
         assert request.called is True
@@ -327,7 +326,9 @@ async def test_request_callback(client):
         assert response.text == "hello lundberg"
 
         with pytest.raises(ValueError):
-            respx_mock.get("https://ham.spam/").side_effect(lambda req, res: "invalid")
+            respx_mock.get("https://ham.spam/").mock(
+                side_effect=lambda req, res: "invalid"
+            )
             await client.get("https://ham.spam/")
 
         with pytest.raises(httpx.NetworkError):
@@ -335,7 +336,7 @@ async def test_request_callback(client):
             def _callback(request):
                 raise httpcore.NetworkError()
 
-            respx_mock.get("https://egg.plant").side_effect(_callback)
+            respx_mock.get("https://egg.plant").mock(side_effect=_callback)
             await client.get("https://egg.plant/")
 
 
@@ -556,7 +557,7 @@ async def test_deprecated_apis():
         with warnings.catch_warnings(record=True) as w:
             callback = lambda req, res: res  # pragma: nocover
             request_pattern = RequestPattern(callback)
-            assert request_pattern.has_side_effect
+            assert request_pattern.side_effect
 
             request_pattern = RequestPattern(
                 "GET", "https://foo.bar/", pass_through=True
@@ -590,4 +591,5 @@ async def test_deprecated_apis():
 
             mock_response = MockResponse(content=callback)
             request = httpx.Request("GET", "http://foo.bar/")
-            mock_response.as_response(request)
+            mock_response = mock_response.clone(request=request)
+            mock_response.as_response()

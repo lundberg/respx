@@ -129,7 +129,7 @@ class Router:
         Adds a route with given mocked response details.
         """
         if callable(route) and not isinstance(route, Route):
-            route = Route().side_effect(route)
+            route = Route().mock(side_effect=route)
 
         elif isinstance(route, str):
             warn(
@@ -157,7 +157,7 @@ class Router:
             or json is not None
             or pass_through is True
         ):
-            if route.has_side_effect:
+            if route.side_effect:
                 raise NotImplementedError(
                     "Mixing callback with response details is no longer supported"
                 )
@@ -179,7 +179,7 @@ class Router:
             )
 
         if response:
-            route.add_response(response)
+            route.return_value = response
 
         if pass_through:
             route.pass_through()
@@ -195,9 +195,11 @@ class Router:
 
         route_key = route.name or hash(route)
         if route_key in self.routes:
-            # Identical route already exists, stack responses
+            # Identical route already exists, swap with new one
             existing_route = self.routes[route_key]
-            existing_route._responses.extend(route._responses)
+            existing_route.return_value = route.return_value
+            existing_route.side_effect = route.side_effect
+            existing_route._pass_through = route._pass_through
             route = existing_route
         else:
             self.routes[route_key] = route

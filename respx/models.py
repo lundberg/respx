@@ -1,4 +1,5 @@
 import inspect
+from collections.abc import Iterator
 from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Type, Union, cast
 from unittest import mock
 from warnings import warn
@@ -309,10 +310,11 @@ class Route:
     def side_effect(self, side_effect: Optional[SideEffectTypes]) -> None:
         self.pass_through(None)
         if not side_effect:
-            side_effect = None
-        elif isinstance(side_effect, (list, tuple)):
-            side_effect = list(side_effect)
-        self._side_effect = side_effect
+            self._side_effect = None
+        elif isinstance(side_effect, (tuple, list, Iterator)):
+            self._side_effect = iter(side_effect)
+        else:
+            self._side_effect = side_effect
 
     def mock(
         self,
@@ -384,14 +386,12 @@ class Route:
         self,
     ) -> Union[Callable, Exception, Type[Exception], httpx.Response]:
         effect: Union[Callable, Exception, Type[Exception], httpx.Response]
-        if isinstance(self._side_effect, list):
-            # TODO: Use iter() as python's Mock and reach StopIteration error?
-            if len(self._side_effect) > 1:
-                effect = self._side_effect.pop(0)  # Stacked effects, pop in added order
-            else:
-                effect = self._side_effect[0]  # Single repeated effect
+        if isinstance(self._side_effect, Iterator):
+            effect = next(self._side_effect)
         else:
-            effect = self._side_effect
+            effect = cast(
+                Union[Callable, Exception, Type[Exception]], self._side_effect
+            )
 
         return effect
 

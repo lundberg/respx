@@ -108,17 +108,17 @@ async def test_repeated_pattern(client):
 
         response1 = await client.post(url, json={})
         response2 = await client.post(url, json={})
-        response3 = await client.post(url, json={})
+        with pytest.raises(RuntimeError):
+            await client.post(url, json={})
 
         assert response1.status_code == 201
         assert response2.status_code == 409
-        assert response3.status_code == 409
-        assert respx_mock.calls.call_count == 3
+        assert respx_mock.calls.call_count == 2
 
         assert route.called is True
-        assert route.call_count == 3
+        assert route.call_count == 2
         statuses = [call.response.status_code for call in route.calls]
-        assert statuses == [201, 409, 409]
+        assert statuses == [201, 409]
 
 
 @pytest.mark.asyncio

@@ -116,8 +116,9 @@ def test_mod_response():
 
 def test_side_effect_list():
     router = Router()
-    router.get("https://foo.bar/").mock(
-        side_effect=[httpx.Response(404), httpx.Response(201)]
+    route = router.get("https://foo.bar/").mock(
+        return_value=httpx.Response(409),
+        side_effect=[httpx.Response(404), httpcore.NetworkError, httpx.Response(201)],
     )
 
     request = httpx.Request("GET", "https://foo.bar")
@@ -126,8 +127,22 @@ def test_side_effect_list():
     assert response.request == request
 
     request = httpx.Request("GET", "https://foo.bar")
+    with pytest.raises(httpcore.NetworkError):
+        router.resolve(request)
+
+    request = httpx.Request("GET", "https://foo.bar")
     response = router.resolve(request)
     assert response.status_code == 201
+    assert response.request == request
+
+    with pytest.raises(StopIteration):
+        request = httpx.Request("GET", "https://foo.bar")
+        router.resolve(request)
+
+    route.side_effect = None
+    request = httpx.Request("GET", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 409
     assert response.request == request
 
 
@@ -143,11 +158,11 @@ def test_side_effect_exception():
     assert e.value.request == request
 
     request = httpx.Request("GET", "https://ham.spam")
-    with pytest.raises(httpcore.NetworkError) as e:
+    with pytest.raises(httpcore.NetworkError):
         router.resolve(request)
 
     request = httpx.Request("GET", "https://egg.plant")
-    with pytest.raises(httpcore.NetworkError) as e:
+    with pytest.raises(httpcore.NetworkError):
         router.resolve(request)
 
 

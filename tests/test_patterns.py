@@ -58,6 +58,13 @@ def test_bitwise_operators(method, url, expected):
     assert bool(~pattern.match(request)) is not expected
 
 
+def test_hash():
+    p = Host("foo.bar") & Path("/baz/")
+    assert URL("//foo.bar/baz/") == p
+    p = Scheme("https") & Host("foo.bar") & Path("/baz/")
+    assert URL("https://foo.bar/baz/") == p
+
+
 def test_match_context():
     request = encode(httpx.Request("GET", "https://foo.bar/baz/?ham=spam"))
     pattern = (

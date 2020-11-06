@@ -79,6 +79,9 @@ class Pattern:
     def __hash__(self):
         return hash((self.__class__, self.lookup, self.value))
 
+    def __eq__(self, other: object) -> bool:
+        return hash(self) == hash(other)
+
     def clean(self, value: Any) -> Any:
         """
         Clean and return pattern value.

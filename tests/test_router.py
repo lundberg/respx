@@ -2,7 +2,7 @@ import httpcore
 import httpx
 import pytest
 
-from respx import MockResponse, Route, Router
+from respx import MockResponse, Router
 from respx.patterns import Host, M, Method
 
 
@@ -59,35 +59,6 @@ def test_pass_through():
     assert response is not None
 
 
-def test_route_hash():
-    route = Route()
-    assert not route.is_pass_through
-    assert hash(route) == id(route)
-
-    callback = lambda req, res: req  # pragma: nocover
-    route.side_effect(callback)
-    assert not route.is_pass_through
-    assert route.has_side_effect
-    assert hash(route) == hash(callback)
-
-    route.pass_through()
-    assert route.is_pass_through
-    assert not route.has_side_effect
-    assert hash(route) == 1
-
-    route.pass_through(False)
-    assert not route.is_pass_through
-    assert hash(route) == 0
-
-    route.pass_through(None)
-    assert not route.is_pass_through
-    assert hash(route) == id(route)
-
-    request = httpx.Request("GET", "https://foo.bar/baz/")
-    response = route.match(request)
-    assert response is None
-
-
 @pytest.mark.parametrize(
     "url,expected",
     [
@@ -114,38 +85,40 @@ def test_base_url(url, expected):
 
 def test_mod_response():
     router = Router()
-    route1a = router.get("https://foo.bar") % 404
-    route1b = router.get("https://foo.bar") % dict(status_code=201)
-    route2 = router.get("https://ham.spam/egg/") % MockResponse(202)
-    route3 = router.post("https://fox.zoo/") % httpx.Response(401, json={"error": "x"})
+    route1a = router.get("https://foo.bar/baz/") % 409
+    route1b = router.get("https://foo.bar/baz/") % 404
+    route2 = router.get("https://foo.bar") % dict(status_code=201)
+    route3 = router.get("https://ham.spam/egg/") % MockResponse(202)
+    route4 = router.post("https://fox.zoo/") % httpx.Response(401, json={"error": "x"})
 
-    request = httpx.Request("GET", "https://foo.bar")
+    request = httpx.Request("GET", "https://foo.bar/baz/")
     matched_route, response = router.match(request)
     assert response.status_code == 404
-    assert matched_route is route1a
-
-    request = httpx.Request("GET", "https://foo.bar")
-    matched_route, response = router.match(request)
-    assert response.status_code == 201
     assert matched_route is route1b
     assert route1a is route1b
+
+    request = httpx.Request("GET", "https://foo.bar/")
+    matched_route, response = router.match(request)
+    assert response.status_code == 201
+    assert matched_route is route2
 
     request = httpx.Request("GET", "https://ham.spam/egg/")
     matched_route, response = router.match(request)
     assert response.status_code == 202
-    assert matched_route is route2
+    assert matched_route is route3
 
     request = httpx.Request("POST", "https://fox.zoo/")
     matched_route, response = router.match(request)
     assert response.status_code == 401
     assert response.json() == {"error": "x"}
-    assert matched_route is route3
+    assert matched_route is route4
 
 
 def test_side_effect_list():
     router = Router()
-    router.get("https://foo.bar/").side_effect(
-        [httpx.Response(404), httpx.Response(201)]
+    route = router.get("https://foo.bar/").mock(
+        return_value=httpx.Response(409),
+        side_effect=[httpx.Response(404), httpcore.NetworkError, httpx.Response(201)],
     )
 
     request = httpx.Request("GET", "https://foo.bar")
@@ -154,16 +127,30 @@ def test_side_effect_list():
     assert response.request == request
 
     request = httpx.Request("GET", "https://foo.bar")
+    with pytest.raises(httpcore.NetworkError):
+        router.resolve(request)
+
+    request = httpx.Request("GET", "https://foo.bar")
     response = router.resolve(request)
     assert response.status_code == 201
+    assert response.request == request
+
+    with pytest.raises(StopIteration):
+        request = httpx.Request("GET", "https://foo.bar")
+        router.resolve(request)
+
+    route.side_effect = None
+    request = httpx.Request("GET", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 409
     assert response.request == request
 
 
 def test_side_effect_exception():
     router = Router()
-    router.get("https://foo.bar/").side_effect(httpx.ConnectError)
-    router.get("https://ham.spam/").side_effect(httpcore.NetworkError)
-    router.get("https://egg.plant/").side_effect(httpcore.NetworkError())
+    router.get("https://foo.bar/").mock(side_effect=httpx.ConnectError)
+    router.get("https://ham.spam/").mock(side_effect=httpcore.NetworkError)
+    router.get("https://egg.plant/").mock(side_effect=httpcore.NetworkError())
 
     request = httpx.Request("GET", "https://foo.bar")
     with pytest.raises(httpx.ConnectError) as e:
@@ -171,11 +158,11 @@ def test_side_effect_exception():
     assert e.value.request == request
 
     request = httpx.Request("GET", "https://ham.spam")
-    with pytest.raises(httpcore.NetworkError) as e:
+    with pytest.raises(httpcore.NetworkError):
         router.resolve(request)
 
     request = httpx.Request("GET", "https://egg.plant")
-    with pytest.raises(httpcore.NetworkError) as e:
+    with pytest.raises(httpcore.NetworkError):
         router.resolve(request)
 
 

@@ -1,16 +1,6 @@
 import inspect
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from collections.abc import Iterator
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Type, Union, cast
 from unittest import mock
 from warnings import warn
 
@@ -26,6 +16,7 @@ from .types import (
     QueryParamTypes,
     RequestTypes,
     Response,
+    SideEffectTypes,
     URLPatternTypes,
 )
 
@@ -50,6 +41,21 @@ def encode_response(response: httpx.Response) -> Response:
         response.stream,
         response.ext,
     )
+
+
+def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Response:
+    """
+    Clones a httpx Response for given request.
+    """
+    response = httpx.Response(
+        response.status_code,
+        headers=response.headers,
+        stream=response.stream,
+        request=request,
+        ext=dict(response.ext),
+    )
+    response.read()
+    return response
 
 
 class Call(NamedTuple):
@@ -112,6 +118,8 @@ class MockResponse:
         self.content = content
 
     def clone(self, **context: Any) -> "MockResponse":
+        merged_context = dict(self.context)
+        merged_context.update(context)
         return MockResponse(
             self.status_code,
             content=self.content,
@@ -120,7 +128,7 @@ class MockResponse:
             json=self.json,
             headers=self.headers,
             http_version=self.http_version,
-            context=context,
+            context=merged_context,
         )
 
     def prepare(
@@ -197,15 +205,15 @@ class MockResponse:
             self._text = None
             self._html = None
 
-    def as_response(self, request: Optional[httpx.Request]) -> httpx.Response:
+    def as_response(self) -> httpx.Response:
         content = self._content
+        context = dict(self.context)
+        request = decode_request(context.pop("request"))
 
         if callable(content):
             if inspect.iscoroutinefunction(self._content):
                 raise NotImplementedError("Async content callback no longer supported.")
-            kwargs = dict(self.context)
-            request = decode_request(kwargs.pop("request"))
-            content = content(request, **kwargs)
+            content = content(request, **context)
 
         if isinstance(content, Exception):
             raise content
@@ -224,7 +232,7 @@ class MockResponse:
             text=text,
             html=html,
             json=json,
-            request=decode_request(self.context.get("request")),
+            request=request,
         )
 
         if self.http_version:
@@ -251,32 +259,72 @@ class Route:
         self.pattern = M(*patterns, **lookups)
         self.name: Optional[str] = None  # TODO: Drop or add setter to prevent change
         self.calls = CallList()
-        self._responses: List[Union[MockResponse, httpx.Response]] = []
-        self._side_effect: Optional[Union[Callable, Exception, Type[Exception]]] = None
+        self._return_value: Union[MockResponse, httpx.Response] = None
+        self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: Optional[bool] = None
 
     def __hash__(self):
         if self.pattern:
             return hash(self.pattern)
-        elif self._pass_through is not None:
-            return hash(self._pass_through)
-        elif self._side_effect:
-            return hash(self._side_effect)
         return id(self)
 
+    def __repr__(self):
+        return f"<Route {self.pattern!r}>"  # pragma: no cover
+
     def __call__(self, side_effect: Callable) -> Callable:
-        self.side_effect(side_effect)
+        self.side_effect = side_effect
         return side_effect
 
-    def __mod__(
-        self, response: Union[int, Dict[str, Any], MockResponse, httpx.Response]
-    ) -> "Route":
+    def __mod__(self, response: Union[int, Dict[str, Any]]) -> "Route":
         if isinstance(response, int):
-            response = httpx.Response(response)
-        if isinstance(response, dict):
+            self.return_value = httpx.Response(status_code=response)
+
+        elif isinstance(response, dict):
             response.setdefault("status_code", 200)
-            response = httpx.Response(**response)
-        return self.add_response(response)
+            self.return_value = httpx.Response(**response)
+
+        else:
+            assert isinstance(
+                response, (httpx.Response, MockResponse)
+            ), f"Route can only % with int or dict, got {response!r}"
+            self.return_value = response
+
+        return self
+
+    @property
+    def return_value(self) -> Optional[Union[MockResponse, httpx.Response]]:
+        return self._return_value
+
+    @return_value.setter
+    def return_value(
+        self, return_value: Optional[Union[MockResponse, httpx.Response]]
+    ) -> None:
+        self.pass_through(None)
+        self._return_value = return_value
+
+    @property
+    def side_effect(self) -> Optional[SideEffectTypes]:
+        return self._side_effect
+
+    @side_effect.setter
+    def side_effect(self, side_effect: Optional[SideEffectTypes]) -> None:
+        self.pass_through(None)
+        if not side_effect:
+            self._side_effect = None
+        elif isinstance(side_effect, (tuple, list, Iterator)):
+            self._side_effect = iter(side_effect)
+        else:
+            self._side_effect = side_effect
+
+    def mock(
+        self,
+        return_value: Optional[Union[MockResponse, httpx.Response]] = None,
+        *,
+        side_effect: Optional[SideEffectTypes] = None,
+    ) -> "Route":
+        self.return_value = return_value
+        self.side_effect = side_effect
+        return self
 
     def respond(
         self,
@@ -300,35 +348,11 @@ class Route:
             stream=stream,
             **kwargs,
         )
-        return self.add_response(response)
-
-    def add_response(self, response: Union[MockResponse, httpx.Response]) -> "Route":
-        self._responses.append(response)
-        return self
-
-    def side_effect(
-        self, side_effect: Union[Callable, Exception, List[httpx.Response]]
-    ) -> "Route":
-        self.pass_through(None)
-        if isinstance(side_effect, list):
-            self._responses[:] = side_effect
-            self._side_effect = None
-        elif isinstance(side_effect, Exception):
-            self._side_effect = side_effect
-        else:
-            self._side_effect = side_effect
-        return self
+        return self.mock(return_value=response)
 
     def pass_through(self, value: bool = True) -> "Route":
         self._pass_through = value
-        if value is not None:
-            self._side_effect = None
-            self._responses.clear()
         return self
-
-    @property
-    def has_side_effect(self) -> bool:
-        return bool(self._side_effect)
 
     @property
     def is_pass_through(self) -> bool:
@@ -358,92 +382,112 @@ class Route:
         )
         return self.calls
 
+    def _next_side_effect(
+        self,
+    ) -> Union[Callable, Exception, Type[Exception], httpx.Response]:
+        effect: Union[Callable, Exception, Type[Exception], httpx.Response]
+        if isinstance(self._side_effect, Iterator):
+            effect = next(self._side_effect)
+        else:
+            effect = cast(
+                Union[Callable, Exception, Type[Exception]], self._side_effect
+            )
+
+        return effect
+
+    def _call_side_effect(
+        self, effect: Callable, request: httpx.Request, **kwargs: Any
+    ) -> Optional[Union[httpx.Request, httpx.Response, MockResponse]]:
+        argspec = inspect.getfullargspec(effect)
+        if "response" in argspec.args or len(argspec.args) > 1 + len(kwargs):
+            warn(
+                "Side effect (callback) `response` arg is deprecated. "
+                "Please instantiate httpx.Response inside your function.",
+                category=DeprecationWarning,
+            )
+            args = (
+                request,
+                MockResponse(context={"request": request, **kwargs}),
+            )
+        else:
+            args = (request,)  # type: ignore
+
+        # Call side effect
+        try:
+            result = effect(*args, **kwargs)
+        except Exception as error:
+            raise SideEffectError(self, origin=error) from error
+
+        # Validate result
+        if result and not isinstance(
+            result, (httpx.Response, MockResponse, httpx.Request)
+        ):
+            raise ValueError(
+                f"Side effects must return; either `httpx.Response` or "
+                f"`MockResponse`, `httpx.Request` for pass-through, "
+                f"or `None` for a non-match. Got {result!r}"
+            )
+
+        return result
+
+    def _resolve_side_effect(
+        self, request: httpx.Request, **kwargs: Any
+    ) -> Optional[Union[httpx.Request, httpx.Response, MockResponse]]:
+        effect = self._next_side_effect()
+
+        # Handle Exception `instance` side effect
+        if isinstance(effect, Exception):
+            raise SideEffectError(self, origin=effect)
+
+        # Handle Exception `type` side effect
+        Error: Type[Exception] = cast(Type[Exception], effect)
+        if isinstance(effect, type) and issubclass(Error, Exception):
+            raise SideEffectError(
+                self,
+                origin=(
+                    Error("Mock Error", request=request)
+                    if issubclass(Error, httpx.HTTPError)
+                    else Error()
+                ),
+            )
+
+        # Handle `Callable` side effect
+        if callable(effect):
+            result = self._call_side_effect(effect, request, **kwargs)
+            return result
+
+        return effect
+
     def resolve(
         self, request: httpx.Request, **kwargs: Any
     ) -> Optional[Union[httpx.Request, httpx.Response]]:
-        response: Optional[Union[MockResponse, httpx.Response, httpx.Request]] = None
+        result: Optional[Union[MockResponse, httpx.Response, httpx.Request]] = None
 
         if self._side_effect:
-            Error: Type[Exception] = cast(Type[Exception], self._side_effect)
+            result = self._resolve_side_effect(request, **kwargs)
+            if result is None:
+                return None  # Side effect resolved as a non-matching route
 
-            if isinstance(self._side_effect, Exception):
-                # Eception instance
-                raise self._side_effect
+        elif self._return_value:
+            result = self._return_value
 
-            elif isinstance(self._side_effect, type) and issubclass(Error, Exception):
-                # Exception type
-                if issubclass(Error, httpx.HTTPError):
-                    raise Error("Mock Error", request=request)
-                else:
-                    raise Error()
-
-            else:
-                # Callable
-                argspec = inspect.getfullargspec(self._side_effect)
-                if "response" in argspec.args or len(argspec.args) > 1 + len(kwargs):
-                    warn(
-                        "Side effect (callback) `response` arg is deprecated. "
-                        "Please instantiate httpx.Response inside your function.",
-                        category=DeprecationWarning,
-                    )
-                    args = (
-                        request,
-                        MockResponse(context=kwargs),
-                    )
-                else:
-                    args = (request,)  # type: ignore
-
-                try:
-                    # Call side effect
-                    response = self._side_effect(*args, **kwargs)
-                except Exception as error:
-                    raise SideEffectError(self, origin=error) from error
-
-                if response and not isinstance(
-                    response, (httpx.Response, MockResponse, httpx.Request)
-                ):
-                    raise ValueError(
-                        f"Side effects must return; either `httpx.Response` or "
-                        f"`MockResponse`, `httpx.Request` for pass-through, "
-                        f"or `None` for a non-match. Got {response!r}"
-                    )
-
-                if response is None:
-                    # Side effect resolved as a non-matching route
-                    return None
-
-        elif len(self._responses) == 1:
-            # Single repeated response
-            response = self._responses[0]
-
-        elif len(self._responses) > 1:
-            # Stacked response, pop in added order
-            response = self._responses.pop(0)
-
-        if isinstance(response, MockResponse):
-            # Resolve MockResponse as httpx.Response
+        if isinstance(result, MockResponse):
+            # Resolve MockResponse into httpx.Response
             try:
-                mock_response = response.clone(request=request, **kwargs)
-                response = mock_response.as_response(request)
+                result = result.clone(request=request, **kwargs)
+                result = result.as_response()
             except Exception as error:
                 raise SideEffectError(self, origin=error) from error
 
-        if response is None:
-            # Create new response
-            response = httpx.Response(200, request=request)
+        if result is None:
+            # Auto mock a new response
+            result = httpx.Response(200, request=request)
 
-        elif isinstance(response, httpx.Response) and not response._request:
-            # Clone existing response for immutability
-            response = httpx.Response(
-                response.status_code,
-                headers=response.headers,
-                stream=response.stream,
-                request=request,
-                ext=dict(response.ext),
-            )
-            response.read()
+        elif isinstance(result, httpx.Response) and not result._request:
+            # Clone existing Response for immutability
+            result = clone_response(result, request)
 
-        return response
+        return result
 
     def match(
         self, request: httpx.Request
@@ -456,9 +500,6 @@ class Route:
         """
         context = {}
 
-        if not self.pattern and not self._side_effect and self._pass_through is None:
-            return None
-
         if self.pattern:
             match = self.pattern.match(request)
             if not match:
@@ -468,9 +509,8 @@ class Route:
         if self._pass_through:
             return request
 
-        response = self.resolve(request, **context)
-
-        return response
+        result = self.resolve(request, **context)
+        return result
 
 
 class RequestPattern(Route):
@@ -501,10 +541,10 @@ class RequestPattern(Route):
         self._pass_through = pass_through
 
         if callable(method):
-            self.side_effect(method)
+            self.side_effect = method
 
-        elif response:
-            self.add_response(response)
+        if response:
+            self.return_value = response
 
 
 class SideEffectError(Exception):

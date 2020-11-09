@@ -14,16 +14,12 @@ def test_sync_transport():
         transport = SyncMockTransport(assert_all_called=False)
         assert len(w) == 1
     transport.get(url, status_code=404)
-    transport.get(url, content={"foo": "bar"})
     transport.post(url, pass_through=True)
     transport.put(url)
 
     with httpx.Client(transport=transport) as client:
         response = client.get(url)
         assert response.status_code == 404
-        response = client.get(url)
-        assert response.status_code == 200
-        assert response.json() == {"foo": "bar"}
         with pytest.raises(ValueError, match="pass_through"):
             client.post(url)
 
@@ -36,16 +32,12 @@ async def test_async_transport():
         transport = AsyncMockTransport(assert_all_called=False)
         assert len(w) == 1
     transport.get(url, status_code=404)
-    transport.get(url, content={"foo": "bar"})
     transport.post(url, pass_through=True)
     transport.put(url)
 
     async with httpx.AsyncClient(transport=transport) as client:
         response = await client.get(url)
         assert response.status_code == 404
-        response = await client.get(url)
-        assert response.status_code == 200
-        assert response.json() == {"foo": "bar"}
         with pytest.raises(ValueError, match="pass_through"):
             await client.post(url)
 

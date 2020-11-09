@@ -58,6 +58,13 @@ def test_bitwise_operators(method, url, expected):
     assert bool(~pattern.match(request)) is not expected
 
 
+def test_hash():
+    p = Host("foo.bar") & Path("/baz/")
+    assert URL("//foo.bar/baz/") == p
+    p = Scheme("https") & Host("foo.bar") & Path("/baz/")
+    assert URL("https://foo.bar/baz/") == p
+
+
 def test_match_context():
     request = encode(httpx.Request("GET", "https://foo.bar/baz/?ham=spam"))
     pattern = (
@@ -155,6 +162,7 @@ def test_host_pattern(host, expected):
         (Lookup.EQUAL, 80, "https://foo.bar/", False),
         (Lookup.EQUAL, 80, "http://foo.bar/", True),
         (Lookup.EQUAL, 8080, "https://foo.bar:8080/baz/", True),
+        (Lookup.EQUAL, 8080, "https://foo.bar/baz/", False),
         (Lookup.EQUAL, 22, "//foo.bar:22/baz/", True),
         (Lookup.EQUAL, None, "//foo.bar/", True),
         (Lookup.IN, [80, 443], "http://foo.bar/", True),
@@ -251,8 +259,9 @@ def test_url_pattern(lookup, url, context, expected):
 )
 def test_url_pattern__contains(url, expected):
     _request = httpx.Request("GET", "https://foo.bar/baz/?ham=spam&egg=yolk")
+    pattern = URL(url, lookup=Lookup.CONTAINS)
     for request in (_request, encode(_request)):
-        assert bool(URL(url, lookup=Lookup.CONTAINS).match(request)) is expected
+        assert bool(pattern.match(request)) is expected
 
 
 def test_url_pattern_invalid():

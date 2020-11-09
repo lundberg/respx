@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [master]
+## [0.15.0] - 2020-11-09
 ### Added
 - Added `respx.route(...)` with enhanced request pattern matching. (PR #96)
 - Added support for AND/OR when request pattern matching. (PR #96)
@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for both `httpx.Response` and `MockResponse`. (PR #96)
 - Enhanced Route (RequestPattern) with `.respond(...)` response details. (PR #96)
 - Enhanced Route (RequestPattern) with `.pass_through()`. (PR #96)
-- Introduced Route `.side_effect(...)` in favour of callbacks. (PR #97)
 - Add support for using route as side effect decorator. (PR #98)
-- Add headers and cookies patterns. (PR #99)
-- Add contains and in lookups. (PR #99)
+- Add `headers` and `cookies` patterns. (PR #99)
+- Add `contains` and `in` lookups. (PR #99)
+- Introduced Route `.mock(...)` in favour of callbacks. (PR #101)
+- Introduced Route `.return_value` and `.side_effect` setters. (PR #101)
 
 ### Changed
 - Deprecated mixing of request pattern and response details in all API's. (PR #96)
@@ -24,12 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `respx.aliases` in favour of `respx.routes`. (PR #96)
 - Deprecated `RequestPattern` in favour of `Route`. (PR #96)
 - Deprecated `ResponseTemplate` in favour of `MockResponse`. (PR #96)
-- Deprecated `pass_through=` in favour of `.pass_through()` (PR #96)
+- Deprecated `pass_through=` in HTTP method API's (PR #96)
 - Deprecated `response` arg in side effects (callbacks). (PR #97)
 - Stacked responses are now recorded on same route calls. (PR #96)
 - Pass-through routes no longer capture real response in call stats. (PR #97)
+- Stacked responses no longer keeps and repeats last response. (PR #101)
 
 ### Removed
+- Removed support for regex `base_url`. (PR #96)
 - Dropped support for `async` side effects (callbacks). (PR #97)
 - Dropped support for mixing side effect (callback) and response details. (PR #97)
 

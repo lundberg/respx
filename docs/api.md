@@ -1,13 +1,51 @@
-# Developer Interface
+# API Reference
 
-## Mocking Responses
+## Router
 
-### HTTP Method API
+### Configuration
 
-For regular and simple use, use the HTTP method shorthands.
-See [Request API](#request-api) for parameters.
+Creates a mock `Router` instance, ready to be used as decorator/manager for activation.
 
-> ::: respx.get
+> <code>respx.<strong>mock</strong>(assert_all_mocked=True, *assert_all_called=True, base_url=None*)</strong></code>
+>
+> **Parameters:**
+>
+> * **assert_all_mocked** - *(optional) bool - default: `True`*  
+>   Asserts that all sent and captured `HTTPX` requests are routed and mocked.
+> * **assert_all_called** - *(optional) bool - default: `True`*  
+>   Asserts that all added and mocked routes were called when exiting context.  
+>   If disabled, all non-routed requests will be auto mocked with status code `200`.
+> * **base_url** - *(optional) str*  
+>   Base URL to match, on top of each route specific pattern *and/or* side effect.
+>
+> **Returns:** `Router`
+
+!!! note "NOTE"
+    When using the *default* mock router `respx.mock`, *without settings*, `assert_all_called` is **disabled**.
+
+
+### .route()
+
+Adds a new, *optionally named*, `Route` with given [patterns](#patterns) *and/or* [lookups](#lookups) combined, using the [AND](#and) operator.
+
+> <code>respx.<strong>route</strong>(*\*patterns, name=None, \*\*lookups*)</strong></code>
+>
+> **Parameters:**
+>
+> * **patterns** - *(optional) args*  
+>   One or more [pattern](#patterns) objects.
+> * **lookups** - *(optional) kwargs*  
+>   One or more [pattern](#patterns) keyword [lookups](#lookups), given as `<pattern>__<lookup>=value`.
+> * **name** - *(optional) str*  
+>   Name this route.
+>
+> **Returns:** `Route`
+
+### .get(), .post(), ...
+
+HTTP method helpers to add routes, mimicking the [HTTPX Helper Functions](https://www.python-httpx.org/api/#helper-functions).
+
+> <code>respx.<strong>get</strong>(*url, params=None, name=None*)</strong></code>
 
 > <code>respx.<strong>options</strong>(...)</strong></code>
 
@@ -20,414 +58,279 @@ See [Request API](#request-api) for parameters.
 > <code>respx.<strong>patch</strong>(...)</strong></code>
 
 > <code>respx.<strong>delete</strong>(...)</strong></code>
-
-
-### Pattern API
-
-For full control, use the core `add` method.
-
-> ::: respx.add
->     :docstring:
 >
 > **Parameters:**
 >
-> * **method** - *str | callable | RequestPattern*  
->   Request HTTP method, or [Request callback](#request-callback), to match.
-> * **url** - *(optional) str | pattern | tuple (httpcore) | httpx.URL*  
->   Request exact URL, or [URL pattern](#url-pattern), to match.
+> * **url** - *(optional) str | compiled regex | tuple (httpcore) | httpx.URL*  
+>   Request URL to match, *full or partial*, turned into a [URL](#url) pattern.
 > * **params** - *(optional) str | list | dict*  
->   Request URL params to merge with url.
+>   Request query params to match, *full or partial*, turned into a [Params](#params) pattern.
+>
+> * **name** - *(optional) str*  
+>   Name this route.
+>
+> **Returns:** `Route`
+
+---
+
+## Route
+
+### .mock()
+
+Mock a route's response or side effect.
+
+> <code>route.<strong>mock</strong>(*return_value=None, side_effect=None*)</strong></code>
+>
+> **Parameters:**
+>
+> * **return_value** - *(optional) [Response](#response)*  
+>   HTTPX Response to mock and return.
+> * **side_effect** - *(optional) Callable | Exception | Iterable of httpx.Response/Exception*  
+>   [Side effect](guide.md#mock-with-a-side-effect) to call, exception to raise or stacked responses to respond with in order.
+>
+> **Returns:** `Route`
+
+### .return_value
+
+Setter for the `HTTPX` [Response](#response) to return.
+
+> <code>route.**return_value** = Response(204)</code>
+
+### .side_effect
+
+Setter for the [side effect](guide.md#mock-with-a-side-effect) to trigger.
+
+> <code>route.**side_effect** = ...</code>
+>
+> See [route.mock()](#mock) for valid side effect types.
+
+### .respond()
+
+Shortcut for creating and mocking a `HTTPX` [Response](#response).
+
+> <code>route.<strong>respond</strong>(*status_code=200, headers=None, content=None, text=None, html=None, json=None, stream=None*)</strong></code>
+>
+> **Parameters:**
+>
 > * **status_code** - *(optional) int - default: `200`*  
 >   Response status code to mock.
 > * **headers** - *(optional) dict*  
 >   Response headers to mock.
-> * **content_type** - *(optional) str*  
->   Response Content-Type header value to mock.
-> * **content** - *(optional) bytes | str | list | dict | callable | exception - default `b""`*  
->   Response content to mock. - *See [Response Content](#response-content).*
+> * **content** - *(optional) bytes | str | iterable bytes*  
+>   Response raw content to mock.
 > * **text** - *(optional) str*  
->   Response *text* content to mock, with automatic content type header.
+>   Response *text* content to mock, with automatic content-type header added.
 > * **html** - *(optional) str*  
->   Response *html* content to mock, with automatic content type header.
+>   Response *HTML* content to mock, with automatic content-type header added.
 > * **json** - *(optional) str | list | dict*  
->   Response *json* content to mock, with automatic content type header.
-> * **pass_through** - *(optional) bool - default `False`*  
->   Mark matched request to pass-through to real server, *e.g. don't mock*.
-> * **alias** - *(optional) str*  
->   Name this request pattern. - *See [Call Statistics](#call-statistics).*
+>   Response *JSON* content to mock, with automatic content-type header added.
+> * **stream** - *(optional) Iterable[bytes]*  
+>   Response *stream* to mock.
+>
+> **Returns:** `Route`
+
+### .pass_through()
+
+> <code>route.<strong>pass_through</strong>(*value=True*)</strong></code>
+>
+> **Parameters:**
+>
+> * **value** - *(optional) bool - default: `True`*  
+>   Mark route to pass through, sending matched requests to real server, *e.g. don't mock*.
+>
+> **Returns:** `Route`
 
 ---
 
-## Matching Requests
+## Response
 
-### Exact URL
+!!! note "NOTE"
+    This is a partial reference for how to the instantiate the **HTTPX** `Response`class, e.g. *not* a RESPX class.
 
-To match and mock a request by an exact URL, pass the `url` parameter as a *string*.
-
-``` python
-respx.get("https://foo.bar/", status_code=204)
-```
-
-
-### URL pattern
-
-Instead of matching an [exact URL](#exact-url), you can pass a *compiled regex* to match the request URL.
-
-``` python
-import httpx
-import re
-import respx
-
-
-@respx.mock
-def test_something():
-    url_pattern = re.compile(r"^https://foo.bar/\w+/$")
-    respx.get(url_pattern, content="Baz")
-    response = httpx.get("https://foo.bar/baz/")
-    assert response.text == "Baz"
-```
-!!! tip
-    Named groups in the regex pattern will be passed as `kwargs` to the response content [callback](#content-callback), if used.
-
-
-### Base URL
-
-When adding a lot of request patterns sharing the same domain/prefix, you can configure RESPX with a `base_url` to use as the base when matching URLs.
-
-Like `url`, the `base_url` can also be passed as a *compiled regex*, with optional named groups.
-
-``` python
-import httpx
-import respx
-
-
-@respx.mock(base_url="https://foo.bar")
-async def test_something(respx_mock):
-    async with httpx.AsyncClient(base_url="https://foo.bar") as client:
-        request = respx_mock.get("/baz/", content="Baz")
-        response = await client.get("/baz/")
-        assert response.text == "Baz"
-```
-
-
-### Request callback
-
-For full control of what request to **match** and what response to **mock**,
-pass a *callback* function as the `add(method, ...)` parameter.
-The callback's response argument will be pre-populated with any additional response parameters.
-
-``` python
-import httpx
-import respx
-
-
-def match_and_mock(request, response):
-    """
-    Return `None` to not match the request.
-    Return the `response` to match and mock this request.
-    Return the `request` for pass-through behaviour.
-    """
-    if request.method != "POST":
-        return None
-
-    if "X-Auth-Token" not in request.headers:
-        response.status_code = 401
-    else:
-        response.content = "OK"
-
-    return response
-
-
-@respx.mock
-def test_something():
-    custom_request = respx.add(match_and_mock, status_code=201)
-    respx.get("https://foo.bar/baz/")
-
-    response = httpx.get("https://foo.bar/baz/")
-    assert response.status_code == 200
-    assert not custom_request.called
-
-    response = httpx.post("https://foo.bar/baz/")
-    assert response.status_code == 401
-    assert custom_request.called
-
-    response = httpx.post("https://foo.bar/baz/", headers={"X-Auth-Token": "x"})
-    assert response.status_code == 201
-    assert custom_request.call_count == 2
-```
-
-
-### Repeated patterns
-
-If you mock several responses with the same *request pattern*, they will be matched in order, and popped til the last one.
-
-``` python
-import httpx
-import respx
-
-
-@respx.mock
-def test_something():
-    respx.get("https://foo.bar/baz/123/", status_code=404)
-    respx.get("https://foo.bar/baz/123/", content={"id": 123})
-    respx.post("https://foo.bar/baz/", status_code=201)
-
-    response = httpx.get("https://foo.bar/baz/123/")
-    assert response.status_code == 404  # First match
-
-    response = httpx.post("https://foo.bar/baz/")
-    assert response.status_code == 201
-
-    response = httpx.get("https://foo.bar/baz/123/")
-    assert response.status_code == 200  # Second match
-    assert response.json() == {"id": 123}
-```
-
-### Manipulating Existing Patterns
-
-Clearing all existing patterns:
-
-``` python
-import respx
-
-
-@respx.mock
-def test_something():
-    respx.get("https://foo.bar/baz", status_code=404)
-    respx.clear()  # no patterns will be matched after this call
-```
-
-Removing and optionally re-using an existing pattern by alias:
-
-``` python
-import respx
-
-
-@respx.mock
-def test_something():
-    respx.get("https://foo.bar/", status_code=404, alias="index")
-    request_pattern = respx.pop("index")
-    respx.get(request_pattern.url, status_code=200)
-```
+> <code>httpx.<strong>Response</strong>(*status_code, headers=None, content=None, text=None, html=None, json=None, stream=None*)</strong></code>
+>
+> **Parameters:**
+>
+> * **status_code** - *int*  
+>   HTTP status code.
+> * **headers** - *(optional) dict | httpx.Headers*  
+>   HTTP headers.
+> * **content** - *(optional) bytes | str | Iterable[bytes]*  
+>   Raw content.
+> * **text** - *(optional) str*  
+>   Text content, with automatic content-type header added.
+> * **html** - *(optional) str*  
+>   HTML content, with automatic content-type header added.
+> * **json** - *(optional) str | list | dict*  
+>   JSON content, with automatic content-type header added.
+> * **stream** - *(optional) Iterable[bytes]*  
+>   Content *stream*.
 
 ---
 
-## Response Content
+## Patterns
 
-### JSON content
+### M()
 
-To mock a response with json content, pass a `list` or a `dict`.  
-The `Content-Type` header will automatically be set to `application/json`.
+Creates a reusable pattern, combining multiple arguments using the [AND](#and) operator.
 
+> <code><strong>M</strong>(*\*patterns, \*\*lookups*)</strong></code>
+>
+> **Parameters:**
+>
+> * **patterns** - *(optional) args*  
+>   One or more [pattern](#patterns) objects.
+> * **lookups** - *(optional) kwargs*  
+>   One or more [pattern](#patterns) keyword [lookups](#lookups), given as `<pattern>__<lookup>=value`.
+>
+> **Returns:** `Pattern`
 ``` python
-import httpx
 import respx
+from respx.patterns import M
+pattern = M(host="example.org")
+respx.route(pattern)
+```
+> See [operators](#operators) for advanced usage.
 
 
-@respx.mock
-def test_something():
-    respx.get("https://foo.bar/baz/123/", content={"id": 123})
-    response = httpx.get("https://foo.bar/baz/123/")
-    assert response.json() == {"id": 123}
+
+### Method
+Matches request *HTTP method*, using <code>[eq](#eq)</code> as default lookup.
+> Key: `method`  
+> Lookups: [eq](#eq), [in](#in)
+``` python
+respx.route(method="GET")
+respx.route(method__in=["PUT", "PATCH"])
 ```
 
-### Content callback
-
-If you need dynamic response content, pass a *callback* function.  
-When used together with a [URL pattern](#url-pattern), named groups will be passed
-as `kwargs`.
-
+### Scheme
+Matches request *URL scheme*, using <code>[eq](#eq)</code> as default lookup.
+> Key: `scheme`  
+> Lookups: [eq](#eq), [in](#in)
 ``` python
-import httpx
-import re
-import respx
-
-
-def some_content(request, slug=None):
-    """ Return bytes, str, list or a dict. """
-    return {"slug": slug}
-
-
-@respx.mock
-def test_something():
-    url_pattern = r"^https://foo.bar/(?P<slug>\w+)/$")
-    respx.get(url_pattern, content=some_content)
-
-    response = httpx.get("https://foo.bar/apa/")
-    assert response.json() == {"slug": "apa"}
+respx.route(scheme="https")
+respx.route(scheme__in=["http", "https"])
 ```
 
-
-### Request Error
-
-To simulate a failing request, *like a connection error*, pass an `Exception` instance.
-This is useful when you need to test proper `HTTPX` error handling in your app.
-
+### Host
+Matches request *URL host*, using <code>[eq](#eq)</code> as default lookup.
+> Key: `host`  
+> Lookups: [eq](#eq), [in](#in)
 ``` python
-import httpx
-import httpcore
-import respx
-
-
-@respx.mock
-def test_something():
-    respx.get("https://foo.bar/", content=httpcore.ConnectTimeout())
-    response = httpx.get("https://foo.bar/")  # Will raise
+respx.route(host="example.org")
+respx.route(host__in=["example.org", "example.com"])
 ```
 
----
-
-## Built-in Assertions
-
-RESPX has the following build-in assertion checks:
-
-> * **assert_all_mocked**  
->   Asserts that all captured `HTTPX` requests are mocked. Defaults to `True`.
-> * **assert_all_called**  
->   Asserts that all mocked request patterns were called. Defaults to `True`.
-
-Configure checks by using the `respx.mock` decorator / context manager *with* parentheses.
+### Port
+Matches request *URL port*, using <code>[eq](#eq)</code> as default lookup.
+> Key: `port`  
+> Lookups: [eq](#eq), [in](#in)
 
 ``` python
-@respx.mock(assert_all_called=False)
-def test_something(respx_mock):
-    respx_mock.get("https://some.url/")  # OK
-    respx_mock.get("https://foo.bar/")
-
-    response = httpx.get("https://foo.bar/")
-    assert response.status_code == 200
-    assert respx_mock.calls.call_count == 1
-```
-``` python
-with respx.mock(assert_all_mocked=False) as respx_mock:
-    response = httpx.get("https://foo.bar/")  # OK
-    assert response.status_code == 200
-    assert respx_mock.calls.call_count == 1
+respx.route(port=8000)
+respx.route(port__in=[2375, 2376])
 ```
 
-!!! attention "Without Parentheses"
-    When using the *global* scope `@respx.mock` decorator / context manager, `assert_all_called` is **disabled**.
-
----
-
-## Call History
-
-The `respx` API includes a `.calls` object, containing captured (`request`, `response`) named tuples and MagicMock's *bells and whistles*, i.e. `call_count`, `assert_called` etc.
-
-
-### Retreiving mocked calls
-A matched and mocked `Call` can be retrived from call history, by either unpacking...
-
+### Path
+Matches request *URL path*, using <code>[eq](#eq)</code> as default lookup.
+> Key: `path`  
+> Lookups: [eq](#eq), [regex](#regex), [startswith](#startswith), [in](#in)
 ``` python
-request, response = respx.calls.last
-request, response = respx.calls[-2]  # by call order
+respx.route(path="/api/foobar/")
+respx.route(path__regex=r"^/api/(?P<slug>\w+)/")
+respx.route(path__startswith="/api/")
+respx.route(path__in=["/api/v1/foo/", "/api/v2/foo/"])
 ```
 
-...or by accessing `request` or `response` directly...
-
+### Params
+Matches request *URL query params*, using <code>[contains](#contains)</code> as default lookup.
+> Key: `params`  
+> Lookups: [contains](#contains), [eq](#eq)
 ``` python
-last_response = respx.calls.last.response
-
-assert respx.calls.last.request.call_count == 1
-assert respx.calls.last.response.status_code == 200
+respx.route(params={"foo": "bar", "ham": "spam"})
+respx.route(params=[("foo", "bar"), ("ham", "spam")])
+respx.route(params="foo=bar&ham=spam")
 ```
 
-!!! attention "Deprecation Warning"
-    As of version `0.14.0`, statistics via `respx.stats` is deprecated, in favour of `respx.calls`.
-
-### Request Pattern calls
-Each mocked response *request pattern* has its own `.calls`, along with `.called` and `.call_count ` stats shortcuts.
-
-Example using locally added request pattern:
+### URL
+A *shorthand* pattern wrapper, matching request *URL*, using <code>[contains](#contains)</code> as default lookup.
+> Key: `url`  
+> Lookups: [contains](#contains), [eq](#eq), [regex](#regex), [startswith](#startswith)
 ``` python
-import httpx
-import respx
-
-
-@respx.mock
-def test_something():
-    request = respx.post("https://foo.bar/baz/", status_code=201)
-    httpx.post("https://foo.bar/baz/")
-    assert request.called
-    assert request.call_count == 1
-    assert request.calls.last.response.status_code == 201
-    request.calls.assert_called_once()
+respx.route(url="//example.org/foobar/")
+respx.route(url__eq="https://example.org:8080/foobar/?ham=spam")
+respx.route(url__regex=r"https://example.org/(?P<slug>\w+)/")
+respx.route(url__startswith="https://example.org/api/")
 ```
 
-Example using globally aliased request pattern:
+### Headers
+Matches request *headers*, using [contains](#contains) as default lookup.
+> Key: `headers`  
+> Lookups: [contains](#contains), [eq](#eq)
 ``` python
-import httpx
-import respx
-
-# Added somewhere outside the test
-respx.get("https://foo.bar/", alias="index")
-
-@respx.mock
-def test_something():
-    httpx.get("https://foo.bar/")
-    assert respx.aliases["index"].called
-    assert respx.aliases["index"].call_count == 1
-    last_index_response = respx.aliases["index"].calls.last.response
+respx.route(headers={"foo": "bar", "ham": "spam"})
+respx.route(params=[("foo", "bar"), ("ham", "spam")])
 ```
 
-### Reset stats
-To reset stats during a test case, *without stop mocking*, use `respx.reset()`.
-
+### Cookies
+Matches request *cookie header*, using [contains](#contains) as default lookup.
+> Key: `cookies`  
+> Lookups: [contains](#contains), [eq](#eq)
 ``` python
-import httpx
-import respx
-
-
-@respx.mock
-def test_something():
-    respx.post("https://foo.bar/baz/")
-    httpx.post("https://foo.bar/baz/")
-    assert respx.calls.call_count == 1
-    request.calls.assert_called_once()
-
-    respx.reset()
-    assert len(respx.calls) == 0
-    assert respx.calls.call_count == 0
-    respx.calls.assert_not_called()
+respx.route(cookies={"foo": "bar", "ham": "spam"})
+respx.route(cookies=[("foo", "bar"), ("ham", "spam")])
 ```
 
-### Examples
-Here's a handful example usages of the call stats API.
+## Lookups
+
+### eq
 
 ``` python
-import httpx
-import respx
+M(path="/foo/bar/")
+M(path__eq="/foo/bar/")
+```
 
+### contains
+Case-sensitive containment test.
+``` python
+M(params__contains={"id": "123"})
+```
 
-@respx.mock
-def test_something():
-    # Mock some calls
-    respx.get("https://foo.bar/", alias="index")
-    baz_request = respx.post("https://foo.bar/baz/", status_code=201)
+### in
+Case-sensitive within test.
+``` python
+M(method__in=["PUT", "PATCH"])
+```
 
-    # Make some calls
-    httpx.get("https://foo.bar/")
-    httpx.post("https://foo.bar/baz/")
+### regex
+``` python
+M(path__regex=r"^/api/(?P<slug>\w+)/")
+```
 
-    # Assert mocked
-    assert respx.aliases["index"].called
-    assert respx.aliases["index"].call_count == 1
+### startswith
+Case-sensitive starts-with.
+``` python
+M(path__startswith="/api/")
+```
 
-    assert baz_request.called
-    assert baz_request.call_count == 1
-    baz_request.calls.assert_called_once()
+## Operators
 
-    # Global stats increased
-    assert respx.calls.call_count == 2
+Patterns can be combined using bitwise operators, creating new patterns.
 
-    # Assert responses
-    assert respx.aliases["index"].calls.last.response.status_code == 200
-    assert respx.calls.last.response is baz_request.calls.last.response
-    assert respx.calls.last.response.status_code == 201
+### AND (&)
+Combines two `Pattern`s using `and` operator.
+``` python
+M(scheme="http") & M(host="example.org")
+```
 
-    # Reset
-    respx.reset()
-    assert len(respx.calls) == 0
-    assert respx.calls.call_count == 0
-    respx.calls.assert_not_called()
+### OR (&)
+Combines two `Pattern`s using `or` operator.
+``` python
+M(method="PUT") | M(method="PATCH")
+```
+
+### INVERT (~)
+Inverts a `Pattern` match.
+``` python
+~M(params={"foo": "bar"})
 ```

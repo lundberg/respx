@@ -15,8 +15,9 @@ edit_uri: ""
 
 nav:
   - Introduction: "index.md"
-  - Mock HTTPX: "mocking.md"
-  - Developer Interface: "api.md"
+  - User Guide: "guide.md"
+  - API Reference: "api.md"
+  - Test Case Examples: "examples.md"
 
 markdown_extensions:
   - admonition

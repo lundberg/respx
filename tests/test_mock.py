@@ -242,6 +242,40 @@ async def test_configured_decorator(client):
 
 
 @pytest.mark.asyncio
+async def test_configured_router_reuse(client):
+    router = respx.mock()
+    route = router.get("https://foo/bar/") % 404
+
+    assert len(router.routes) == 1
+    assert router.calls.call_count == 0
+
+    with router:
+        route.return_value = httpx.Response(202)
+        response = await client.get("https://foo/bar/")
+        assert route.called is True
+        assert response.status_code == 202
+        assert router.calls.call_count == 1
+        assert respx.calls.call_count == 0
+
+    assert len(router.routes) == 1
+    assert route.called is False
+    assert router.calls.call_count == 0
+
+    async with router:
+        assert router.calls.call_count == 0
+        response = await client.get("https://foo/bar/")
+        assert route.called is True
+        assert response.status_code == 404
+        assert router.calls.call_count == 1
+        assert respx.calls.call_count == 0
+
+    assert len(router.routes) == 1
+    assert route.called is False
+    assert router.calls.call_count == 0
+    assert respx.calls.call_count == 0
+
+
+@pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
 async def test_base_url(respx_mock=None):
     request = respx_mock.patch("/egg/", content="yolk")

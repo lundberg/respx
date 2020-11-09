@@ -39,21 +39,49 @@ class Router:
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
+        self.snapshot()
 
-    def clear(self):
+    def clear(self) -> None:
         """
-        Clear added routes.
+        Clears all routes. May be rolled back to snapshot state.
         """
         self.routes.clear()
 
+    def snapshot(self) -> None:
+        """
+        Snapshots current routes and calls state.
+        """
+        # Snapshot current routes and calls
+        self._routes = dict(self.routes)
+        self._calls = CallList(self.calls)
+
+        # Snapshot each route state
+        for route in self._routes.values():
+            route.snapshot()
+
+    def rollback(self, reset: bool = True) -> None:
+        """
+        Rollbacks routes, and optionally calls, to snapshot state.
+        """
+        # Revert added routes to snapshot
+        self.routes.clear()
+        self.routes.update(self._routes)
+
+        # Revert each route state to snapshot
+        for route in self.routes.values():
+            route.rollback(reset=False)
+
+        # Reset call stats to snapshot
+        if reset:
+            self.reset()
+
     def reset(self) -> None:
         """
-        Resets call stats.
+        Resets call stats to snapshot state.
         """
-        self.calls.clear()
-
+        self.calls[:] = self._calls
         for route in self.routes.values():
-            route.calls.clear()
+            route.reset()
 
     def assert_all_called(self) -> None:
         assert all(

@@ -39,7 +39,7 @@ async def test_mock_request_fixture(client, my_mock):
 @pytest.mark.asyncio
 async def test_mock_single_session_fixture(client, mocked_foo):
     current_foo_call_count = mocked_foo.calls.call_count
-    response = await client.get("https://foo.api/bar/")
+    response = await client.get("https://foo.api/api/bar/")
     request = mocked_foo.aliases["bar"]
     assert request.called is True
     assert response.status_code == 200
@@ -51,7 +51,7 @@ async def test_mock_multiple_session_fixtures(client, mocked_foo, mocked_ham):
     current_foo_call_count = mocked_foo.calls.call_count
     current_ham_call_count = mocked_ham.calls.call_count
 
-    response = await client.get("https://foo.api/")
+    response = await client.get("https://foo.api/api/")
     request = mocked_foo.aliases["index"]
     assert request.called is True
     assert response.status_code == 202
@@ -277,14 +277,15 @@ async def test_configured_router_reuse(client):
 
 @pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
-async def test_base_url(respx_mock=None):
+async def test_nested_base_url(respx_mock=None):
     request = respx_mock.patch("/egg/", content="yolk")
-    async with respx.mock(base_url="https://foo.bar/") as foobar_mock:
+    async with respx.mock(base_url="https://foo.bar/api/") as foobar_mock:
         request1 = foobar_mock.get("/baz/", content="baz")
         request2 = foobar_mock.post(re.compile(r"(?P<slug>\w+)/?$"), content="slug")
-        request3 = foobar_mock.put(content="ok")
+        request3 = foobar_mock.route() % dict(content="ok")
+        request4 = foobar_mock.head("http://localhost/apa/") % 204
 
-        async with httpx.AsyncClient(base_url="https://foo.bar") as client:
+        async with httpx.AsyncClient(base_url="https://foo.bar/api") as client:
             response = await client.get("/baz/")
             assert request1.called is True
             assert response.text == "baz"
@@ -296,6 +297,10 @@ async def test_base_url(respx_mock=None):
             response = await client.put("/")
             assert request3.called is True
             assert response.text == "ok"
+
+            response = await client.head("http://localhost/apa/")
+            assert request4.called is True
+            assert response.status_code == 204
 
             response = await client.patch("https://ham.spam/egg/")
             assert request.called is True

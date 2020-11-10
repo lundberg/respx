@@ -5,7 +5,6 @@ import pytest
 
 from respx.patterns import (
     URL,
-    BaseURL,
     Cookies,
     Headers,
     Host,
@@ -16,6 +15,8 @@ from respx.patterns import (
     Path,
     Port,
     Scheme,
+    make_bases,
+    merge_bases,
 )
 from respx.types import Request
 
@@ -278,27 +279,31 @@ def test_invalid_pattern():
         M(scheme__baz="zoo")
 
 
-@pytest.mark.parametrize(
-    "base_url,expected",
-    [
-        ("https://foo.bar", True),
-        ("https://foo.bar", True),
-        ("https://foo.bar/", True),
-        ("https://foo.bar/baz", True),
-        ("https://foo.bar/baz/", True),
-        ("http://foo.bar/baz/", False),
-        ("https://ham.spam/baz/", False),
-        ("https://foo.bar/ham/", False),
-    ],
-)
-def test_baseurl_pattern(base_url, expected):
-    _request = httpx.Request("GET", "https://foo.bar/baz/zoo/?ham=spam&egg=yolk")
-    for request in (_request, encode(_request)):
-        assert bool(BaseURL(base_url).match(request)) is expected
+def test_iter_pattern():
+    pattern = Method("GET") & URL("https://foo.bar:88/baz/") | ~Params("x=y")
+    patterns = list(iter(pattern))
+    assert len(patterns) == 6
+    assert set(patterns) == {
+        Method("GET"),
+        Scheme("https"),
+        Host("foo.bar"),
+        Port(88),
+        Path("/baz/"),
+        Params("x=y"),
+    }
 
 
-def test_baseurl_pattern_invalid():
-    with pytest.raises(ValueError, match="Invalid"):
-        BaseURL("/foo/")
-    with pytest.raises(ValueError, match="Invalid"):
-        BaseURL(re.compile("/foo/"))
+def test_make_bases():
+    bases = make_bases("https://foo.bar/ham/spam/?egg=yolk")
+    assert bases == {
+        "scheme": Scheme("https"),
+        "host": Host("foo.bar"),
+        "path": Path("/ham/spam/", Lookup.STARTS_WITH),
+    }
+
+
+def test_merge_bases():
+    pattern = Method("GET") & Path("/spam/")
+    base = Path("/ham/", Lookup.STARTS_WITH)
+    merged_pattern = merge_bases(pattern, path=base)
+    assert any([p.base == base for p in iter(merged_pattern)])

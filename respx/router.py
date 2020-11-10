@@ -13,7 +13,7 @@ from warnings import warn
 import httpx
 
 from .models import CallList, MockResponse, Route, SideEffectError
-from .patterns import BaseURL, Pattern
+from .patterns import Pattern, make_bases, merge_bases
 from .types import (
     ContentDataTypes,
     DefaultType,
@@ -34,8 +34,7 @@ class Router:
     ) -> None:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
-        self._base_url = base_url
-        self._base_url_pattern = BaseURL(self._base_url) if base_url else None
+        self._bases = make_bases(base_url)
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
@@ -220,6 +219,9 @@ class Router:
             name = alias
         if name:
             route.name = name
+
+        # Merge bases
+        route.pattern = merge_bases(route.pattern, **self._bases)
 
         route_key = route.name or hash(route)
         if route_key in self.routes:
@@ -473,17 +475,14 @@ class Router:
         self,
         request: httpx.Request,
     ) -> Tuple[Optional[Route], Optional[Union[httpx.Request, httpx.Response]]]:
-
         route: Optional[Route] = None
         response: Optional[Union[httpx.Request, httpx.Response]] = None
 
-        # TODO: Support routes with absolute url not matching base_url?
-        if not self._base_url_pattern or self._base_url_pattern.match(request):
-            for prospect in self.routes.values():
-                response = prospect.match(request)
-                if response:
-                    route = prospect
-                    break
+        for prospect in self.routes.values():
+            response = prospect.match(request)
+            if response:
+                route = prospect
+                break
 
         return route, response
 

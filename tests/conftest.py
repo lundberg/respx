@@ -20,7 +20,7 @@ async def my_mock():
 
 @pytest.fixture(scope="session")
 async def mocked_foo(event_loop):  # noqa: F811
-    async with respx.mock(base_url="https://foo.api") as respx_mock:
+    async with respx.mock(base_url="https://foo.api/api/") as respx_mock:
         respx_mock.get("/", name="index").respond(202)
         respx_mock.get("/bar/", name="bar")
         yield respx_mock

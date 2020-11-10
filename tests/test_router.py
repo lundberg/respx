@@ -60,15 +60,18 @@ def test_pass_through():
 
 
 @pytest.mark.parametrize(
-    "url,expected",
+    "url,lookups,expected",
     [
-        ("https://foo.bar/baz/", True),
-        ("https://ham.spam/baz/", False),
+        ("https://foo.bar/api/baz/", {"url": "/baz/"}, True),
+        ("https://foo.bar/api/baz/", {"path__regex": r"^/(?P<slug>\w+)/$"}, True),
+        ("http://foo.bar/api/baz/", {"url": "/baz/"}, False),
+        ("https://ham.spam/api/baz/", {"url": "/baz/"}, False),
+        ("https://foo.bar/baz/", {"url": "/baz/"}, False),
     ],
 )
-def test_base_url(url, expected):
-    router = Router(base_url="https://foo.bar/", assert_all_mocked=False)
-    route = router.route(method="GET", url="/baz/").respond(201)
+def test_base_url(url, lookups, expected):
+    router = Router(base_url="https://foo.bar/api/", assert_all_mocked=False)
+    route = router.route(method="GET", **lookups).respond(201)
 
     request = httpx.Request("GET", url)
     matched_route, response = router.match(request)

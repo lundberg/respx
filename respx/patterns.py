@@ -6,6 +6,7 @@ from http.cookies import SimpleCookie
 from typing import (
     Any,
     Callable,
+    Dict,
     List,
     Optional,
     Pattern as RegexPattern,
@@ -54,6 +55,8 @@ class Match:
 class Pattern:
     lookups: Tuple[Lookup, ...] = (Lookup.EQUAL,)
     lookup: Lookup
+    key: str
+    base: Optional["Pattern"]
     value: Any
 
     def __init__(self, value: Any, lookup: Optional[Lookup] = None) -> None:
@@ -62,7 +65,11 @@ class Pattern:
                 f"{lookup.value!r} is not a valid Lookup for {self.__class__.__name__!r}"
             )
         self.lookup = lookup or self.lookups[0]
+        self.base = None
         self.value = self.clean(value)
+
+    def __iter__(self):
+        yield self
 
     def __and__(self, other: "Pattern") -> "Pattern":
         return _And((self, other))
@@ -94,8 +101,22 @@ class Pattern:
         """
         raise NotImplementedError()
 
+    def strip_base(self, value: Any) -> Any:  # pragma: nocover
+        return value
+
     def match(self, request: RequestTypes) -> Match:
         value = self.parse(request)
+
+        # Match and strip base
+        if self.base:
+            base_match = self.base._match(value)
+            if not base_match:
+                return base_match
+            value = self.strip_base(value)
+
+        return self._match(value)
+
+    def _match(self, value: Any) -> Match:
         lookup_method = getattr(self, f"_{self.lookup.value}")
         return lookup_method(value)
 
@@ -125,6 +146,11 @@ class _And(Pattern):
         a, b = self.value
         return f"{repr(a)} AND {repr(b)}"
 
+    def __iter__(self):
+        a, b = self.value
+        yield from a
+        yield from b
+
     def match(self, request: RequestTypes) -> Match:
         a, b = self.value
         match1 = a.match(request)
@@ -141,6 +167,11 @@ class _Or(Pattern):
         a, b = self.value
         return f"{repr(a)} OR {repr(b)}"
 
+    def __iter__(self):
+        a, b = self.value
+        yield from a
+        yield from b
+
     def match(self, request: RequestTypes) -> Match:
         a, b = self.value
         match = a.match(request)
@@ -155,12 +186,16 @@ class _Invert(Pattern):
     def __repr__(self):  # pragma: nocover
         return f"NOT {repr(self.value)}"
 
+    def __iter__(self):
+        yield from self.value
+
     def match(self, request: RequestTypes) -> Match:
         return ~self.value.match(request)
 
 
 class Method(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
+    key = "method"
     value: Union[str, Sequence[str]]
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
@@ -200,6 +235,7 @@ class MultiItemsMixin:
 
 class Headers(MultiItemsMixin, Pattern):
     lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    key = "headers"
     value: httpx.Headers
 
     def clean(self, value: HeaderTypes) -> httpx.Headers:
@@ -217,6 +253,7 @@ class Headers(MultiItemsMixin, Pattern):
 
 class Cookies(Pattern):
     lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    key = "cookies"
     value: Set[Tuple[str, str]]
 
     def __hash__(self):
@@ -250,6 +287,7 @@ class Cookies(Pattern):
 
 class Scheme(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
+    key = "scheme"
     value: Union[str, Sequence[str]]
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
@@ -268,6 +306,7 @@ class Scheme(Pattern):
 
 class Host(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
+    key = "host"
     value: Union[str, Sequence[str]]
 
     def parse(self, request: RequestTypes) -> str:
@@ -281,6 +320,7 @@ class Host(Pattern):
 
 class Port(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
+    key = "port"
     value: Optional[int]
 
     def parse(self, request: RequestTypes) -> Optional[int]:
@@ -298,6 +338,7 @@ class Port(Pattern):
 
 class Path(Pattern):
     lookups = (Lookup.EQUAL, Lookup.REGEX, Lookup.STARTS_WITH, Lookup.IN)
+    key = "path"
     value: Union[str, Sequence[str], RegexPattern[str]]
 
     def clean(
@@ -319,9 +360,14 @@ class Path(Pattern):
             path = _path.decode("ascii")
         return path
 
+    def strip_base(self, value: str) -> str:
+        value = urljoin("/", value[len(self.base.value) :])
+        return value
+
 
 class Params(MultiItemsMixin, Pattern):
     lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    key = "params"
     value: httpx.QueryParams
 
     def clean(self, value: QueryParamTypes) -> httpx.QueryParams:
@@ -344,6 +390,7 @@ class URL(Pattern):
         Lookup.REGEX,
         Lookup.STARTS_WITH,
     )
+    key = "url"
     value: Union[Pattern, str, RegexPattern[str]]
 
     def __hash__(self):
@@ -351,6 +398,33 @@ class URL(Pattern):
             return hash(self.value)
         else:
             return super().__hash__()
+
+    def __iter__(self):
+        if isinstance(self.value, Pattern):
+            yield from self.value
+        else:
+            yield self
+
+    @classmethod
+    def extract(cls, url: httpx.URL, **lookup: Lookup) -> List[Pattern]:
+        patterns: List[Pattern] = []
+        scheme_port = get_scheme_port(url.scheme)
+
+        if url.scheme:
+            patterns.append(Scheme(url.scheme, lookup=lookup.get("scheme")))
+        if url.host:
+            patterns.append(Host(url.host, lookup=lookup.get("host")))
+        if url.port and url.port != scheme_port:
+            patterns.append(Port(url.port, lookup=lookup.get("port")))
+        if url._uri_reference.path:  # URL.path always returns "/"
+            patterns.append(Path(url.path, lookup=lookup.get("path")))
+        if url.query:
+            patterns.append(Params(url.query, lookup=lookup.get("params")))
+
+        if not patterns:
+            raise ValueError(f"Invalid url: {url!r}")
+
+        return patterns
 
     def clean(self, value: URLPatternTypes) -> Union[Pattern, str, RegexPattern[str]]:
         if self.lookup in (Lookup.EQUAL, Lookup.CONTAINS):
@@ -360,24 +434,9 @@ class URL(Pattern):
 
             assert isinstance(value, httpx.URL)
 
-            patterns: List[Pattern] = []
-            scheme_port = get_scheme_port(value.scheme)
-
-            if value.scheme:
-                patterns.append(Scheme(value.scheme, lookup=Lookup.EQUAL))
-            if value.host:
-                patterns.append(Host(value.host, lookup=Lookup.EQUAL))
-            if value.port and value.port != scheme_port:
-                patterns.append(Port(value.port, lookup=Lookup.EQUAL))
-            if value._uri_reference.path:  # URL.path always returns "/"
-                patterns.append(Path(value.path, lookup=Lookup.EQUAL))
-            if value.query:
-                patterns.append(Params(value.query, lookup=self.lookup))
-
-            if not patterns:
-                raise ValueError(f"Invalid url: {value!r}")
-
+            patterns = self.extract(value, params=self.lookup)
             pattern = combine(patterns)
+
             return pattern
 
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
@@ -402,51 +461,34 @@ class URL(Pattern):
             return super().match(request)
 
 
-class BaseURL(URL):
-    lookups = (Lookup.EQUAL,)
-    value: Pattern
-
-    def clean(self, value: URLPatternTypes) -> Pattern:
-        if isinstance(value, RegexPattern):
-            raise ValueError("Invalid base url type: {value!r}")
-
-        url = httpx.URL(value)
-        if url.is_relative_url:
-            raise ValueError("Invalid base url: {value!r}")
-
-        path = url.path
-        base_url = url.copy_with(raw_path=None)
-        patterns: List[Pattern] = [URL(base_url)]
-        if len(path) > 1:
-            patterns.append(Path(path, Lookup.STARTS_WITH))  # Leading path pattern
-
-        return combine(patterns)
+# TODO: Refactor this to register when subclassing
+PATTERNS = {
+    P.key: P
+    for P in (
+        Method,
+        Headers,
+        Cookies,
+        Scheme,
+        Host,
+        Port,
+        Path,
+        Params,
+        URL,
+    )
+}
 
 
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:
-    mapping = {
-        "method": Method,
-        "headers": Headers,
-        "cookies": Cookies,
-        "scheme": Scheme,
-        "host": Host,
-        "port": Port,
-        "path": Path,
-        "params": Params,
-        "url": URL,
-        "base_url": BaseURL,
-    }
-
     for pattern__lookup, value in lookups.items():
         if not value:
             continue
 
-        pattern_name, __, lookup_value = pattern__lookup.partition("__")
-        if pattern_name not in mapping:
-            raise KeyError(f"{pattern_name!r} is not a valid Pattern")
+        pattern_key, __, lookup_value = pattern__lookup.partition("__")
+        if pattern_key not in PATTERNS:
+            raise KeyError(f"{pattern_key!r} is not a valid Pattern")
 
         lookup = None if not lookup_value else Lookup(lookup_value)
-        pattern = mapping[pattern_name](value, lookup=lookup)
+        pattern = PATTERNS[pattern_key](value, lookup=lookup)
         patterns += (pattern,)
 
     return combine(patterns)
@@ -463,3 +505,42 @@ def combine(
     if not patterns:
         return None
     return reduce(op, patterns)
+
+
+def make_bases(url: Optional[str]) -> Dict[str, Pattern]:
+    bases: Dict[str, Pattern] = {}
+    if url:
+        bases = {
+            pattern.key: pattern
+            for pattern in URL.extract(httpx.URL(url), path=Lookup.STARTS_WITH)
+            if pattern.key != "params"
+        }
+    return bases
+
+
+def merge_bases(pattern: Pattern, **bases: Pattern) -> Pattern:
+    if not bases:
+        return pattern
+
+    if pattern:
+        # Flatten pattern
+        patterns = list(iter(pattern))
+
+        if "host" in (_pattern.key for _pattern in patterns):
+            # Pattern is "absolute", skip bases
+            bases = None
+        else:
+            # Traverse pattern and set releated base
+            for _pattern in patterns:
+                base = bases.pop(_pattern.key, None)
+                _pattern.base = base
+
+    if bases:
+        # Combine left over base patterns with pattern
+        base_pattern = combine(list(bases.values()))
+        if pattern:
+            pattern = base_pattern & pattern
+        else:
+            pattern = base_pattern
+
+    return pattern

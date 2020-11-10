@@ -79,8 +79,8 @@ class MockTransport(BaseMockTransport):
         self.start()
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        self.stop()
+    def __exit__(self, exception_type: Optional[Exception], *args: Any) -> None:
+        self.stop(quiet=bool(exception_type is not None))
 
     async def __aenter__(self) -> "MockTransport":
         return self.__enter__()
@@ -99,14 +99,14 @@ class MockTransport(BaseMockTransport):
 
         self._patch()
 
-    def stop(self, clear: bool = True, reset: bool = True) -> None:
+    def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
         Unregister transport and stop patching, when no registered transports left.
         """
         started = bool(self in self.transports)
 
         try:
-            if started and self._assert_all_called:
+            if started and not quiet and self._assert_all_called:
                 self.assert_all_called()
         finally:
             # Idempotent check, i.e. already started

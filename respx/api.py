@@ -75,6 +75,7 @@ def add(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.add(
@@ -91,6 +92,7 @@ def add(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -108,6 +110,7 @@ def get(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.get(
@@ -123,6 +126,7 @@ def get(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -140,6 +144,7 @@ def post(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.post(
@@ -155,6 +160,7 @@ def post(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -172,6 +178,7 @@ def put(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.put(
@@ -187,6 +194,7 @@ def put(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -204,6 +212,7 @@ def patch(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.patch(
@@ -219,6 +228,7 @@ def patch(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -236,6 +246,7 @@ def delete(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.delete(
@@ -251,6 +262,7 @@ def delete(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -268,6 +280,7 @@ def head(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.head(
@@ -283,6 +296,7 @@ def head(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )
 
 
@@ -300,6 +314,7 @@ def options(
     pass_through: bool = False,
     alias: Optional[str] = None,
     name: Optional[str] = None,
+    **lookups: Any,
 ) -> Route:
     global mock
     return mock.options(
@@ -315,4 +330,5 @@ def options(
         pass_through=pass_through,
         alias=alias,
         name=name,
+        **lookups,
     )

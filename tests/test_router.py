@@ -42,7 +42,7 @@ def test_match_and_resolve(args, kwargs, expected):
 
 def test_pass_through():
     router = Router(assert_all_mocked=False)
-    route = router.route(method="GET").pass_through()
+    route = router.get("https://foo.bar/", path="/baz/").pass_through()
 
     request = httpx.Request("GET", "https://foo.bar/baz/")
     matched_route, response = router.match(request)
@@ -71,7 +71,7 @@ def test_pass_through():
 )
 def test_base_url(url, lookups, expected):
     router = Router(base_url="https://foo.bar/api/", assert_all_mocked=False)
-    route = router.route(method="GET", **lookups).respond(201)
+    route = router.get(**lookups).respond(201)
 
     request = httpx.Request("GET", url)
     matched_route, response = router.match(request)
@@ -84,6 +84,30 @@ def test_base_url(url, lookups, expected):
 
     response = router.resolve(request)
     assert bool(response.status_code == 201) is expected
+
+
+@pytest.mark.parametrize(
+    "lookups,url,expected",
+    [
+        ({"url": "//foo.bar/baz/"}, "https://foo.bar/baz/", True),
+        ({"url__eq": "https://foo.bar/baz/"}, "https://foo.bar/baz/", True),
+        ({"url__eq": "https://foo.bar/baz/"}, "http://foo.bar/baz/", False),
+        ({"url__eq": "https://foo.bar"}, "https://foo.bar/", True),
+        ({"url__eq": "https://foo.bar/"}, "https://foo.bar", True),
+        (
+            {"url": "https://foo.bar/", "path__regex": r"/(?P<slug>\w+)/"},
+            "https://foo.bar/baz/",
+            True,
+        ),
+    ],
+)
+def test_url_pattern_lookup(lookups, url, expected):
+    router = Router(assert_all_mocked=False)
+    route = router.get(**lookups) % 418
+    request = httpx.Request("GET", url)
+    response = router.resolve(request)
+    assert bool(response.status_code == 418) is expected
+    assert route.called is expected
 
 
 def test_mod_response():

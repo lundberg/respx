@@ -13,7 +13,7 @@ from warnings import warn
 import httpx
 
 from .models import CallList, MockResponse, Route, SideEffectError
-from .patterns import Pattern, make_bases, merge_bases
+from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import (
     ContentDataTypes,
     DefaultType,
@@ -34,7 +34,7 @@ class Router:
     ) -> None:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
-        self._bases = make_bases(base_url)
+        self._bases = parse_url_patterns(base_url, exact=False)
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
@@ -151,12 +151,13 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         """
         Adds a route with given mocked response details.
         """
         if callable(route) and not isinstance(route, Route):
-            route = Route().mock(side_effect=route)
+            route = Route(**lookups).mock(side_effect=route)
 
         elif isinstance(route, str):
             warn(
@@ -168,10 +169,9 @@ class Router:
             route = None
 
         if route is None:
-            url__lookup = "url__regex" if isinstance(url, Regex) else "url__contains"
-            route = Route(
-                **{"method": method, url__lookup: url, "params": params},
-            )
+            url__lookup = "url__regex" if isinstance(url, Regex) else "url"
+            lookups.update({"method": method, url__lookup: url, "params": params})
+            route = Route(**lookups)
 
         response = None
         if (
@@ -221,7 +221,7 @@ class Router:
             route.name = name
 
         # Merge bases
-        route.pattern = merge_bases(route.pattern, **self._bases)
+        route.pattern = merge_patterns(route.pattern, **self._bases)
 
         route_key = route.name or hash(route)
         if route_key in self.routes:
@@ -251,6 +251,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="GET",
@@ -266,6 +267,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def post(
@@ -283,6 +285,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="POST",
@@ -298,6 +301,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def put(
@@ -315,6 +319,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="PUT",
@@ -330,6 +335,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def patch(
@@ -347,6 +353,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="PATCH",
@@ -362,6 +369,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def delete(
@@ -379,6 +387,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="DELETE",
@@ -394,6 +403,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def head(
@@ -411,6 +421,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="HEAD",
@@ -426,6 +437,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def options(
@@ -443,6 +455,7 @@ class Router:
         pass_through: bool = False,
         alias: Optional[str] = None,
         name: Optional[str] = None,
+        **lookups: Any,
     ) -> Route:
         return self.add(
             method="OPTIONS",
@@ -458,6 +471,7 @@ class Router:
             pass_through=pass_through,
             alias=alias,
             name=name,
+            **lookups,
         )
 
     def record(

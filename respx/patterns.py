@@ -7,7 +7,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    List,
     Optional,
     Pattern as RegexPattern,
     Sequence,
@@ -384,81 +383,38 @@ class Params(MultiItemsMixin, Pattern):
 
 
 class URL(Pattern):
-    lookups: Tuple[Lookup, ...] = (
-        Lookup.CONTAINS,
+    lookups = (
         Lookup.EQUAL,
         Lookup.REGEX,
         Lookup.STARTS_WITH,
     )
     key = "url"
-    value: Union[Pattern, str, RegexPattern[str]]
+    value: Union[str, RegexPattern[str]]
 
-    def __hash__(self):
-        if isinstance(self.value, Pattern):
-            return hash(self.value)
-        else:
-            return super().__hash__()
-
-    def __iter__(self):
-        if isinstance(self.value, Pattern):
-            yield from self.value
-        else:
-            yield self
-
-    @classmethod
-    def extract(cls, url: httpx.URL, **lookup: Lookup) -> List[Pattern]:
-        patterns: List[Pattern] = []
-        scheme_port = get_scheme_port(url.scheme)
-
-        if url.scheme:
-            patterns.append(Scheme(url.scheme, lookup=lookup.get("scheme")))
-        if url.host:
-            patterns.append(Host(url.host, lookup=lookup.get("host")))
-        if url.port and url.port != scheme_port:
-            patterns.append(Port(url.port, lookup=lookup.get("port")))
-        if url._uri_reference.path:  # URL.path always returns "/"
-            patterns.append(Path(url.path, lookup=lookup.get("path")))
-        if url.query:
-            patterns.append(Params(url.query, lookup=lookup.get("params")))
-
-        if not patterns:
-            raise ValueError(f"Invalid url: {url!r}")
-
-        return patterns
-
-    def clean(self, value: URLPatternTypes) -> Union[Pattern, str, RegexPattern[str]]:
-        if self.lookup in (Lookup.EQUAL, Lookup.CONTAINS):
-            pattern = None
-            if isinstance(value, (str, tuple)):
-                value = httpx.URL(value)
-
-            assert isinstance(value, httpx.URL)
-
-            patterns = self.extract(value, params=self.lookup)
-            pattern = combine(patterns)
-
-            return pattern
-
+    def clean(self, value: URLPatternTypes) -> Union[str, RegexPattern[str]]:
+        url: Union[str, RegexPattern[str]]
+        if self.lookup is Lookup.EQUAL and isinstance(value, (str, tuple, httpx.URL)):
+            _url = httpx.URL(value)
+            url = str(_url)
+            if not _url._uri_reference.path:  # Ensure path
+                url += "/"
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
-            return re.compile(value)
-
-        assert isinstance(value, (str, RegexPattern))
-
-        return value
+            url = re.compile(value)
+        elif isinstance(value, (str, RegexPattern)):
+            url = value
+        else:
+            raise ValueError(f"Invalid url: {value!r}")
+        return url
 
     def parse(self, request: RequestTypes) -> str:
         if isinstance(request, httpx.Request):
             url = str(request.url)
+            if not request.url._uri_reference.path:  # Ensure path
+                url += "/"
         else:
             _, _url, *_ = request
             url = str(httpx.URL(_url))
         return url
-
-    def match(self, request: RequestTypes) -> Match:
-        if isinstance(self.value, Pattern):
-            return self.value.match(request)
-        else:
-            return super().match(request)
 
 
 # TODO: Refactor this to register when subclassing
@@ -479,8 +435,14 @@ PATTERNS = {
 
 
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:
+    extras = None
+
     for pattern__lookup, value in lookups.items():
         if not value:
+            continue
+
+        if pattern__lookup == "url":
+            extras = parse_url_patterns(value)
             continue
 
         pattern_key, __, lookup_value = pattern__lookup.partition("__")
@@ -491,7 +453,10 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
         pattern = PATTERNS[pattern_key](value, lookup=lookup)
         patterns += (pattern,)
 
-    return combine(patterns)
+    pattern = combine(patterns)
+    if extras:
+        pattern = merge_patterns(pattern, **extras)
+    return pattern
 
 
 def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
@@ -507,18 +472,33 @@ def combine(
     return reduce(op, patterns)
 
 
-def make_bases(url: Optional[str]) -> Dict[str, Pattern]:
+def parse_url_patterns(
+    url: Optional[Union[str, httpx.URL]], exact: bool = True
+) -> Dict[str, Pattern]:
     bases: Dict[str, Pattern] = {}
-    if url:
-        bases = {
-            pattern.key: pattern
-            for pattern in URL.extract(httpx.URL(url), path=Lookup.STARTS_WITH)
-            if pattern.key != "params"
-        }
+    if not url:
+        return bases
+
+    url = httpx.URL(url)
+    scheme_port = get_scheme_port(url.scheme)
+
+    if url.scheme:
+        bases[Scheme.key] = Scheme(url.scheme)
+    if url.host:
+        bases[Host.key] = Host(url.host)
+    if url.port and url.port != scheme_port:
+        bases[Port.key] = Port(url.port)
+    if url._uri_reference.path:  # URL.path always returns "/"
+        lookup = Lookup.EQUAL if exact else Lookup.STARTS_WITH
+        bases[Path.key] = Path(url.path, lookup=lookup)
+    if url.query:
+        lookup = Lookup.EQUAL if exact else Lookup.CONTAINS
+        bases[Params.key] = Params(url.query, lookup=lookup)
+
     return bases
 
 
-def merge_bases(pattern: Pattern, **bases: Pattern) -> Pattern:
+def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
     if not bases:
         return pattern
 
@@ -527,12 +507,15 @@ def merge_bases(pattern: Pattern, **bases: Pattern) -> Pattern:
         patterns = list(iter(pattern))
 
         if "host" in (_pattern.key for _pattern in patterns):
-            # Pattern is "absolute", skip bases
+            # Pattern is "absolute", skip merging
             bases = None
         else:
             # Traverse pattern and set releated base
             for _pattern in patterns:
                 base = bases.pop(_pattern.key, None)
+                if base and base.lookup is Lookup.EQUAL:
+                    # Skip "exact" base, pattern lookup overrides
+                    continue
                 _pattern.base = base
 
     if bases:

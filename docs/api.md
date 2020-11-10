@@ -45,7 +45,7 @@ Adds a new, *optionally named*, `Route` with given [patterns](#patterns) *and/or
 
 HTTP method helpers to add routes, mimicking the [HTTPX Helper Functions](https://www.python-httpx.org/api/#helper-functions).
 
-> <code>respx.<strong>get</strong>(*url, params=None, name=None*)</strong></code>
+> <code>respx.<strong>get</strong>(*url, name=None, \*\*lookups*)</strong></code>
 
 > <code>respx.<strong>options</strong>(...)</strong></code>
 
@@ -63,13 +63,15 @@ HTTP method helpers to add routes, mimicking the [HTTPX Helper Functions](https:
 >
 > * **url** - *(optional) str | compiled regex | tuple (httpcore) | httpx.URL*  
 >   Request URL to match, *full or partial*, turned into a [URL](#url) pattern.
-> * **params** - *(optional) str | list | dict*  
->   Request query params to match, *full or partial*, turned into a [Params](#params) pattern.
->
 > * **name** - *(optional) str*  
 >   Name this route.
+> * **lookups** - *(optional) kwargs*  
+>   One or more [pattern](#patterns) keyword [lookups](#lookups), given as `<pattern>__<lookup>=value`.
 >
 > **Returns:** `Route`
+``` python
+respx.get("https://example.org/", params={"foo": "bar"})
+```
 
 ---
 
@@ -253,14 +255,16 @@ respx.route(params="foo=bar&ham=spam")
 ```
 
 ### URL
-A *shorthand* pattern wrapper, matching request *URL*, using <code>[contains](#contains)</code> as default lookup.
+Matches request *URL*.
+
+When no *lookup* is given, `url` works as a *shorthand* pattern, combining individual request *URL* parts, using the [AND](#and) operator.
 > Key: `url`  
-> Lookups: [contains](#contains), [eq](#eq), [regex](#regex), [startswith](#startswith)
+> Lookups: [eq](#eq), [regex](#regex), [startswith](#startswith)
 ``` python
-respx.route(url="//example.org/foobar/")
-respx.route(url__eq="https://example.org:8080/foobar/?ham=spam")
-respx.route(url__regex=r"https://example.org/(?P<slug>\w+)/")
-respx.route(url__startswith="https://example.org/api/")
+respx.get("//example.org/foo/")  # == M(host="example.org", path="/foo/")
+respx.get(url__eq="https://example.org:8080/foobar/?ham=spam")
+respx.get(url__regex=r"https://example.org/(?P<slug>\w+)/")
+respx.get(url__startswith="https://example.org/api/")
 ```
 
 ### Headers

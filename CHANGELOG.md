@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [master]
+### Added
+- Snapshot routes and mocks when starting router, rollback when stopping. (PR #102)
+- Added support for base_url combined with pattern lookups. (PR #103)
+- Added support for patterns/lookups to the HTTP method helpers. (PR #104)
+
+### Fixed
+- Fix to not clear routes added outside mock context when stopping router. (PR #102)
+
 ## [0.15.0] - 2020-11-09
 ### Added
 - Added `respx.route(...)` with enhanced request pattern matching. (PR #96)

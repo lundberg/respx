@@ -91,9 +91,9 @@ import respx
 from httpx import Response
 
 
-@respx.mock(base_url="https://example.org")
+@respx.mock(base_url="https://example.org/api/")
 async def test_something(respx_mock):
-    async with httpx.AsyncClient(base_url="https://example.org") as client:
+    async with httpx.AsyncClient(base_url="https://example.org/api/") as client:
         respx_mock.get("/baz/").mock(return_value=Response(200, text="Baz"))
         response = await client.get("/baz/")
         assert response.text == "Baz"
@@ -411,6 +411,37 @@ respx.get("https://example.org/") % Response(418)
 
 response = httpx.get("https://example.org/")
 assert response.status_code == httpx.codes.IM_A_TEAPOT
+```
+
+## Rollback
+
+When exiting a [decorated](#using-the-decorator) test case, or [context manager](#using-the-context-manager), the routes and their mocked values, *i.e.* `return_value` and `side_effect`, will be *rolled back* and restored to their initial state.
+
+This means that you can modify existing routes, or add new ones, within a test case without affecting other tests.
+
+``` python
+import httpx
+import respx
+
+# Initial routes
+mock_router = respx.mock(base_url="https://example.org")
+mock_router.get(path__regex="/user/(?P<pk>\d+)/", name="user") % 404
+...
+
+
+@mock_router
+def test_user_exists():
+    # This change will be rolled back after this test case
+    mock_router["user"].return_value = httpx.Response(200)
+
+    response = httpx.get("https://example.org/user/123/")
+    assert response.status_code == 200
+
+
+@mock_router
+def test_user_not_found():
+    response = httpx.get("https://example.org/user/123/")
+    assert response.status_code == 404
 ```
 
 ---

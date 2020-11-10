@@ -15,8 +15,8 @@ from respx.patterns import (
     Path,
     Port,
     Scheme,
-    make_bases,
-    merge_bases,
+    merge_patterns,
+    parse_url_patterns,
 )
 from respx.types import Request
 
@@ -57,13 +57,6 @@ def test_bitwise_operators(method, url, expected):
     request = encode(httpx.Request(method, url))
     assert bool(pattern.match(request)) is expected
     assert bool(~pattern.match(request)) is not expected
-
-
-def test_hash():
-    p = Host("foo.bar") & Path("/baz/")
-    assert URL("//foo.bar/baz/") == p
-    p = Scheme("https") & Host("foo.bar") & Path("/baz/")
-    assert URL("https://foo.bar/baz/") == p
 
 
 def test_match_context():
@@ -232,6 +225,7 @@ def test_params_pattern(lookup, params, url, expected):
         (Lookup.EQUAL, "https://foo.bar/baz/", {}, True),
         (Lookup.EQUAL, "https://foo.bar/ham/", {}, False),
         (Lookup.STARTS_WITH, "https://foo.bar/b", {}, True),
+        (Lookup.STARTS_WITH, "http://foo.bar/baz/", {}, False),
     ],
 )
 def test_url_pattern(lookup, url, context, expected):
@@ -242,32 +236,16 @@ def test_url_pattern(lookup, url, context, expected):
         assert match.context == context
 
 
-@pytest.mark.parametrize(
-    "url,expected",
-    [
-        (httpx.URL("https://foo.bar/baz/"), True),
-        ("https://foo.bar/baz/", True),
-        ("https://foo.bar/baz/?egg=yolk&ham=spam", True),
-        ("https://foo.bar/baz/?egg=yolk", True),
-        ("//foo.bar/baz/", True),
-        ("https://foo.bar:443/baz/", True),
-        ("http://foo.bar/", False),
-        ("https://ham.spam/", False),
-        ("https://foo.bar/", False),
-        ("https://foo.bar:80/baz/", False),
-        ("https://foo.bar/ham/", False),
-    ],
-)
-def test_url_pattern__contains(url, expected):
-    _request = httpx.Request("GET", "https://foo.bar/baz/?ham=spam&egg=yolk")
-    pattern = URL(url, lookup=Lookup.CONTAINS)
-    for request in (_request, encode(_request)):
-        assert bool(pattern.match(request)) is expected
-
-
 def test_url_pattern_invalid():
     with pytest.raises(ValueError, match="Invalid"):
-        URL("")
+        URL(["invalid"])
+
+
+def test_url_pattern_hash():
+    p = Host("foo.bar") & Path("/baz/")
+    assert M(url="//foo.bar/baz/") == p
+    p = Scheme("https") & Host("foo.bar") & Path("/baz/")
+    assert M(url="https://foo.bar/baz/") == p
 
 
 def test_invalid_pattern():
@@ -280,7 +258,9 @@ def test_invalid_pattern():
 
 
 def test_iter_pattern():
-    pattern = Method("GET") & URL("https://foo.bar:88/baz/") | ~Params("x=y")
+    pattern = M(
+        Method("GET") & Path("/baz/") | ~Params("x=y"), url="https://foo.bar:88/"
+    )
     patterns = list(iter(pattern))
     assert len(patterns) == 6
     assert set(patterns) == {
@@ -293,17 +273,26 @@ def test_iter_pattern():
     }
 
 
-def test_make_bases():
-    bases = make_bases("https://foo.bar/ham/spam/?egg=yolk")
-    assert bases == {
+def test_parse_url_patterns():
+    patterns = parse_url_patterns("https://foo.bar/ham/spam/?egg=yolk")
+    assert patterns == {
+        "scheme": Scheme("https"),
+        "host": Host("foo.bar"),
+        "path": Path("/ham/spam/"),
+        "params": Params({"egg": "yolk"}, Lookup.EQUAL),
+    }
+
+    patterns = parse_url_patterns("https://foo.bar/ham/spam/?egg=yolk", exact=False)
+    assert patterns == {
         "scheme": Scheme("https"),
         "host": Host("foo.bar"),
         "path": Path("/ham/spam/", Lookup.STARTS_WITH),
+        "params": Params({"egg": "yolk"}, Lookup.CONTAINS),
     }
 
 
-def test_merge_bases():
+def test_merge_patterns():
     pattern = Method("GET") & Path("/spam/")
     base = Path("/ham/", Lookup.STARTS_WITH)
-    merged_pattern = merge_bases(pattern, path=base)
+    merged_pattern = merge_patterns(pattern, path=base)
     assert any([p.base == base for p in iter(merged_pattern)])

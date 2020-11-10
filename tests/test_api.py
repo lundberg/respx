@@ -18,15 +18,16 @@ from respx.models import MockResponse, RequestPattern, ResponseTemplate, Route
 @pytest.mark.asyncio
 async def test_http_methods(client):
     async with respx.mock:
-        url = "https://foo.bar/"
-        route = respx.get(url) % 404
-        respx.post(url).respond(201)
-        respx.post(url).respond(201)
-        respx.put(url).respond(202)
-        respx.patch(url).respond(500)
-        respx.delete(url).respond(204)
-        respx.head(url).respond(405)
-        respx.options(url).respond(status_code=501)
+        url = "https://foo.bar"
+        route = respx.get(url, path="/") % 404
+        respx.post(url, path="/").respond(200)
+        respx.post(url, path="/").respond(201)
+        respx.put(url, path="/").respond(202)
+        respx.patch(url, path="/").respond(500)
+        respx.delete(url, path="/").respond(204)
+        respx.head(url, path="/").respond(405)
+        respx.options(url, path="/").respond(status_code=501)
+        url += "/"
 
         response = httpx.get(url)
         assert response.status_code == 404
@@ -92,7 +93,7 @@ async def test_url_match(client, url, pattern):
 @pytest.mark.asyncio
 async def test_invalid_url_pattern():
     async with MockTransport() as respx_mock:
-        with pytest.raises(AssertionError):
+        with pytest.raises(TypeError):
             respx_mock.get(["invalid"])
 
 

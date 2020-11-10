@@ -26,7 +26,7 @@ from httpx import Response
 
 @respx.mock
 def test_example():
-    my_route = respx.get("https://example.org/").mock(Response(204))
+    my_route = respx.get("https://example.org/").mock(return_value=Response(204))
     response = httpx.get("https://example.org/")
     assert my_route.called
     assert response.status_code == 204

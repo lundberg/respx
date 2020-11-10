@@ -262,6 +262,7 @@ class Route:
         self._return_value: Union[MockResponse, httpx.Response] = None
         self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: Optional[bool] = None
+        self.snapshot()
 
     def __hash__(self):
         if self.pattern:
@@ -315,6 +316,22 @@ class Route:
             self._side_effect = iter(side_effect)
         else:
             self._side_effect = side_effect
+
+    def snapshot(self) -> None:
+        self.__return_value = self._return_value
+        self.__side_effect = self._side_effect
+        self.__pass_through = self._pass_through
+        self._calls = CallList(self.calls)
+
+    def rollback(self, reset: bool = True) -> None:
+        self._return_value = self.__return_value
+        self._side_effect = self.__side_effect
+        self._pass_through = self.__pass_through
+        if reset:
+            self.reset()
+
+    def reset(self) -> None:
+        self.calls[:] = self._calls
 
     def mock(
         self,

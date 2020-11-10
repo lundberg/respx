@@ -186,3 +186,38 @@ def test_side_effect_decorator():
     response = router.resolve(request)
     assert response.status_code == 201
     assert response.json() == {"message": "OK"}
+
+
+def test_rollback():
+    router = Router()
+    route = router.get("https://foo.bar/") % 404
+
+    router.snapshot()
+
+    route.return_value = httpx.Response(418)
+    router.post("https://foo.bar/")
+
+    request = httpx.Request("GET", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 418
+
+    assert len(router.routes) == 2
+    assert router.calls.call_count == 1
+    assert route.call_count == 1
+    assert route.return_value.status_code == 418
+
+    route.rollback()
+
+    assert len(router.routes) == 2
+    assert router.calls.call_count == 1
+    assert route.call_count == 0
+    assert route.return_value.status_code == 404
+
+    request = httpx.Request("GET", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 404
+
+    router.rollback()
+
+    assert len(router.routes) == 1
+    assert router.calls.call_count == 0

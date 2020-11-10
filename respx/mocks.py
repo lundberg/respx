@@ -92,25 +92,31 @@ class MockTransport(BaseMockTransport):
         """
         Register transport and start patching.
         """
-        self.transports.append(self)
+        # Idempotent check, i.e. already started
+        if self not in self.transports:
+            self.snapshot()
+            self.transports.append(self)
+
         self._patch()
 
     def stop(self, clear: bool = True, reset: bool = True) -> None:
         """
         Unregister transport and stop patching, when no registered transports left.
         """
+        started = bool(self in self.transports)
+
         try:
-            if self._assert_all_called:
+            if started and self._assert_all_called:
                 self.assert_all_called()
         finally:
-            if clear:
-                self.clear()
-            if reset:
-                self.reset()
+            # Idempotent check, i.e. already started
+            if started:
+                if clear:
+                    self.rollback(reset=False)
+                if reset:
+                    self.reset()
+                self.transports.remove(self)
 
-            # Unregister current transport
-            assert self in self.transports, "RESPX transport already stopped!"
-            self.transports.remove(self)
             self._unpatch()
 
     @classmethod

@@ -2,7 +2,7 @@ import httpcore
 import httpx
 import pytest
 
-from respx import MockResponse, Router
+from respx import Router
 from respx.patterns import Host, M, Method
 
 
@@ -115,8 +115,7 @@ def test_mod_response():
     route1a = router.get("https://foo.bar/baz/") % 409
     route1b = router.get("https://foo.bar/baz/") % 404
     route2 = router.get("https://foo.bar") % dict(status_code=201)
-    route3 = router.get("https://ham.spam/egg/") % MockResponse(202)
-    route4 = router.post("https://fox.zoo/") % httpx.Response(401, json={"error": "x"})
+    route3 = router.post("https://fox.zoo/") % httpx.Response(401, json={"error": "x"})
 
     request = httpx.Request("GET", "https://foo.bar/baz/")
     matched_route, response = router.match(request)
@@ -129,16 +128,30 @@ def test_mod_response():
     assert response.status_code == 201
     assert matched_route is route2
 
-    request = httpx.Request("GET", "https://ham.spam/egg/")
-    matched_route, response = router.match(request)
-    assert response.status_code == 202
-    assert matched_route is route3
-
     request = httpx.Request("POST", "https://fox.zoo/")
     matched_route, response = router.match(request)
     assert response.status_code == 401
     assert response.json() == {"error": "x"}
-    assert matched_route is route4
+    assert matched_route is route3
+
+    with pytest.raises(ValueError, match="Route can only"):
+        router.route() % []
+
+
+def test_side_effect_no_match():
+    router = Router()
+
+    def no_match(request):
+        request.respx_was_here = True
+        return None
+
+    router.get(url__startswith="https://foo.bar/").mock(side_effect=no_match)
+    router.get(url__eq="https://foo.bar/baz/").mock(return_value=httpx.Response(204))
+
+    request = httpx.Request("GET", "https://foo.bar/baz/")
+    response = router.resolve(request)
+    assert response.status_code == 204
+    assert response.request.respx_was_here is True
 
 
 def test_side_effect_list():

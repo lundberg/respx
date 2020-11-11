@@ -379,7 +379,7 @@ class Params(MultiItemsMixin, Pattern):
             _, url, *_ = request
             query = httpx.URL(url).query
 
-        return httpx.QueryParams(query)  # TODO: Cache params on request?
+        return httpx.QueryParams(query)
 
 
 class URL(Pattern):
@@ -417,7 +417,7 @@ class URL(Pattern):
         return url
 
 
-# TODO: Refactor this to register when subclassing
+# TODO: Refactor to registration when subclassing Pattern
 PATTERNS = {
     P.key: P
     for P in (
@@ -473,11 +473,14 @@ def combine(
 
 
 def parse_url_patterns(
-    url: Optional[Union[str, httpx.URL]], exact: bool = True
+    url: Optional[URLPatternTypes], exact: bool = True
 ) -> Dict[str, Pattern]:
     bases: Dict[str, Pattern] = {}
     if not url:
         return bases
+
+    if isinstance(url, RegexPattern):
+        return {"url": URL(url, Lookup.REGEX)}
 
     url = httpx.URL(url)
     scheme_port = get_scheme_port(url.scheme)
@@ -513,8 +516,8 @@ def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
             # Traverse pattern and set releated base
             for _pattern in patterns:
                 base = bases.pop(_pattern.key, None)
-                if base and base.lookup is Lookup.EQUAL:
-                    # Skip "exact" base, pattern lookup overrides
+                # Skip "exact" base + don't overwrite existing base
+                if _pattern.base or base and base.lookup is Lookup.EQUAL:
                     continue
                 _pattern.base = base
 

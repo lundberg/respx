@@ -1,5 +1,3 @@
-from warnings import warn
-
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
@@ -12,7 +10,7 @@ from .router import Router
 from .types import URL, AsyncResponse, Headers, SyncResponse
 
 
-class BaseMockTransport(Router):
+class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
     def request(
         self,
         method: bytes,
@@ -63,21 +61,3 @@ class BaseMockTransport(Router):
 
     async def aclose(self) -> None:
         self.close()
-
-
-class SyncMockTransport(BaseMockTransport, SyncHTTPTransport):
-    def __init__(self, **kwargs):
-        warn(
-            "SyncMockTransport is deprecated. Please, use MockTransport",
-            category=DeprecationWarning,
-        )
-        super().__init__(**kwargs)
-
-
-class AsyncMockTransport(BaseMockTransport, AsyncHTTPTransport):
-    def __init__(self, **kwargs):
-        warn(
-            "SyncMockTransport is deprecated. Please, use MockTransport",
-            category=DeprecationWarning,
-        )
-        super().__init__(**kwargs)

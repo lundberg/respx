@@ -1,22 +1,13 @@
-from typing import Any, Callable, Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 from .mocks import MockTransport
 from .models import CallList, Route
 from .patterns import Pattern
-from .types import (
-    ContentDataTypes,
-    DefaultType,
-    HeaderTypes,
-    JSONTypes,
-    QueryParamTypes,
-    URLPatternTypes,
-)
+from .types import DefaultType, URLPatternTypes
 
 mock = MockTransport(assert_all_called=False)
 
-aliases = mock.routes
 routes = mock.routes
-stats = mock.calls
 calls: CallList = mock.calls
 
 
@@ -60,275 +51,55 @@ def route(*patterns: Pattern, name: Optional[str] = None, **lookups: Any) -> Rou
     return mock.route(*patterns, name=name, **lookups)
 
 
-def add(
-    method: Union[str, Callable, Route],
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
-) -> Route:
+def add(route: Route, *, name: Optional[str] = None) -> Route:
     global mock
-    return mock.add(
-        method,
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.add(route, name=name)
 
 
 def get(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.get(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.get(url, name=name, **lookups)
 
 
 def post(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.post(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.post(url, name=name, **lookups)
 
 
 def put(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.put(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.put(url, name=name, **lookups)
 
 
 def patch(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.patch(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.patch(url, name=name, **lookups)
 
 
 def delete(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.delete(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.delete(url, name=name, **lookups)
 
 
 def head(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.head(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.head(url, name=name, **lookups)
 
 
 def options(
-    url: Optional[URLPatternTypes] = None,
-    *,
-    params: Optional[QueryParamTypes] = None,
-    status_code: Optional[int] = None,
-    headers: Optional[HeaderTypes] = None,
-    content_type: Optional[str] = None,
-    content: Optional[ContentDataTypes] = None,
-    text: Optional[str] = None,
-    html: Optional[str] = None,
-    json: Optional[JSONTypes] = None,
-    pass_through: bool = False,
-    alias: Optional[str] = None,
-    name: Optional[str] = None,
-    **lookups: Any,
+    url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:
     global mock
-    return mock.options(
-        url=url,
-        params=params,
-        status_code=status_code,
-        headers=headers,
-        content_type=content_type,
-        content=content,
-        text=text,
-        html=html,
-        json=json,
-        pass_through=pass_through,
-        alias=alias,
-        name=name,
-        **lookups,
-    )
+    return mock.options(url, name=name, **lookups)

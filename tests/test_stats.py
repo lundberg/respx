@@ -1,6 +1,5 @@
 import asyncio
 import re
-import warnings
 
 import httpx
 import pytest
@@ -13,12 +12,12 @@ from respx import MockTransport
 
 
 @pytest.mark.asyncio
-async def test_alias():
+async def test_named_route():
     async with MockTransport(assert_all_called=False) as respx_mock:
-        request = respx_mock.get("https://foo.bar/", content="foo bar", name="foobar")
-        assert "foobar" not in respx.aliases
-        assert "foobar" in respx_mock.aliases
-        assert respx_mock.aliases["foobar"] is request
+        request = respx_mock.get("https://foo.bar/", name="foobar")
+        assert "foobar" not in respx.routes
+        assert "foobar" in respx_mock.routes
+        assert respx_mock.routes["foobar"] is request
         assert respx_mock["foobar"] is request
 
 
@@ -30,8 +29,8 @@ def test_stats(Backend):
         respx.get(re.compile("https://some.thing"))
         respx.delete("https://some.thing")
 
-        foobar1 = respx.get(url, status_code=202, name="get_foobar", content="get")
-        foobar2 = respx.delete(url, status_code=200, name="del_foobar", content="del")
+        foobar1 = respx.get(url, name="get_foobar") % dict(status_code=202, text="get")
+        foobar2 = respx.delete(url, name="del_foobar") % dict(text="del")
 
         assert foobar1.called is False
         assert foobar1.call_count == len(foobar1.calls)
@@ -48,9 +47,7 @@ def test_stats(Backend):
         assert foobar2.called is True
         assert foobar1.call_count == 1
         assert foobar2.call_count == 1
-        with warnings.catch_warnings(record=True) as w:
-            assert foobar1.stats.call_count == 1
-            assert len(w) == 1
+        assert foobar1.calls.call_count == 1
 
         _request, _response = foobar1.calls[-1]
         assert isinstance(_request, httpx.Request)
@@ -61,7 +58,18 @@ def test_stats(Backend):
         assert _request.url == url
         assert _response.status_code == get_response.status_code == 202
         assert _response.content == get_response.content == b"get"
-        assert id(_response) != id(get_response)  # TODO: Fix this?
+        assert {
+            _response.status_code,
+            tuple(_response.headers.raw),
+            _response.stream,
+            tuple(_response.ext.items()),
+        } == {
+            get_response.status_code,
+            tuple(get_response.headers.raw),
+            get_response.stream,
+            tuple(get_response.ext.items()),
+        }
+        assert id(_response) != id(get_response)
 
         _request, _response = foobar2.calls[-1]
         assert isinstance(_request, httpx.Request)
@@ -70,24 +78,31 @@ def test_stats(Backend):
         assert _request.url == url
         assert _response.status_code == del_response.status_code == 200
         assert _response.content == del_response.content == b"del"
-        assert id(_response) != id(del_response)  # TODO: Fix this?
+        assert {
+            _response.status_code,
+            tuple(_response.headers.raw),
+            _response.stream,
+            tuple(_response.ext.items()),
+        } == {
+            del_response.status_code,
+            tuple(del_response.headers.raw),
+            del_response.stream,
+            tuple(del_response.ext.items()),
+        }
+        assert id(_response) != id(del_response)
 
         assert respx.calls.call_count == 2
         assert respx.calls[0] == foobar1.calls[-1]
         assert respx.calls[1] == foobar2.calls[-1]
 
-        with warnings.catch_warnings(record=True) as w:
-            assert respx.mock.stats.call_count == 2
-            assert len(w) == 1
+        assert respx.mock.calls.call_count == 2
+        assert respx.calls.call_count == 2
 
-            assert respx.stats.call_count == 2
-            assert len(w) == 1
-
-        route = respx.aliases["get_foobar"]
+        route = respx.routes["get_foobar"]
         assert route == foobar1
         assert route.name == foobar1.name
 
-        route = respx.aliases["del_foobar"]
+        route = respx.routes["del_foobar"]
         assert route == foobar2
         assert route.name == foobar2.name
 

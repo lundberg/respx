@@ -1,27 +1,10 @@
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Optional,
-    Pattern as Regex,
-    Tuple,
-    Union,
-    overload,
-)
-from warnings import warn
+from typing import Any, Dict, Optional, Tuple, Union, overload
 
 import httpx
 
-from .models import CallList, MockResponse, Route, SideEffectError
+from .models import CallList, Route, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
-from .types import (
-    ContentDataTypes,
-    DefaultType,
-    HeaderTypes,
-    JSONTypes,
-    QueryParamTypes,
-    URLPatternTypes,
-)
+from .types import DefaultType, URLPatternTypes
 
 
 class Router:
@@ -87,22 +70,6 @@ class Router:
             (route.called for route in self.routes.values())
         ), "RESPX: some mocked requests were not called!"
 
-    @property
-    def stats(self):
-        warn(
-            ".stats property is deprecated. Please, use .calls",
-            category=DeprecationWarning,
-        )
-        return self.calls
-
-    @property
-    def aliases(self):
-        warn(
-            ".aliases property is deprecated. Please, use .routes",
-            category=DeprecationWarning,
-        )
-        return self.routes
-
     def __getitem__(self, name: str) -> Optional[Route]:
         return self.routes.get(name)
 
@@ -131,108 +98,32 @@ class Router:
         self, *patterns: Pattern, name: Optional[str] = None, **lookups: Any
     ) -> Route:
         route = Route(*patterns, **lookups)
-        self.add(route, name=name)
-        return route
+        return self.add(route, name=name)
 
-    def add(
-        self,
-        route: Optional[Union[str, Route, Callable]] = None,
-        url: Optional[URLPatternTypes] = None,
-        *,
-        params: Optional[QueryParamTypes] = None,
-        method: Optional[str] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
-        name: Optional[str] = None,
-        **lookups: Any,
-    ) -> Route:
+    def add(self, route: Route, *, name: Optional[str] = None) -> Route:
         """
-        Adds a route with given mocked response details.
+        Adds a route with optionally given name,
+        replacing any existing route with same pattern.
         """
-        if callable(route) and not isinstance(route, Route):
-            route = Route(**lookups).mock(side_effect=route)
-
-        elif isinstance(route, str):
-            warn(
-                "Passing method as string to respx.add is deprecated. "
-                "Please, use respx.route(method=...) or respx.get(...)",
-                category=DeprecationWarning,
+        if not isinstance(route, Route):
+            raise ValueError(
+                f"Invalid route {route!r}, please use respx.route(...).mock(...)"
             )
-            method = route
-            route = None
-
-        if route is None:
-            url__lookup = "url__regex" if isinstance(url, Regex) else "url"
-            lookups.update({"method": method, url__lookup: url, "params": params})
-            route = Route(**lookups)
-
-        response = None
-        if (
-            status_code is not None
-            or headers is not None
-            or content_type is not None
-            or content is not None
-            or text is not None
-            or html is not None
-            or json is not None
-            or pass_through is True
-        ):
-            if route.side_effect:
-                raise NotImplementedError(
-                    "Mixing callback with response details is no longer supported"
-                )
-
-            warn(
-                "Response kwargs among request pattern kwargs is deprecated. "
-                "Please, use .respond(...) or % operator.",
-                category=DeprecationWarning,
-            )
-
-            response = MockResponse(
-                status_code,
-                headers=headers,
-                content_type=content_type,
-                content=content,
-                text=text,
-                html=html,
-                json=json,
-            )
-
-        if response:
-            route.return_value = response
-
-        if pass_through:
-            route.pass_through()
-
-        if alias:
-            warn(
-                'Route alias kwarg is deprecated. Please use name="".',
-                category=DeprecationWarning,
-            )
-            name = alias
-        if name:
-            route.name = name
 
         # Merge bases
         route.pattern = merge_patterns(route.pattern, **self._bases)
+        route.name = name
 
-        route_key = route.name or hash(route)
-        if route_key in self.routes:
+        route_id = route.name or hash(route)
+        if route_id in self.routes:
             # Identical route already exists, swap with new one
-            existing_route = self.routes[route_key]
+            existing_route = self.routes[route_id]
             existing_route.return_value = route.return_value
             existing_route.side_effect = route.side_effect
             existing_route._pass_through = route._pass_through
             route = existing_route
         else:
-            self.routes[route_key] = route
+            self.routes[route_id] = route
 
         return route
 
@@ -240,239 +131,64 @@ class Router:
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="GET",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="GET", url=url, name=name, **lookups)
 
     def post(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="POST",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="POST", url=url, name=name, **lookups)
 
     def put(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="PUT",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="PUT", url=url, name=name, **lookups)
 
     def patch(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="PATCH",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="PATCH", url=url, name=name, **lookups)
 
     def delete(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="DELETE",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="DELETE", url=url, name=name, **lookups)
 
     def head(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="HEAD",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="HEAD", url=url, name=name, **lookups)
 
     def options(
         self,
         url: Optional[URLPatternTypes] = None,
         *,
-        params: Optional[QueryParamTypes] = None,
-        status_code: Optional[int] = None,
-        headers: Optional[HeaderTypes] = None,
-        content_type: Optional[str] = None,
-        content: Optional[ContentDataTypes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
-        json: Optional[JSONTypes] = None,
-        pass_through: bool = False,
-        alias: Optional[str] = None,
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.add(
-            method="OPTIONS",
-            url=url,
-            params=params,
-            status_code=status_code,
-            headers=headers,
-            content_type=content_type,
-            content=content,
-            text=text,
-            html=html,
-            json=json,
-            pass_through=pass_through,
-            alias=alias,
-            name=name,
-            **lookups,
-        )
+        return self.route(method="OPTIONS", url=url, name=name, **lookups)
 
     def record(
         self,

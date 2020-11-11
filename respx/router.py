@@ -114,18 +114,22 @@ class Router:
         route.pattern = merge_patterns(route.pattern, **self._bases)
         route.name = name
 
-        route_id = route.name or hash(route)
-        if route_id in self.routes:
-            # Identical route already exists, swap with new one
-            existing_route = self.routes[route_id]
-            existing_route.return_value = route.return_value
-            existing_route.side_effect = route.side_effect
-            existing_route._pass_through = route._pass_through
-            route = existing_route
+        if route.id in self.routes:
+            route = self.replace(route)
         else:
-            self.routes[route_id] = route
+            self.routes[route.id] = route
 
         return route
+
+    def replace(self, route: Route) -> Route:
+        """
+        Replace existing route with same pattern, in same place (order).
+        """
+        existing_route = self.routes[route.id]
+        existing_route.return_value = route.return_value
+        existing_route.side_effect = route.side_effect
+        existing_route.pass_through(route.is_pass_through)
+        return existing_route
 
     def get(
         self,

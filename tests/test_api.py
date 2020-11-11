@@ -539,6 +539,9 @@ def test_add():
         with pytest.raises(ValueError):
             respx.add("GET")  # pragma: nocover
 
+        with pytest.raises(NotImplementedError):
+            route.name = "spam"
+
 
 def test_respond():
     with respx.mock:

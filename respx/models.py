@@ -102,11 +102,11 @@ class Route:
         **lookups: Any,
     ) -> None:
         self.pattern = M(*patterns, **lookups)
-        self.name: Optional[str] = None  # TODO: Add setter to prevent change
         self.calls = CallList()
         self._return_value: Optional[httpx.Response] = None
         self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: bool = False
+        self._name: Optional[str] = None
         self.snapshot()
 
     def __hash__(self):
@@ -138,6 +138,21 @@ class Route:
             )
 
         return self
+
+    @property
+    def id(self):
+        return self._name or hash(self)
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @name.setter
+    def name(self, name: str) -> None:
+        if self._name is None:
+            self._name = name
+        else:
+            raise NotImplementedError("Can't change name on route, use pop + add")
 
     @property
     def return_value(self) -> Optional[httpx.Response]:
@@ -305,7 +320,6 @@ class Route:
         elif self._return_value:
             result = self._return_value
 
-        # if result is None:
         else:
             # Auto mock a new response
             result = httpx.Response(200, request=request)

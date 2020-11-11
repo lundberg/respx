@@ -317,7 +317,7 @@ def test_side_effect_kwargs():
     assert response.json() == {"slug": "foobar"}
 ```
 
-A route can also be used to *decorate* a function to be used as *side effect*.
+A route can even *decorate* the function to be used as *side effect*.
 
 ``` python
 import httpx
@@ -331,15 +331,13 @@ def user_api(request, user):
 
 @respx.mock
 def test_user_api():
-    response = respx.get("https://example.org/lundberg/")
+    response = httpx.get("https://example.org/lundberg/")
     assert response.status_code == 200
     assert response.json() == {"user": "lundberg"}
     assert respx.routes["user"].called
 ```
 
 #### Exceptions
-
-To simulate a request error, a [httpx.HTTPError](https://www.python-httpx.org/exceptions/#the-exception-hierarchy) subclass, or any `Exception` instance, can be given as *side effect*.
 
 To simulate a request error, pass a [httpx.HTTPError](https://www.python-httpx.org/exceptions/#the-exception-hierarchy) *subclass*, or any `Exception`  as *side effect*.
 
@@ -358,8 +356,7 @@ def test_connection_error():
 
 #### Iterable
 
-If the *side effect* is an iterable, each repeated request will get the *next* response returned,
-or exception raised, from the iterable.
+If the side effect is an *iterable*, each repeated request will get the *next* [Response](api.md#response) returned, or [exception](#exceptions) raised, from the iterable.
 
 ``` python
 import httpx
@@ -396,7 +393,7 @@ response = httpx.get("https://example.org/")
 assert response.status_code == 204
 ```
 
-A `dict` used as *kwargs* to create a mocked `HTTPX` [Response](api.md#response):
+A `dict` used as *kwargs* to create a mocked `HTTPX` [Response](api.md#response), with status code `200` by default:
 ``` python
 respx.get("https://example.org/") % dict(json={"foo": "bar"})
 
@@ -405,7 +402,7 @@ assert response.status_code == 200
 assert response.json() == {"foo": "bar"}
 ```
 
-A mocked `HTTPX` [Response](api.md#response):
+A `HTTPX` [Response](api.md#response) object:
 ``` python
 respx.get("https://example.org/") % Response(418)
 
@@ -417,7 +414,7 @@ assert response.status_code == httpx.codes.IM_A_TEAPOT
 
 When exiting a [decorated](#using-the-decorator) test case, or [context manager](#using-the-context-manager), the routes and their mocked values, *i.e.* `return_value` and `side_effect`, will be *rolled back* and restored to their initial state.
 
-This means that you can modify existing routes, or add new ones, within a test case without affecting other tests.
+This means that you can safely modify existing routes, or add new ones, *within* a test case, without affecting other tests.
 
 ``` python
 import httpx

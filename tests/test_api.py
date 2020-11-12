@@ -391,7 +391,7 @@ async def test_external_pass_through(client):  # pragma: nocover
     with respx.mock:
         # Mock pass-through call
         url = "https://httpbin.org/post"
-        route = respx.post(url, json={"foo": "bar"}).pass_through()
+        route = respx.post(url, json__foo="bar").pass_through()
 
         # Make external pass-through call
         assert route.call_count == 0

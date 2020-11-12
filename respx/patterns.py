@@ -1,3 +1,4 @@
+import json as jsonlib
 import operator
 import re
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    List,
     Optional,
     Pattern as RegexPattern,
     Sequence,
@@ -417,6 +419,62 @@ class URL(Pattern):
         return url
 
 
+class ContentMixin:
+    def parse(self, request: RequestTypes) -> bytes:
+        if not isinstance(request, httpx.Request):
+            method, url, headers, stream = request
+            request = httpx.Request(
+                method, httpx.URL(url), headers=headers, stream=stream
+            )
+        content = request.read()
+        return content
+
+
+class Content(ContentMixin, Pattern):
+    lookups = (Lookup.EQUAL,)
+    key = "content"
+    value: bytes
+
+    def clean(self, value: Union[bytes, str]) -> bytes:
+        if isinstance(value, str):
+            return value.encode()
+        return value
+
+
+class JSON(ContentMixin, Pattern):
+    lookups = (Lookup.EQUAL,)
+    key = "json"
+    value: Union[str, List, Dict]
+
+    def __hash__(self):
+        return hash((self.__class__, self.lookup, self._hash))
+
+    def clean(self, value: Union[str, List, Dict]) -> Union[str, List, Dict]:
+        self._hash = self.dump(value)
+        return value
+
+    def parse(self, request: RequestTypes) -> bytes:
+        content = super().parse(request)
+        return jsonlib.loads(content.decode("utf-8"))
+
+    def dump(self, value: Union[str, List, Dict]) -> str:
+        return jsonlib.dumps(value, sort_keys=True)
+
+    def _eq(self, value: Any) -> Match:
+        return Match(self.dump(value) == self._hash)
+
+
+class Data(ContentMixin, Pattern):
+    lookups = (Lookup.EQUAL,)
+    key = "data"
+    value: bytes
+
+    def clean(self, value: Dict) -> bytes:
+        request = httpx.Request("POST", "/", data=value)
+        data = request.read()
+        return data
+
+
 # TODO: Refactor to registration when subclassing Pattern
 PATTERNS = {
     P.key: P
@@ -430,6 +488,9 @@ PATTERNS = {
         Path,
         Params,
         URL,
+        Content,
+        Data,
+        JSON,
     )
 }
 

@@ -4,8 +4,11 @@ import httpx
 import pytest
 
 from respx.patterns import (
+    JSON,
     URL,
+    Content,
     Cookies,
+    Data,
     Headers,
     Host,
     Lookup,
@@ -246,6 +249,48 @@ def test_url_pattern_hash():
     assert M(url="//foo.bar/baz/") == p
     p = Scheme("https") & Host("foo.bar") & Path("/baz/")
     assert M(url="https://foo.bar/baz/") == p
+
+
+@pytest.mark.parametrize(
+    "lookup,content,expected",
+    [
+        (Lookup.EQUAL, b"foobar", True),
+        (Lookup.EQUAL, "foobar", True),
+    ],
+)
+def test_content_pattern(lookup, content, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", content=b"foobar")
+    for request in (_request, encode(_request)):
+        match = Content(content, lookup=lookup).match(request)
+        assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    "lookup,data,expected",
+    [
+        (Lookup.EQUAL, {"foo": "bar", "ham": "spam"}, True),
+    ],
+)
+def test_data_pattern(lookup, data, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", data=data)
+    for request in (_request, encode(_request)):
+        match = Data(data, lookup=lookup).match(request)
+        assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    "lookup,json,expected",
+    [
+        (Lookup.EQUAL, {"ham": "spam", "foo": "bar"}, True),
+        (Lookup.EQUAL, [{"ham": "spam"}, {"foo": "bar"}], True),
+        (Lookup.EQUAL, "json-string", True),
+    ],
+)
+def test_json_pattern(lookup, json, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", json=json)
+    for request in (_request, encode(_request)):
+        match = JSON(json, lookup=lookup).match(request)
+        assert bool(match) is expected
 
 
 def test_invalid_pattern():

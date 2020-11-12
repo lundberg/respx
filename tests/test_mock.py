@@ -1,4 +1,3 @@
-import re
 from contextlib import ExitStack as does_not_raise
 
 import httpx
@@ -28,7 +27,7 @@ async def test_mock_request_fixture(client, my_mock):
     assert respx.calls.call_count == 0
     assert my_mock.calls.call_count == 0
     response = await client.get("https://httpx.mock/")
-    request = my_mock.aliases["index"]
+    request = my_mock.routes["index"]
     assert request.called is True
     assert response.is_error
     assert response.status_code == 404
@@ -40,7 +39,7 @@ async def test_mock_request_fixture(client, my_mock):
 async def test_mock_single_session_fixture(client, mocked_foo):
     current_foo_call_count = mocked_foo.calls.call_count
     response = await client.get("https://foo.api/api/bar/")
-    request = mocked_foo.aliases["bar"]
+    request = mocked_foo.routes["bar"]
     assert request.called is True
     assert response.status_code == 200
     assert mocked_foo.calls.call_count == current_foo_call_count + 1
@@ -52,12 +51,12 @@ async def test_mock_multiple_session_fixtures(client, mocked_foo, mocked_ham):
     current_ham_call_count = mocked_ham.calls.call_count
 
     response = await client.get("https://foo.api/api/")
-    request = mocked_foo.aliases["index"]
+    request = mocked_foo.routes["index"]
     assert request.called is True
     assert response.status_code == 202
 
     response = await client.get("https://ham.api/")
-    request = mocked_foo.aliases["index"]
+    request = mocked_foo.routes["index"]
     assert request.called is True
     assert response.status_code == 200
 
@@ -100,7 +99,7 @@ def test_local_sync_decorator():
     @respx.mock()
     def test(respx_mock):
         assert respx.calls.call_count == 0
-        request = respx_mock.get("https://foo.bar/", status_code=202)
+        request = respx_mock.get("https://foo.bar/") % 202
         response = httpx.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -117,7 +116,7 @@ async def test_local_async_decorator(client):
     @respx.mock()
     async def test(respx_mock):
         assert respx.calls.call_count == 0
-        request = respx_mock.get("https://foo.bar/", status_code=202)
+        request = respx_mock.get("https://foo.bar/") % 202
         response = await client.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -132,7 +131,7 @@ async def test_local_async_decorator(client):
 async def test_global_contextmanager(client):
     with respx.mock:
         assert respx.calls.call_count == 0
-        request = respx.get("https://foo/bar/", status_code=202)
+        request = respx.get("https://foo/bar/") % 202
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -140,7 +139,7 @@ async def test_global_contextmanager(client):
 
     async with respx.mock:
         assert respx.calls.call_count == 0
-        request = respx.get("https://foo/bar/", status_code=202)
+        request = respx.get("https://foo/bar/") % 202
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -153,7 +152,7 @@ async def test_global_contextmanager(client):
 async def test_local_contextmanager(client):
     with respx.mock() as respx_mock:
         assert respx_mock.calls.call_count == 0
-        request = respx_mock.get("https://foo/bar/", status_code=202)
+        request = respx_mock.get("https://foo/bar/") % 202
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -162,7 +161,7 @@ async def test_local_contextmanager(client):
 
     async with respx.mock() as respx_mock:
         assert respx_mock.calls.call_count == 0
-        request = respx_mock.get("https://foo/bar/", status_code=202)
+        request = respx_mock.get("https://foo/bar/") % 202
         response = await client.get("https://foo/bar/")
         assert request.called is True
         assert response.status_code == 202
@@ -175,10 +174,10 @@ async def test_local_contextmanager(client):
 @pytest.mark.asyncio
 async def test_nested_local_contextmanager(client):
     with respx.mock() as respx_mock_1:
-        get_request = respx_mock_1.get("https://foo/bar/", status_code=202)
+        get_request = respx_mock_1.get("https://foo/bar/") % 202
 
         with respx.mock() as respx_mock_2:
-            post_request = respx_mock_2.post("https://foo/bar/", status_code=201)
+            post_request = respx_mock_2.post("https://foo/bar/") % 201
 
             response = await client.get("https://foo/bar/")
             assert get_request.called is True
@@ -198,10 +197,10 @@ async def test_nested_local_contextmanager(client):
 @pytest.mark.asyncio
 async def test_nested_global_contextmanager(client):
     with respx.mock:
-        get_request = respx.get("https://foo/bar/", status_code=202)
+        get_request = respx.get("https://foo/bar/") % 202
 
         with respx.mock:
-            post_request = respx.post("https://foo/bar/", status_code=201)
+            post_request = respx.post("https://foo/bar/") % 201
 
             response = await client.get("https://foo/bar/")
             assert get_request.called is True
@@ -278,10 +277,10 @@ async def test_configured_router_reuse(client):
 @pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
 async def test_nested_base_url(respx_mock=None):
-    request = respx_mock.patch("/egg/", content="yolk")
+    request = respx_mock.patch("/egg/") % dict(content="yolk")
     async with respx.mock(base_url="https://foo.bar/api/") as foobar_mock:
-        request1 = foobar_mock.get("/baz/", content="baz")
-        request2 = foobar_mock.post(re.compile(r"(?P<slug>\w+)/?$"), content="slug")
+        request1 = foobar_mock.get("/baz/") % dict(content="baz")
+        request2 = foobar_mock.post(path__regex=r"(?P<slug>\w+)/?$") % dict(text="slug")
         request3 = foobar_mock.route() % dict(content="ok")
         request4 = foobar_mock.head("http://localhost/apa/") % 204
 
@@ -309,9 +308,11 @@ async def test_nested_base_url(respx_mock=None):
 
 @pytest.mark.asyncio
 async def test_start_stop(client):
-    url = "https://foo.bar/"
-    request = respx.add("GET", url, status_code=202)
     assert respx.calls.call_count == 0
+    assert len(respx.routes) == 0
+
+    url = "https://foo.bar/"
+    request = respx.get(url) % 202
 
     try:
         respx.start()
@@ -352,8 +353,8 @@ async def test_start_stop(client):
 async def test_assert_all_called(client, assert_all_called, do_post, raises):
     with raises:
         async with MockTransport(assert_all_called=assert_all_called) as respx_mock:
-            request1 = respx_mock.get("https://foo.bar/1/", status_code=404)
-            request2 = respx_mock.post("https://foo.bar/", status_code=201)
+            request1 = respx_mock.get("https://foo.bar/1/") % 404
+            request2 = respx_mock.post("https://foo.bar/") % 201
 
             await client.get("https://foo.bar/1/")
             if do_post:
@@ -387,9 +388,9 @@ async def test_asgi():
     async with respx.mock:
         async with httpx.AsyncClient(app="fake-asgi") as client:
             url = "https://foo.bar/"
-            content = lambda request: {"status": "ok"}
+            jzon = {"status": "ok"}
             headers = {"X-Foo": "bar"}
-            request = respx.get(url, status_code=202, headers=headers, content=content)
+            request = respx.get(url) % dict(status_code=202, headers=headers, json=jzon)
             response = await client.get(url)
             assert request.called is True
             assert response.status_code == 202
@@ -402,13 +403,13 @@ async def test_asgi():
 @pytest.mark.asyncio
 async def test_proxies():
     with respx.mock:
-        respx.get("https://foo.bar/", content={"foo": "bar"})
+        respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
         with httpx.Client(proxies={"https://": "https://1.1.1.1:1"}) as client:
             response = client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 
     async with respx.mock:
-        respx.get("https://foo.bar/", content={"foo": "bar"})
+        respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
         async with httpx.AsyncClient(
             proxies={"https://": "https://1.1.1.1:1"}
         ) as client:
@@ -421,7 +422,7 @@ async def test_proxies():
 async def test_uds():  # pragma: no cover
     async with respx.mock:
         async with httpx.AsyncClient(uds="/foo/bar.sock") as client:
-            request = respx.get("https://foo.bar/", status_code=202)
+            request = respx.get("https://foo.bar/") % 202
             response = await client.get("https://foo.bar/")
             assert request.called is True
             assert response.status_code == 202

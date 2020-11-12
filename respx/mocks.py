@@ -1,14 +1,15 @@
 import inspect
 from functools import partial, wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from types import TracebackType
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 from unittest import mock
 
-from .transports import BaseMockTransport
+from .transports import RouterTransport
 
 __all__ = ["MockTransport"]
 
 
-class MockTransport(BaseMockTransport):
+class MockTransport(RouterTransport):
     _local = False
     _patches: List[mock._patch] = []
     transports: List["MockTransport"] = []
@@ -79,8 +80,13 @@ class MockTransport(BaseMockTransport):
         self.start()
         return self
 
-    def __exit__(self, exception_type: Optional[Exception], *args: Any) -> None:
-        self.stop(quiet=bool(exception_type is not None))
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None,
+    ) -> None:
+        self.stop(quiet=bool(exc_type is not None))
 
     async def __aenter__(self) -> "MockTransport":
         return self.__enter__()
@@ -106,8 +112,8 @@ class MockTransport(BaseMockTransport):
         started = bool(self in self.transports)
 
         try:
-            if started and not quiet and self._assert_all_called:
-                self.assert_all_called()
+            if started and not quiet:
+                self.close()
         finally:
             # Idempotent check, i.e. already started
             if started:

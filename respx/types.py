@@ -62,10 +62,7 @@ CookieTypes = Union[Dict[str, str], Sequence[Tuple[str, str]]]
 
 DefaultType = TypeVar("DefaultType", bound=Any)
 
-Kwargs = Dict[str, Any]
 URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
-JSONTypes = Union[str, List, Dict]
-ContentDataTypes = Union[bytes, str, JSONTypes, Callable, Exception]
 QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 RequestTypes = Union[Request, httpx.Request]
 SideEffectListTypes = Union[httpx.Response, Exception, Type[Exception]]

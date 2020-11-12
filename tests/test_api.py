@@ -279,7 +279,6 @@ async def test_callable_content(client):
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
 
         def content_callback(request, slug):
-            request.read()
             content = jsonlib.loads(request.content)
             return respx.MockResponse(text=f"hello {slug}{content['x']}")
 
@@ -303,7 +302,6 @@ async def test_callable_content(client):
 @pytest.mark.asyncio
 async def test_request_callback(client):
     def callback(request, name):
-        request.read()
         if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
             return respx.MockResponse(
                 202,

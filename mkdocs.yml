@@ -18,6 +18,11 @@ nav:
   - User Guide: "guide.md"
   - API Reference: "api.md"
   - Test Case Examples: "examples.md"
+  - Upgrading: "upgrade.md"
+  - Older Versions:
+    - 0.14.0:
+      - Mock HTTPX: "versions/0.14.0/mocking.md"
+      - Developer Interface: "versions/0.14.0/api.md"
 
 markdown_extensions:
   - admonition

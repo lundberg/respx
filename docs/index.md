@@ -33,6 +33,9 @@ def test_example():
 > Read the [User Guide](guide.md) for a complete walk-through.
 
 
+!!! attention "Warning"
+    As of RESPX version `0.15.0`, the API has changed, kept with deprecation warnings, but will break backward compatibility in `0.16.0`. Read the [Upgrade Guide](upgrade.md) for an easier transision to current release.
+
 ## Installation
 
 Install with pip:

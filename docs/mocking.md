@@ -11,4 +11,4 @@ i.e. `respx.route(path__regex=...)`
 A captured request, [matching](guide.md#routing-requests) a `Route`, resolves to a [mocked](guide.md#mock-a-response) `httpx.Response`, or triggers a given [side effect](guide.md#mock-with-a-side-effect).
 To skip mocking a specific request, a route can be marked to [pass through](guide.md#pass-through).
 
-> Read the [User Guide](#guide) for a complete walk-through.
+> Read the [User Guide](guide.md) for a complete walk-through.

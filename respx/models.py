@@ -1,5 +1,16 @@
 from collections.abc import Iterator
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from unittest import mock
 
 import httpx
@@ -107,6 +118,7 @@ class Route:
         self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: bool = False
         self._name: Optional[str] = None
+        self._snapshots: List[Tuple] = []
         self.snapshot()
 
     def __hash__(self):
@@ -178,20 +190,35 @@ class Route:
             self._side_effect = side_effect
 
     def snapshot(self) -> None:
-        self.__return_value = self._return_value
-        self.__side_effect = self._side_effect
-        self.__pass_through = self._pass_through
-        self._calls = CallList(self.calls)
+        # Clone iterator-type side effect to not get pre-exhausted when rolled back
+        side_effect = self._side_effect
+        if isinstance(side_effect, Iterator):
+            side_effects = tuple(side_effect)
+            self._side_effect = iter(side_effects)
+            side_effect = iter(side_effects)
 
-    def rollback(self, reset: bool = True) -> None:
-        self._return_value = self.__return_value
-        self._side_effect = self.__side_effect
-        self._pass_through = self.__pass_through
-        if reset:
-            self.reset()
+        self._snapshots.append(
+            (
+                self._return_value,
+                side_effect,
+                self._pass_through,
+                CallList(self.calls),
+            ),
+        )
+
+    def rollback(self) -> None:
+        if not self._snapshots:
+            return
+
+        return_value, side_effect, pass_through, calls = self._snapshots.pop()
+
+        self._return_value = return_value
+        self._side_effect = side_effect
+        self.pass_through(pass_through)
+        self.calls[:] = calls
 
     def reset(self) -> None:
-        self.calls[:] = self._calls
+        self.calls.clear()
 
     def mock(
         self,

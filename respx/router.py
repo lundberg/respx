@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import httpx
 
@@ -18,9 +18,11 @@ class Router:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._bases = parse_url_patterns(base_url, exact=False)
+        self._snapshots: List[Tuple] = []
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
+
         self.snapshot()
 
     def clear(self) -> None:
@@ -34,34 +36,36 @@ class Router:
         Snapshots current routes and calls state.
         """
         # Snapshot current routes and calls
-        self._routes = dict(self.routes)
-        self._calls = CallList(self.calls)
+        routes = dict(self.routes)
+        calls = CallList(self.calls)
+        self._snapshots.append((routes, calls))
 
         # Snapshot each route state
-        for route in self._routes.values():
+        for route in routes.values():
             route.snapshot()
 
-    def rollback(self, reset: bool = True) -> None:
+    def rollback(self) -> None:
         """
         Rollbacks routes, and optionally calls, to snapshot state.
         """
-        # Revert added routes to snapshot
+        if not self._snapshots:
+            return
+
+        # Revert added routes and calls to last snapshot
+        routes, calls = self._snapshots.pop()
         self.routes.clear()
-        self.routes.update(self._routes)
+        self.routes.update(routes)
+        self.calls[:] = calls
 
-        # Revert each route state to snapshot
+        # Revert each route state to last snapshot
         for route in self.routes.values():
-            route.rollback(reset=False)
-
-        # Reset call stats to snapshot
-        if reset:
-            self.reset()
+            route.rollback()
 
     def reset(self) -> None:
         """
-        Resets call stats to snapshot state.
+        Resets call stats.
         """
-        self.calls[:] = self._calls
+        self.calls.clear()
         for route in self.routes.values():
             route.reset()
 

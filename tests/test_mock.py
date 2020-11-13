@@ -178,6 +178,8 @@ async def test_nested_local_contextmanager(client):
 
         with respx.mock() as respx_mock_2:
             post_request = respx_mock_2.post("https://foo/bar/") % 201
+            assert len(respx_mock_1.routes) == 1
+            assert len(respx_mock_2.routes) == 1
 
             response = await client.get("https://foo/bar/")
             assert get_request.called is True
@@ -193,14 +195,18 @@ async def test_nested_local_contextmanager(client):
             assert respx_mock_1.calls.call_count == 1
             assert respx_mock_2.calls.call_count == 1
 
+    assert len(respx.routes) == 0
+
 
 @pytest.mark.asyncio
 async def test_nested_global_contextmanager(client):
     with respx.mock:
         get_request = respx.get("https://foo/bar/") % 202
+        assert len(respx.routes) == 1
 
         with respx.mock:
             post_request = respx.post("https://foo/bar/") % 201
+            assert len(respx.routes) == 2
 
             response = await client.get("https://foo/bar/")
             assert get_request.called is True
@@ -211,6 +217,10 @@ async def test_nested_global_contextmanager(client):
             assert post_request.called is True
             assert response.status_code == 201
             assert respx.calls.call_count == 2
+
+        assert len(respx.routes) == 1
+
+    assert len(respx.routes) == 0
 
 
 @pytest.mark.asyncio
@@ -306,12 +316,16 @@ async def test_nested_base_url(respx_mock=None):
             assert response.text == "yolk"
 
 
+def test_leakage(mocked_foo, mocked_ham):
+    # NOTE: Including session fixtures, since they are pre-registered transports
+    assert len(respx.routes) == 0
+    assert len(respx.calls) == 0
+    assert len(MockTransport.transports) == 2
+
+
 @pytest.mark.asyncio
 async def test_start_stop(client):
-    assert respx.calls.call_count == 0
-    assert len(respx.routes) == 0
-
-    url = "https://foo.bar/"
+    url = "https://start.stop/"
     request = respx.get(url) % 202
 
     try:
@@ -335,9 +349,8 @@ async def test_start_stop(client):
         respx.clear()
         assert len(respx.routes) == 0
 
-    except Exception:  # pragma: nocover
+    finally:  # pragma: nocover
         respx.stop()  # Cleanup global state on error, to not affect other tests
-        raise
 
 
 @pytest.mark.asyncio

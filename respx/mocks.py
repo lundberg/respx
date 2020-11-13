@@ -96,18 +96,16 @@ class MockTransport(RouterTransport):
 
     def start(self) -> None:
         """
-        Register transport and start patching.
+        Register transport, snapshot router and start patching.
         """
-        # Idempotent check, i.e. already started
-        if self not in self.transports:
-            self.snapshot()
-            self.transports.append(self)
-
+        self.snapshot()
+        self.transports.append(self)
         self._patch()
 
     def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
-        Unregister transport and stop patching, when no registered transports left.
+        Unregister transport and rollback router.
+        Stop patching when no registered transports left.
         """
         started = bool(self in self.transports)
 
@@ -115,12 +113,11 @@ class MockTransport(RouterTransport):
             if started and not quiet:
                 self.close()
         finally:
-            # Idempotent check, i.e. already started
-            if started:
-                if clear:
-                    self.rollback(reset=False)
-                if reset:
-                    self.reset()
+            if clear:
+                self.rollback()
+            if reset:
+                self.reset()
+            if started:  # Idempotent check, i.e. already started
                 self.transports.remove(self)
 
             self._unpatch()

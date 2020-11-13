@@ -34,7 +34,7 @@ def test_example():
 
 
 !!! attention "Warning"
-    As of RESPX version `0.15.0`, the API has changed, kept with deprecation warnings, but will break backward compatibility in `0.16.0`. Read the [Upgrade Guide](upgrade.md) for an easier transision to current release.
+    As of RESPX version `0.15.0`, the API has changed, but kept with **deprecation** warnings, later to be **broken** for backward compatibility in `0.16.0`. Read the [Upgrade Guide](upgrade.md) for an easier transision to latest release.
 
 ## Installation
 

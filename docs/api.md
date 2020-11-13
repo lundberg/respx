@@ -267,6 +267,36 @@ respx.get(url__regex=r"https://example.org/(?P<slug>\w+)/")
 respx.get(url__startswith="https://example.org/api/")
 ```
 
+### Content
+Matches request raw *content*, using [eq](#eq) as default lookup.
+> Key: `content`  
+> Lookups: [eq](#eq)
+``` python
+respx.post("https://example.org/", content="foobar")
+respx.post("https://example.org/", content=b"foobar")
+```
+
+### Data
+Matches request *form data*, using [eq](#eq) as default lookup.
+> Key: `data`  
+> Lookups: [eq](#eq)
+``` python
+respx.post("https://example.org/", data={"foo": "bar"})
+```
+
+### JSON
+Matches request *json* content, using [eq](#eq) as default lookup.
+> Key: `json`  
+> Lookups: [eq](#eq)
+``` python
+respx.post("https://example.org/", json={"foo": "bar"})
+```
+The `json` pattern also supports path traversing, *i.e.* `json__<path>=<value>`.
+``` python
+respx.post("https://example.org/", json__foobar__0__ham="spam")
+httpx.post("https://example.org/", json={"foobar": [{"ham": "spam"}]})
+```
+
 ### Headers
 Matches request *headers*, using [contains](#contains) as default lookup.
 > Key: `headers`  

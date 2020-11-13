@@ -4,8 +4,11 @@ import httpx
 import pytest
 
 from respx.patterns import (
+    JSON,
     URL,
+    Content,
     Cookies,
+    Data,
     Headers,
     Host,
     Lookup,
@@ -248,10 +251,106 @@ def test_url_pattern_hash():
     assert M(url="https://foo.bar/baz/") == p
 
 
+@pytest.mark.parametrize(
+    "lookup,content,expected",
+    [
+        (Lookup.EQUAL, b"foobar", True),
+        (Lookup.EQUAL, "foobar", True),
+    ],
+)
+def test_content_pattern(lookup, content, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", content=b"foobar")
+    for request in (_request, encode(_request)):
+        match = Content(content, lookup=lookup).match(request)
+        assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    "lookup,data,expected",
+    [
+        (Lookup.EQUAL, {"foo": "bar", "ham": "spam"}, True),
+    ],
+)
+def test_data_pattern(lookup, data, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", data=data)
+    for request in (_request, encode(_request)):
+        match = Data(data, lookup=lookup).match(request)
+        assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    "lookup,value,json,expected",
+    [
+        (
+            Lookup.EQUAL,
+            {"foo": "bar", "ham": "spam"},
+            {"ham": "spam", "foo": "bar"},
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"foo": "bar", "ham": "spam"},
+            {"egg": "yolk", "foo": "bar"},
+            False,
+        ),
+        (
+            Lookup.EQUAL,
+            [{"ham": "spam", "egg": "yolk"}, {"zoo": "apa", "foo": "bar"}],
+            [{"egg": "yolk", "ham": "spam"}, {"foo": "bar", "zoo": "apa"}],
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            [{"ham": "spam"}, {"foo": "bar"}],
+            [{"foo": "bar"}, {"ham": "spam"}],
+            False,
+        ),
+        (Lookup.EQUAL, "json-string", "json-string", True),
+        (
+            Lookup.EQUAL,
+            {"foo": "bar", "ham": "spam"},
+            {"ham": "spam", "foo": "bar"},
+            True,
+        ),
+    ],
+)
+def test_json_pattern(lookup, value, json, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", json=json)
+    for request in (_request, encode(_request)):
+        match = JSON(value, lookup=lookup).match(request)
+        assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    "json,path,value,expected",
+    [
+        ({"foo": {"bar": "baz"}}, "foo__bar", "baz", True),
+        ({"x": {"z": 2, "y": 1}}, "x", {"y": 1, "z": 2}, True),
+        ({"ham": [{"spam": "spam"}, {"egg": "yolk"}]}, "ham__1__egg", "yolk", True),
+        ([{"name": "jonas"}], "0__name", "jonas", True),
+        ({"pk": 123}, "pk", 123, True),
+        ({"foo": {"bar": "baz"}}, "foo__ham", "spam", KeyError),
+        ([{"name": "lundberg"}], "1__name", "lundberg", IndexError),
+    ],
+)
+def test_json_pattern_path(json, path, value, expected):
+    _request = httpx.Request("POST", "https://foo.bar/", json=json)
+    for request in (_request, encode(_request)):
+        pattern = M(**{f"json__{path}": value})
+        if type(expected) is bool:
+            match = pattern.match(request)
+            assert bool(match) is expected
+        elif issubclass(expected, Exception):
+            with pytest.raises(expected):
+                pattern.match(request)
+        else:
+            raise AssertionError()  # pragma: nocover
+
+
 def test_invalid_pattern():
     with pytest.raises(KeyError, match="is not a valid Pattern"):
         M(foo="baz")
-    with pytest.raises(NotImplementedError, match="is not a valid Lookup"):
+    with pytest.raises(NotImplementedError, match="pattern does not support"):
         Scheme("http", Lookup.REGEX)
     with pytest.raises(ValueError, match="is not a valid Lookup"):
         M(scheme__baz="zoo")

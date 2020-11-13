@@ -21,6 +21,12 @@ class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
     ) -> SyncResponse:
         raw_request = (method, url, headers, stream)
         request = decode_request(raw_request)
+
+        # Pre-read request
+        request.read()
+        stream = request.stream  # type: ignore
+
+        # Resolve response
         response = self.resolve(request)
 
         if response is None:
@@ -43,6 +49,12 @@ class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
     ) -> AsyncResponse:
         raw_request = (method, url, headers, stream)
         request = decode_request(raw_request)
+
+        # Pre-read request
+        await request.aread()
+        stream = request.stream  # type: ignore
+
+        # Resolve response
         response = self.resolve(request)
 
         if response is None:

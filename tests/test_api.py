@@ -279,7 +279,6 @@ async def test_callable_content(client):
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
 
         def content_callback(request, slug):
-            request.read()
             content = jsonlib.loads(request.content)
             return respx.MockResponse(text=f"hello {slug}{content['x']}")
 
@@ -303,7 +302,6 @@ async def test_callable_content(client):
 @pytest.mark.asyncio
 async def test_request_callback(client):
     def callback(request, name):
-        request.read()
         if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
             return respx.MockResponse(
                 202,
@@ -393,15 +391,7 @@ async def test_external_pass_through(client):  # pragma: nocover
     with respx.mock:
         # Mock pass-through call
         url = "https://httpbin.org/post"
-        route = respx.post(url).respond(content=b"").pass_through()
-
-        # Mock a non-matching callback pattern pre-reading request data
-        def callback(req):
-            req.read()
-            assert req.content == b'{"foo": "bar"}'
-            return None
-
-        respx.add(callback)
+        route = respx.post(url, json__foo="bar").pass_through()
 
         # Make external pass-through call
         assert route.call_count == 0
@@ -560,3 +550,22 @@ def test_respond():
 
         with pytest.raises(ValueError, match="content can only be"):
             route.respond(content=Exception())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"content": b"foobar"},
+        {"content": "foobar"},
+        {"json": {"foo": "bar"}},
+        {"json": [{"foo": "bar", "ham": "spam"}, {"zoo": "apa", "egg": "yolk"}]},
+        {"data": {"animal": "Räv", "name": "Röda Räven"}},
+    ],
+)
+async def test_async_post_content(kwargs):
+    async with respx.mock:
+        respx.post("https://foo.bar/", **kwargs) % 201
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://foo.bar/", **kwargs)
+            assert response.status_code == 201

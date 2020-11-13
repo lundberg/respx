@@ -1,3 +1,4 @@
+import json as jsonlib
 import operator
 import re
 from enum import Enum
@@ -7,11 +8,13 @@ from typing import (
     Any,
     Callable,
     Dict,
+    List,
     Optional,
     Pattern as RegexPattern,
     Sequence,
     Set,
     Tuple,
+    Type,
     Union,
 )
 from urllib.parse import urljoin
@@ -53,15 +56,16 @@ class Match:
 
 class Pattern:
     lookups: Tuple[Lookup, ...] = (Lookup.EQUAL,)
-    lookup: Lookup
     key: str
+
+    lookup: Lookup
     base: Optional["Pattern"]
     value: Any
 
     def __init__(self, value: Any, lookup: Optional[Lookup] = None) -> None:
         if lookup and lookup not in self.lookups:
             raise NotImplementedError(
-                f"{lookup.value!r} is not a valid Lookup for {self.__class__.__name__!r}"
+                f"{self.key!r} pattern does not support {lookup.value!r} lookup"
             )
         self.lookup = lookup or self.lookups[0]
         self.base = None
@@ -136,6 +140,16 @@ class Pattern:
 
     def _in(self, value: Any) -> Match:
         return Match(value in self.value)
+
+
+class PathPattern(Pattern):
+    path: Optional[str]
+
+    def __init__(
+        self, value: Any, lookup: Optional[Lookup] = None, *, path: Optional[str] = None
+    ) -> None:
+        self.path = path
+        super().__init__(value, lookup)
 
 
 class _And(Pattern):
@@ -417,9 +431,73 @@ class URL(Pattern):
         return url
 
 
+class ContentMixin:
+    def parse(self, request: RequestTypes) -> Any:
+        if not isinstance(request, httpx.Request):
+            method, url, headers, stream = request
+            request = httpx.Request(
+                method, httpx.URL(url), headers=headers, stream=stream
+            )
+        content = request.read()
+        return content
+
+
+class Content(ContentMixin, Pattern):
+    lookups = (Lookup.EQUAL,)
+    key = "content"
+    value: bytes
+
+    def clean(self, value: Union[bytes, str]) -> bytes:
+        if isinstance(value, str):
+            return value.encode()
+        return value
+
+
+class JSON(ContentMixin, PathPattern):
+    lookups = (Lookup.EQUAL,)
+    key = "json"
+    value: str
+
+    def clean(self, value: Union[str, List, Dict]) -> str:
+        return self.hash(value)
+
+    def parse(self, request: RequestTypes) -> str:
+        content = super().parse(request)
+        json = jsonlib.loads(content.decode("utf-8"))
+
+        if self.path:
+            value = json
+            for bit in self.path.split("__"):
+                key = int(bit) if bit.isdigit() else bit
+                try:
+                    value = value[key]
+                except KeyError as e:
+                    raise KeyError(f"{self.path!r} not in {json!r}") from e
+                except IndexError as e:
+                    raise IndexError(f"{self.path!r} not in {json!r}") from e
+        else:
+            value = json
+
+        return self.hash(value)
+
+    def hash(self, value: Union[str, List, Dict]) -> str:
+        return jsonlib.dumps(value, sort_keys=True)
+
+
+class Data(ContentMixin, Pattern):
+    lookups = (Lookup.EQUAL,)
+    key = "data"
+    value: bytes
+
+    def clean(self, value: Dict) -> bytes:
+        request = httpx.Request("POST", "/", data=value)
+        data = request.read()
+        return data
+
+
 # TODO: Refactor to registration when subclassing Pattern
-PATTERNS = {
-    P.key: P
+PATTERNS: Dict[str, Type[Union[Pattern, PathPattern]]] = {
+    P.key: P  # type: ignore
     for P in (
         Method,
         Headers,
@@ -430,6 +508,9 @@ PATTERNS = {
         Path,
         Params,
         URL,
+        Content,
+        Data,
+        JSON,
     )
 }
 
@@ -441,22 +522,42 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
         if not value:
             continue
 
+        # Handle url pattern
         if pattern__lookup == "url":
             extras = parse_url_patterns(value)
             continue
 
-        pattern_key, __, lookup_value = pattern__lookup.partition("__")
+        # Parse pattern key and lookup
+        pattern_key, __, rest = pattern__lookup.partition("__")
+        path, __, lookup_name = rest.rpartition("__")
         if pattern_key not in PATTERNS:
             raise KeyError(f"{pattern_key!r} is not a valid Pattern")
 
-        lookup = None if not lookup_value else Lookup(lookup_value)
-        pattern = PATTERNS[pattern_key](value, lookup=lookup)
+        # Get pattern class
+        P = PATTERNS[pattern_key]
+        pattern: Union[Pattern, PathPattern]
+
+        if issubclass(P, PathPattern):
+            # Make path supported pattern, i.e. JSON
+            try:
+                lookup = Lookup(lookup_name) if lookup_name else None
+            except ValueError:
+                lookup = None
+                path = rest
+            pattern = P(value, lookup=lookup, path=path)
+        else:
+            # Make regular pattern
+            lookup = Lookup(lookup_name) if lookup_name else None
+            pattern = P(value, lookup=lookup)
+
         patterns += (pattern,)
 
-    pattern = combine(patterns)
+    # Combine and merge patterns
+    combined_pattern = combine(patterns)
     if extras:
-        pattern = merge_patterns(pattern, **extras)
-    return pattern
+        combined_pattern = merge_patterns(combined_pattern, **extras)
+
+    return combined_pattern
 
 
 def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
@@ -480,7 +581,7 @@ def parse_url_patterns(
         return bases
 
     if isinstance(url, RegexPattern):
-        return {"url": URL(url, Lookup.REGEX)}
+        return {"url": URL(url, lookup=Lookup.REGEX)}
 
     url = httpx.URL(url)
     scheme_port = get_scheme_port(url.scheme)

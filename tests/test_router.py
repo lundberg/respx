@@ -232,32 +232,62 @@ def test_rollback():
     router = Router()
     route = router.get("https://foo.bar/") % 404
 
-    router.snapshot()
+    router.snapshot()  # 1. get 404
+
+    route.return_value = httpx.Response(200)
+    router.post("https://foo.bar/").mock(
+        side_effect=[httpx.Response(400), httpx.Response(201)]
+    )
+
+    router.snapshot()  # 2. get 200, post
 
     route.return_value = httpx.Response(418)
-    router.post("https://foo.bar/")
-
     request = httpx.Request("GET", "https://foo.bar")
     response = router.resolve(request)
     assert response.status_code == 418
 
+    request = httpx.Request("POST", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 400
+
     assert len(router.routes) == 2
-    assert router.calls.call_count == 1
+    assert router.calls.call_count == 2
     assert route.call_count == 1
     assert route.return_value.status_code == 418
 
-    route.rollback()
+    router.patch("https://foo.bar/")
+    assert len(router.routes) == 3
 
-    assert len(router.routes) == 2
-    assert router.calls.call_count == 1
+    route.rollback()  # get 200
+
+    assert router.calls.call_count == 2
     assert route.call_count == 0
-    assert route.return_value.status_code == 404
+    assert route.return_value.status_code == 200
 
     request = httpx.Request("GET", "https://foo.bar")
     response = router.resolve(request)
-    assert response.status_code == 404
+    assert response.status_code == 200
 
-    router.rollback()
+    router.rollback()  # 2. get 404, post
+
+    request = httpx.Request("POST", "https://foo.bar")
+    response = router.resolve(request)
+    assert response.status_code == 400
+    assert len(router.routes) == 2
+
+    router.rollback()  # 1. get 404
 
     assert len(router.routes) == 1
     assert router.calls.call_count == 0
+    assert route.return_value is None
+
+    router.rollback()  # Empty inital state
+
+    assert len(router.routes) == 0
+    assert route.return_value is None
+
+    # Idempotent
+    route.rollback()
+    router.rollback()
+    assert len(router.routes) == 0
+    assert route.return_value is None

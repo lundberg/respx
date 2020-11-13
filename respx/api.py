@@ -1,11 +1,11 @@
 from typing import Any, Optional, Union, overload
 
-from .mocks import MockTransport
+from .mocks import MockRouter
 from .models import CallList, Route
 from .patterns import Pattern
 from .types import DefaultType, URLPatternTypes
 
-mock = MockTransport(assert_all_called=False)
+mock = MockRouter(assert_all_called=False)
 
 routes = mock.routes
 calls: CallList = mock.calls

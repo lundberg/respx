@@ -8,12 +8,12 @@ from httpcore._backends.asyncio import AsyncioBackend
 from httpcore._backends.trio import TrioBackend
 
 import respx
-from respx import MockTransport
+from respx.mocks import MockRouter
 
 
 @pytest.mark.asyncio
 async def test_named_route():
-    async with MockTransport(assert_all_called=False) as respx_mock:
+    async with MockRouter(assert_all_called=False) as respx_mock:
         request = respx_mock.get("https://foo.bar/", name="foobar")
         assert "foobar" not in respx.routes
         assert "foobar" in respx_mock.routes

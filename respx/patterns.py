@@ -1,12 +1,15 @@
 import json as jsonlib
 import operator
 import re
+from abc import ABC
 from enum import Enum
 from functools import reduce
 from http.cookies import SimpleCookie
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Dict,
     List,
     Optional,
@@ -54,13 +57,29 @@ class Match:
         return f"<Match {self.matches}>"
 
 
-class Pattern:
-    lookups: Tuple[Lookup, ...] = (Lookup.EQUAL,)
-    key: str
+class Pattern(ABC):
+    key: ClassVar[str]
+    lookups: ClassVar[Tuple[Lookup, ...]] = (Lookup.EQUAL,)
 
     lookup: Lookup
     base: Optional["Pattern"]
     value: Any
+
+    # Automatically register all the subclasses in this dict
+    __registry: ClassVar[Dict[str, Type["Pattern"]]] = {}
+    registry = MappingProxyType(__registry)
+
+    def __init_subclass__(cls) -> None:
+        if not getattr(cls, "key", None) or ABC in cls.__bases__:
+            return
+
+        if cls.key in cls.__registry:
+            raise TypeError(
+                "Subclasses of Pattern must define a unique key. "
+                f"{cls.key!r} is already defined in {cls.__registry[cls.key]!r}"
+            )
+
+        cls.__registry[cls.key] = cls
 
     def __init__(self, value: Any, lookup: Optional[Lookup] = None) -> None:
         if lookup and lookup not in self.lookups:
@@ -207,8 +226,8 @@ class _Invert(Pattern):
 
 
 class Method(Pattern):
-    lookups = (Lookup.EQUAL, Lookup.IN)
     key = "method"
+    lookups = (Lookup.EQUAL, Lookup.IN)
     value: Union[str, Sequence[str]]
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
@@ -247,8 +266,8 @@ class MultiItemsMixin:
 
 
 class Headers(MultiItemsMixin, Pattern):
-    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     key = "headers"
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     value: httpx.Headers
 
     def clean(self, value: HeaderTypes) -> httpx.Headers:
@@ -265,8 +284,8 @@ class Headers(MultiItemsMixin, Pattern):
 
 
 class Cookies(Pattern):
-    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     key = "cookies"
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     value: Set[Tuple[str, str]]
 
     def __hash__(self):
@@ -299,8 +318,8 @@ class Cookies(Pattern):
 
 
 class Scheme(Pattern):
-    lookups = (Lookup.EQUAL, Lookup.IN)
     key = "scheme"
+    lookups = (Lookup.EQUAL, Lookup.IN)
     value: Union[str, Sequence[str]]
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
@@ -318,8 +337,8 @@ class Scheme(Pattern):
 
 
 class Host(Pattern):
-    lookups = (Lookup.EQUAL, Lookup.IN)
     key = "host"
+    lookups = (Lookup.EQUAL, Lookup.IN)
     value: Union[str, Sequence[str]]
 
     def parse(self, request: RequestTypes) -> str:
@@ -332,8 +351,8 @@ class Host(Pattern):
 
 
 class Port(Pattern):
-    lookups = (Lookup.EQUAL, Lookup.IN)
     key = "port"
+    lookups = (Lookup.EQUAL, Lookup.IN)
     value: Optional[int]
 
     def parse(self, request: RequestTypes) -> Optional[int]:
@@ -350,8 +369,8 @@ class Port(Pattern):
 
 
 class Path(Pattern):
-    lookups = (Lookup.EQUAL, Lookup.REGEX, Lookup.STARTS_WITH, Lookup.IN)
     key = "path"
+    lookups = (Lookup.EQUAL, Lookup.REGEX, Lookup.STARTS_WITH, Lookup.IN)
     value: Union[str, Sequence[str], RegexPattern[str]]
 
     def clean(
@@ -379,8 +398,8 @@ class Path(Pattern):
 
 
 class Params(MultiItemsMixin, Pattern):
-    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     key = "params"
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
     value: httpx.QueryParams
 
     def clean(self, value: QueryParamTypes) -> httpx.QueryParams:
@@ -397,12 +416,12 @@ class Params(MultiItemsMixin, Pattern):
 
 
 class URL(Pattern):
+    key = "url"
     lookups = (
         Lookup.EQUAL,
         Lookup.REGEX,
         Lookup.STARTS_WITH,
     )
-    key = "url"
     value: Union[str, RegexPattern[str]]
 
     def clean(self, value: URLPatternTypes) -> Union[str, RegexPattern[str]]:
@@ -495,26 +514,6 @@ class Data(ContentMixin, Pattern):
         return data
 
 
-# TODO: Refactor to registration when subclassing Pattern
-PATTERNS: Dict[str, Type[Union[Pattern, PathPattern]]] = {
-    P.key: P  # type: ignore
-    for P in (
-        Method,
-        Headers,
-        Cookies,
-        Scheme,
-        Host,
-        Port,
-        Path,
-        Params,
-        URL,
-        Content,
-        Data,
-        JSON,
-    )
-}
-
-
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:
     extras = None
 
@@ -530,11 +529,11 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
         # Parse pattern key and lookup
         pattern_key, __, rest = pattern__lookup.partition("__")
         path, __, lookup_name = rest.rpartition("__")
-        if pattern_key not in PATTERNS:
+        if pattern_key not in Pattern.registry:
             raise KeyError(f"{pattern_key!r} is not a valid Pattern")
 
         # Get pattern class
-        P = PATTERNS[pattern_key]
+        P = Pattern.registry[pattern_key]
         pattern: Union[Pattern, PathPattern]
 
         if issubclass(P, PathPattern):

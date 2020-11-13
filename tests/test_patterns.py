@@ -16,6 +16,7 @@ from respx.patterns import (
     Method,
     Params,
     Path,
+    Pattern,
     Port,
     Scheme,
     merge_patterns,
@@ -395,3 +396,10 @@ def test_merge_patterns():
     base = Path("/ham/", Lookup.STARTS_WITH)
     merged_pattern = merge_patterns(pattern, path=base)
     assert any([p.base == base for p in iter(merged_pattern)])
+
+
+def test_unique_pattern_key():
+    with pytest.raises(TypeError, match="unique key"):
+
+        class Foobar(Pattern):
+            key = "url"

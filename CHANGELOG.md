@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [master]
+## [0.16.1] - 2020-11-16
 ### Added
 - Extended `url` pattern with support for `HTTPX` proxy url format. (PR #110)
 - Extended `host` pattern with support for regex lookup. (PR #110)
+- Added `respx.request(...)`. (PR #111)
 
 ### Changed
 - Deprecated old `MockTransport` in favour of `respx.mock(...)`. (PR #109)

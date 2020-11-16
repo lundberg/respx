@@ -56,6 +56,17 @@ def add(route: Route, *, name: Optional[str] = None) -> Route:
     return mock.add(route, name=name)
 
 
+def request(
+    method: str,
+    url: Optional[URLPatternTypes] = None,
+    *,
+    name: Optional[str] = None,
+    **lookups: Any,
+) -> Route:
+    global mock
+    return mock.request(method, url, name=name, **lookups)
+
+
 def get(
     url: Optional[URLPatternTypes] = None, *, name: Optional[str] = None, **lookups: Any
 ) -> Route:

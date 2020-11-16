@@ -27,12 +27,18 @@ async def test_http_methods(client):
         respx.delete(url, path="/").respond(204)
         respx.head(url, path="/").respond(405)
         respx.options(url, path="/").respond(status_code=501)
+        respx.request("GET", url, path="/baz/").respond(status_code=204)
         url += "/"
 
         response = httpx.get(url)
         assert response.status_code == 404
         response = await client.get(url)
         assert response.status_code == 404
+
+        response = httpx.get(url + "baz/")
+        assert response.status_code == 204
+        response = await client.get(url + "baz/")
+        assert response.status_code == 204
 
         response = httpx.post(url)
         assert response.status_code == 201
@@ -65,7 +71,7 @@ async def test_http_methods(client):
         assert response.status_code == 501
 
         assert route.called is True
-        assert respx.calls.call_count == 7 * 2
+        assert respx.calls.call_count == 8 * 2
 
 
 @pytest.mark.asyncio

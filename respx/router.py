@@ -137,6 +137,16 @@ class Router:
         existing_route.pass_through(route.is_pass_through)
         return existing_route
 
+    def request(
+        self,
+        method: str,
+        url: Optional[URLPatternTypes] = None,
+        *,
+        name: Optional[str] = None,
+        **lookups: Any,
+    ) -> Route:
+        return self.route(method=method, url=url, name=name, **lookups)
+
     def get(
         self,
         url: Optional[URLPatternTypes] = None,

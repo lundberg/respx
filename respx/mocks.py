@@ -1,36 +1,31 @@
 import inspect
 from functools import partial, wraps
 from types import TracebackType
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Type, Union
 from unittest import mock
+from warnings import warn
 
-from .transports import RouterTransport
+from .router import Router
+from .transports import MockTransport
 
-__all__ = ["MockTransport"]
+__all__ = ["MockRouter"]
 
 
-class MockTransport(RouterTransport):
+class MockRouter(Router):
     _local = False
-    _patches: List[mock._patch] = []
-    transports: List["MockTransport"] = []
-    targets = [
-        "httpcore._sync.connection.SyncHTTPConnection",
-        "httpcore._sync.connection_pool.SyncConnectionPool",
-        "httpcore._sync.http_proxy.SyncHTTPProxy",
-        "httpcore._async.connection.AsyncHTTPConnection",
-        "httpcore._async.connection_pool.AsyncConnectionPool",
-        "httpcore._async.http_proxy.AsyncHTTPProxy",
-        "httpx._transports.asgi.ASGITransport",
-        "httpx._transports.wsgi.WSGITransport",
-    ]
+
+    def init(self):
+        super().init()
+        self.transport = MockTransport(handler=self.resolve)
 
     def __call__(
         self,
         func: Optional[Callable] = None,
+        *,
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
-    ) -> Union["MockTransport", Callable]:
+    ) -> Union["MockRouter", Callable]:
         """
         Decorator or Context Manager.
 
@@ -76,7 +71,7 @@ class MockTransport(RouterTransport):
         # - Second stage when using local decorator `@respx.mock(...)`
         return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
 
-    def __enter__(self) -> "MockTransport":
+    def __enter__(self) -> "MockRouter":
         self.start()
         return self
 
@@ -88,7 +83,7 @@ class MockTransport(RouterTransport):
     ) -> None:
         self.stop(quiet=bool(exc_type is not None))
 
-    async def __aenter__(self) -> "MockTransport":
+    async def __aenter__(self) -> "MockRouter":
         return self.__enter__()
 
     async def __aexit__(self, *args: Any) -> None:
@@ -99,31 +94,55 @@ class MockTransport(RouterTransport):
         Register transport, snapshot router and start patching.
         """
         self.snapshot()
-        self.transports.append(self)
-        self._patch()
+        HTTPXMock.register(self.transport)
+        HTTPXMock.patch()
 
     def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
         Unregister transport and rollback router.
         Stop patching when no registered transports left.
         """
-        started = bool(self in self.transports)
+        unregistered = HTTPXMock.unregister(self.transport)
 
         try:
-            if started and not quiet:
-                self.close()
+            if unregistered and not quiet and self._assert_all_called:
+                self.assert_all_called()
         finally:
             if clear:
                 self.rollback()
             if reset:
                 self.reset()
-            if started:  # Idempotent check, i.e. already started
-                self.transports.remove(self)
 
-            self._unpatch()
+            HTTPXMock.unpatch()
+
+
+class HTTPXMock:
+    _patches: ClassVar[List[mock._patch]] = []
+    transports: ClassVar[List["MockTransport"]] = []
+    targets: ClassVar[List[str]] = [
+        "httpcore._sync.connection.SyncHTTPConnection",
+        "httpcore._sync.connection_pool.SyncConnectionPool",
+        "httpcore._sync.http_proxy.SyncHTTPProxy",
+        "httpcore._async.connection.AsyncHTTPConnection",
+        "httpcore._async.connection_pool.AsyncConnectionPool",
+        "httpcore._async.http_proxy.AsyncHTTPProxy",
+        "httpx._transports.asgi.ASGITransport",
+        "httpx._transports.wsgi.WSGITransport",
+    ]
 
     @classmethod
-    def _patch(cls) -> None:
+    def register(cls, transport: MockTransport) -> None:
+        cls.transports.append(transport)
+
+    @classmethod
+    def unregister(cls, transport: MockTransport) -> bool:
+        if transport in cls.transports:
+            cls.transports.remove(transport)
+            return True
+        return False
+
+    @classmethod
+    def patch(cls) -> None:
         # Ensure we only patch once!
         if cls._patches:
             return
@@ -140,7 +159,7 @@ class MockTransport(RouterTransport):
                     pass
 
     @classmethod
-    def _unpatch(cls) -> None:
+    def unpatch(cls) -> None:
         # Ensure we don't stop patching when registered transports exists
         if cls.transports:
             return
@@ -173,7 +192,7 @@ class MockTransport(RouterTransport):
 
     @classmethod
     def _arequest(cls, spec):
-        async def request(self, *args, **kwargs):
+        async def arequest(self, *args, **kwargs):
             pass_through = partial(spec, self)
             kwargs["ext"] = {**kwargs.get("ext", {}), "pass_through": pass_through}
             response = None
@@ -190,4 +209,13 @@ class MockTransport(RouterTransport):
                 assert response, error
             return response
 
-        return request
+        return arequest
+
+
+class DeprecatedMockTransport(MockRouter):
+    def __init__(self, *args, **kwargs):
+        warn(
+            "MockTransport used as router is deprecated. Please use `respx.mock(...)`.",
+            category=DeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)

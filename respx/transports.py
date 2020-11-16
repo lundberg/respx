@@ -1,3 +1,6 @@
+from types import TracebackType
+from typing import Any, Optional, Type
+
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
@@ -7,10 +10,34 @@ from httpcore import (
 
 from .models import decode_request, encode_response
 from .router import Router
-from .types import URL, AsyncResponse, Headers, SyncResponse
+from .types import URL, AsyncResponse, Headers, RequestHandler, SyncResponse
 
 
-class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
+class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
+    _handler: Optional[RequestHandler]
+    _router: Optional[Router]
+
+    def __init__(
+        self,
+        *,
+        handler: Optional[RequestHandler] = None,
+        router: Optional[Router] = None,
+    ):
+        if handler and not router:
+            self._handler = handler
+            self._router = None
+        elif router:
+            self._router = router
+            self._handler = None
+        else:
+            raise RuntimeError(
+                "Missing a MockTransport required handler or router argument"
+            )
+
+    @property
+    def handler(self) -> RequestHandler:
+        return self._handler or self._router.resolve
+
     def request(
         self,
         method: bytes,
@@ -27,7 +54,7 @@ class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
         stream = request.stream  # type: ignore
 
         # Resolve response
-        response = self.resolve(request)
+        response = self.handler(request)
 
         if response is None:
             pass_through = ext.pop("pass_through", None)
@@ -55,7 +82,7 @@ class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
         stream = request.stream  # type: ignore
 
         # Resolve response
-        response = self.resolve(request)
+        response = self.handler(request)
 
         if response is None:
             pass_through = ext.pop("pass_through", None)
@@ -67,9 +94,14 @@ class RouterTransport(Router, SyncHTTPTransport, AsyncHTTPTransport):
 
         return raw_response
 
-    def close(self) -> None:
-        if self._assert_all_called:
-            self.assert_all_called()
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None,
+    ) -> None:
+        if not exc_type and self._router and self._router._assert_all_called:
+            self._router.assert_all_called()
 
-    async def aclose(self) -> None:
-        self.close()
+    async def __aexit__(self, *args: Any) -> None:
+        self.__exit__(*args)

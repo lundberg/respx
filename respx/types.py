@@ -50,6 +50,7 @@ Response = Tuple[
     ByteStream,  # body
     dict,  # ext
 ]
+RequestHandler = Callable[[httpx.Request], Optional[httpx.Response]]
 
 HeaderTypes = Union[
     httpx.Headers,
@@ -65,9 +66,11 @@ DefaultType = TypeVar("DefaultType", bound=Any)
 URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
 QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 RequestTypes = Union[Request, httpx.Request]
+
+CallableSideEffect = Callable[..., Optional[Union[httpx.Request, httpx.Response]]]
 SideEffectListTypes = Union[httpx.Response, Exception, Type[Exception]]
 SideEffectTypes = Union[
-    Callable,
+    CallableSideEffect,
     Exception,
     Type[Exception],
     Sequence[SideEffectListTypes],

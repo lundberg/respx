@@ -1,5 +1,5 @@
 from .__version__ import __version__
-from .mocks import MockTransport
+from .mocks import DeprecatedMockTransport as MockTransport
 from .models import MockResponse, Route
 from .router import Router
 

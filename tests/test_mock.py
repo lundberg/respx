@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 import respx
-from respx import MockTransport
+from respx.mocks import HTTPXMock, MockRouter
 
 
 @pytest.mark.asyncio
@@ -320,7 +320,7 @@ def test_leakage(mocked_foo, mocked_ham):
     # NOTE: Including session fixtures, since they are pre-registered transports
     assert len(respx.routes) == 0
     assert len(respx.calls) == 0
-    assert len(MockTransport.transports) == 2
+    assert len(HTTPXMock.transports) == 2
 
 
 @pytest.mark.asyncio
@@ -365,7 +365,7 @@ async def test_start_stop(client):
 )
 async def test_assert_all_called(client, assert_all_called, do_post, raises):
     with raises:
-        async with MockTransport(assert_all_called=assert_all_called) as respx_mock:
+        async with MockRouter(assert_all_called=assert_all_called) as respx_mock:
             request1 = respx_mock.get("https://foo.bar/1/") % 404
             request2 = respx_mock.post("https://foo.bar/") % 201
 
@@ -384,12 +384,12 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
 )
 async def test_assert_all_mocked(client, assert_all_mocked, raises):
     with raises:
-        with MockTransport(assert_all_mocked=assert_all_mocked) as respx_mock:
+        with MockRouter(assert_all_mocked=assert_all_mocked) as respx_mock:
             response = httpx.get("https://foo.bar/")
             assert respx_mock.calls.call_count == 1
             assert response.status_code == 200
     with raises:
-        async with MockTransport(assert_all_mocked=assert_all_mocked) as respx_mock:
+        async with MockRouter(assert_all_mocked=assert_all_mocked) as respx_mock:
             response = await client.get("https://foo.bar/")
             assert respx_mock.calls.call_count == 1
             assert response.status_code == 200

@@ -16,7 +16,14 @@ from unittest import mock
 import httpx
 
 from .patterns import M, Pattern
-from .types import ByteStream, HeaderTypes, RequestTypes, Response, SideEffectTypes
+from .types import (
+    ByteStream,
+    CallableSideEffect,
+    HeaderTypes,
+    RequestTypes,
+    Response,
+    SideEffectTypes,
+)
 
 
 def decode_request(request: RequestTypes) -> httpx.Request:
@@ -129,7 +136,7 @@ class Route:
     def __repr__(self):
         return f"<Route {self.pattern!r}>"  # pragma: no cover
 
-    def __call__(self, side_effect: Callable) -> Callable:
+    def __call__(self, side_effect: CallableSideEffect) -> CallableSideEffect:
         self.side_effect = side_effect
         return side_effect
 
@@ -288,7 +295,7 @@ class Route:
         return effect
 
     def _call_side_effect(
-        self, effect: Callable, request: httpx.Request, **kwargs: Any
+        self, effect: CallableSideEffect, request: httpx.Request, **kwargs: Any
     ) -> Optional[Union[httpx.Request, httpx.Response]]:
         try:
             # Call side effect

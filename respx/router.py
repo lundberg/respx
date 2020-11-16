@@ -22,7 +22,9 @@ class Router:
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
+        self.init()
 
+    def init(self) -> None:
         self.snapshot()
 
     def clear(self) -> None:
@@ -224,7 +226,7 @@ class Router:
 
         return route, response
 
-    def resolve(self, request: httpx.Request) -> httpx.Response:
+    def resolve(self, request: httpx.Request) -> Optional[httpx.Response]:
         route: Optional[Route] = None
         response: Optional[httpx.Response] = None
 

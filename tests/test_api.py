@@ -3,6 +3,7 @@ import json as jsonlib
 import os
 import re
 import socket
+import warnings
 from unittest import mock
 
 import httpcore
@@ -10,7 +11,7 @@ import httpx
 import pytest
 
 import respx
-from respx import MockTransport
+from respx.mocks import MockRouter
 from respx.models import Route
 
 
@@ -81,7 +82,7 @@ async def test_http_methods(client):
     ],
 )
 async def test_url_match(client, url, pattern):
-    async with MockTransport(assert_all_mocked=False) as respx_mock:
+    async with MockRouter(assert_all_mocked=False) as respx_mock:
         request = respx_mock.get(pattern) % dict(content="baz")
         response = await client.get(url)
         assert request.called is True
@@ -91,14 +92,14 @@ async def test_url_match(client, url, pattern):
 
 @pytest.mark.asyncio
 async def test_invalid_url_pattern():
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         with pytest.raises(TypeError):
             respx_mock.get(["invalid"])
 
 
 @pytest.mark.asyncio
 async def test_repeated_pattern(client):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo/bar/baz/"
         route = respx_mock.post(url)
         route.side_effect = [
@@ -123,7 +124,7 @@ async def test_repeated_pattern(client):
 
 @pytest.mark.asyncio
 async def test_status_code(client):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url) % 404
         response = await client.get(url)
@@ -150,7 +151,7 @@ async def test_status_code(client):
     ],
 )
 async def test_headers(client, headers, content_type, expected):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url).respond(
             headers=headers, content_type=content_type
@@ -170,7 +171,7 @@ async def test_headers(client, headers, content_type, expected):
     ],
 )
 async def test_text_encoding(client, content, expected):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.post(url) % dict(content=content)
         response = await client.post(url)
@@ -192,7 +193,7 @@ async def test_text_encoding(client, content, expected):
     ],
 )
 async def test_content_variants(client, key, value, expected_content_type):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url) % {key: value}
 
@@ -233,7 +234,7 @@ async def test_content_variants(client, key, value, expected_content_type):
     ],
 )
 async def test_json_content(client, content, headers, expected_headers):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url) % dict(json=content, headers=headers)
 
@@ -251,7 +252,7 @@ async def test_json_content(client, content, headers, expected_headers):
 
 @pytest.mark.asyncio
 async def test_raising_content(client):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url)
         request.side_effect = httpx.ConnectTimeout("X-P", request=None)
@@ -275,7 +276,7 @@ async def test_raising_content(client):
 
 @pytest.mark.asyncio
 async def test_callable_content(client):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
 
         def content_callback(request, slug):
@@ -311,7 +312,7 @@ async def test_request_callback(client):
             )
         return httpx.Response(404)
 
-    async with MockTransport(assert_all_called=False) as respx_mock:
+    async with MockRouter(assert_all_called=False) as respx_mock:
         request = respx_mock.post(host="foo.bar", path__regex=r"/(?P<name>\w+)/")
         request.side_effect = callback
 
@@ -355,7 +356,7 @@ async def test_request_callback(client):
     ],
 )
 async def test_pass_through(client, route, expected):
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         request = respx_mock.add(route)
 
         with mock.patch(
@@ -369,7 +370,7 @@ async def test_pass_through(client, route, expected):
         assert request.called is True
         assert request.is_pass_through is expected
 
-    with MockTransport() as respx_mock:
+    with MockRouter() as respx_mock:
         request = respx_mock.add(route)
 
         with mock.patch(
@@ -453,7 +454,7 @@ async def test_parallel_requests(client):
 async def test_method_case(client, method_str, client_method_attr):
     url = "https://example.org/"
     content = {"spam": "lots", "ham": "no, only spam"}
-    async with MockTransport() as respx_mock:
+    async with MockRouter() as respx_mock:
         request = respx_mock.route(method=method_str, url=url) % dict(json=content)
         response = await getattr(client, client_method_attr)(url)
         assert request.called is True
@@ -569,3 +570,9 @@ async def test_async_post_content(kwargs):
         async with httpx.AsyncClient() as client:
             response = await client.post("https://foo.bar/", **kwargs)
             assert response.status_code == 201
+
+
+def test_deprecated_mock_transport():
+    with warnings.catch_warnings(record=True) as w:
+        respx.MockTransport()
+        assert len(w) == 1

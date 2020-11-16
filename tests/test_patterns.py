@@ -141,16 +141,17 @@ def test_scheme_pattern(lookup, scheme, expected):
 
 
 @pytest.mark.parametrize(
-    "host,expected",
+    "lookup,host,expected",
     [
-        ("foo.bar", True),
-        ("ham.spam", False),
+        (Lookup.EQUAL, "foo.bar", True),
+        (Lookup.EQUAL, "ham.spam", False),
+        (Lookup.REGEX, r".+\.bar", True),
     ],
 )
-def test_host_pattern(host, expected):
+def test_host_pattern(lookup, host, expected):
     _request = httpx.Request("GET", "https://foo.bar/")
     for request in (_request, encode(_request)):
-        assert bool(Host(host).match(request)) is expected
+        assert bool(Host(host, lookup=lookup).match(request)) is expected
 
 
 @pytest.mark.parametrize(
@@ -389,6 +390,14 @@ def test_parse_url_patterns():
         "path": Path("/ham/spam/", Lookup.STARTS_WITH),
         "params": Params({"egg": "yolk"}, Lookup.CONTAINS),
     }
+
+    patterns = parse_url_patterns("all://*.foo.bar")
+    assert len(patterns) == 1
+    assert "host" in patterns
+    assert patterns["host"].lookup is Lookup.REGEX
+
+    patterns = parse_url_patterns("all")
+    assert len(patterns) == 0
 
 
 def test_merge_patterns():

@@ -90,6 +90,12 @@ def test_base_url(url, lookups, expected):
     "lookups,url,expected",
     [
         ({"url": "//foo.bar/baz/"}, "https://foo.bar/baz/", True),
+        ({"url": "all"}, "https://foo.bar/baz/", True),
+        ({"url": "all://"}, "https://foo.bar/baz/", True),
+        ({"url": "https://*foo.bar"}, "https://foo.bar/baz/", True),
+        ({"url": "https://*foo.bar"}, "https://baz.foo.bar/", True),
+        ({"url": "https://*.foo.bar"}, "https://foo.bar/baz/", False),
+        ({"url": "https://*.foo.bar"}, "https://baz.foo.bar/", True),
         ({"url__eq": "https://foo.bar/baz/"}, "https://foo.bar/baz/", True),
         ({"url__eq": "https://foo.bar/baz/"}, "http://foo.bar/baz/", False),
         ({"url__eq": "https://foo.bar"}, "https://foo.bar/", True),

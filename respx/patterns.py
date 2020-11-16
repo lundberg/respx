@@ -338,8 +338,15 @@ class Scheme(Pattern):
 
 class Host(Pattern):
     key = "host"
-    lookups = (Lookup.EQUAL, Lookup.IN)
-    value: Union[str, Sequence[str]]
+    lookups = (Lookup.EQUAL, Lookup.REGEX, Lookup.IN)
+    value: Union[str, RegexPattern[str], Sequence[str]]
+
+    def clean(
+        self, value: Union[str, RegexPattern[str]]
+    ) -> Union[str, RegexPattern[str]]:
+        if self.lookup is Lookup.REGEX and isinstance(value, str):
+            value = re.compile(value)
+        return value
 
     def parse(self, request: RequestTypes) -> str:
         if isinstance(request, httpx.Request):
@@ -576,7 +583,7 @@ def parse_url_patterns(
     url: Optional[URLPatternTypes], exact: bool = True
 ) -> Dict[str, Pattern]:
     bases: Dict[str, Pattern] = {}
-    if not url:
+    if not url or url == "all":
         return bases
 
     if isinstance(url, RegexPattern):
@@ -585,10 +592,20 @@ def parse_url_patterns(
     url = httpx.URL(url)
     scheme_port = get_scheme_port(url.scheme)
 
-    if url.scheme:
+    if url.scheme and url.scheme != "all":
         bases[Scheme.key] = Scheme(url.scheme)
     if url.host:
-        bases[Host.key] = Host(url.host)
+        # NOTE: Host regex patterns borrowed from HTTPX source to support proxy format
+        if url.host.startswith("*."):
+            domain = re.escape(url.host[2:])
+            regex = re.compile(f"^.+\\.{domain}$")
+            bases[Host.key] = Host(regex, lookup=Lookup.REGEX)
+        elif url.host.startswith("*"):
+            domain = re.escape(url.host[1:])
+            regex = re.compile(f"^(.+\\.)?{domain}$")
+            bases[Host.key] = Host(regex, lookup=Lookup.REGEX)
+        else:
+            bases[Host.key] = Host(url.host)
     if url.port and url.port != scheme_port:
         bases[Port.key] = Port(url.port)
     if url._uri_reference.path:  # URL.path always returns "/"

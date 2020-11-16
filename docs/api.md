@@ -70,7 +70,27 @@ HTTP method helpers to add routes, mimicking the [HTTPX Helper Functions](https:
 >
 > **Returns:** `Route`
 ``` python
-respx.get("https://example.org/", params={"foo": "bar"})
+respx.get("https://example.org/", params={"foo": "bar"}, ...)
+```
+
+### .request()
+
+> <code>respx.<strong>request</strong>(*method, url, name=None, \*\*lookups*)</strong></code>
+>
+> **Parameters:**
+>
+> * **method** - *str*  
+>   Request HTTP method to match.
+> * **url** - *(optional) str | compiled regex | tuple (httpcore) | httpx.URL*  
+>   Request URL to match, *full or partial*, turned into a [URL](#url) pattern.
+> * **name** - *(optional) str*  
+>   Name this route.
+> * **lookups** - *(optional) kwargs*  
+>   One or more [pattern](#patterns) keyword [lookups](#lookups), given as `<pattern>__<lookup>=value`.
+>
+> **Returns:** `Route`
+``` python
+respx.request("GET", "https://example.org/", params={"foo": "bar"}, ...)
 ```
 
 ---
@@ -217,9 +237,10 @@ respx.route(scheme__in=["http", "https"])
 ### Host
 Matches request *URL host*, using <code>[eq](#eq)</code> as default lookup.
 > Key: `host`  
-> Lookups: [eq](#eq), [in](#in)
+> Lookups: [eq](#eq), [regex](#regex), [in](#in)
 ``` python
 respx.route(host="example.org")
+respx.route(host__regex=r"example\.(org|com)")
 respx.route(host__in=["example.org", "example.com"])
 ```
 
@@ -265,6 +286,7 @@ respx.get("//example.org/foo/")  # == M(host="example.org", path="/foo/")
 respx.get(url__eq="https://example.org:8080/foobar/?ham=spam")
 respx.get(url__regex=r"https://example.org/(?P<slug>\w+)/")
 respx.get(url__startswith="https://example.org/api/")
+respx.get("all://*.example.org/foo/")
 ```
 
 ### Content

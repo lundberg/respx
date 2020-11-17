@@ -78,3 +78,12 @@ assert respx.stats.call_count == 1
 assert respx.calls.call_count == 1
 ```
 
+## MockTransport
+The `respx.MockTransport` should no longer be used as a mock router, use `respx.mock(...)`.
+``` python
+# Previously
+my_mock = respx.MockTransport(assert_all_called=False)
+
+# Now
+my_mock = respx.mock(assert_all_called=False)
+```

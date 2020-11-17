@@ -230,7 +230,7 @@ def test_ctx_manager():
 
 ## Mocking Responses
 
-To mock a [route](#routing-requests) response, use `route.mock(...)` to either...
+To mock a [route](#routing-requests) response, use `<route>.mock(...)` to either...
 
 * set the `httpx.Response` to be [returned](#mock-a-response).
 * set a [side effect](#mock-with-a-side-effect) to be triggered.
@@ -245,7 +245,7 @@ respx.get("https://example.org/").mock(return_value=Response(204))
 ```
 > See [.mock()](api.md#mock) reference for more details.
 
-You can also use the `route.return_value` setter.
+You can also use the `<route>.return_value` *setter*.
 
 ``` python
 route = respx.get("https://example.org/")
@@ -263,7 +263,7 @@ an [exception](#exceptions) to raise, or an [iterable](#iterable) of responses/e
 respx.get("https://example.org/").mock(side_effect=...)
 ```
 
-You can also use the `route.side_effect` setter.
+You can also use the `<route>.side_effect` *setter*.
 
 ``` python
 route = respx.get("https://example.org/")
@@ -381,7 +381,7 @@ def test_stacked_responses():
 
 ### Modulo Shortcut
 
-For simple mocking, a quick way is to use the python modulo `%` operator to mock the response.
+For simple mocking, a quick way is to use the python modulo (`%`) operator to mock the response.
 
 The *right-hand* modulo argument can either be ...
 
@@ -464,20 +464,22 @@ def test_remote_response():
 
 ## Mock without patching HTTPX
 
-The RESPX mock router implements the [HTTP Core](https://www.encode.io/httpcore/) transport interface. 
+The RESPX implements the [HTTP Core](https://www.encode.io/httpcore/) transport interface. 
 
-If you don't *need* to patch `HTTPX`, pass a mock router as `transport`, when instantiating your `HTTPX` client, or alike.
+If you don't *need* to patch `HTTPX`, pass a `MockTransport` as `transport`, when instantiating your `HTTPX` client, or alike.
 
 ``` python
 import httpx
 import respx
+from respx.transports import MockTransport
 
 
-mock_transport = respx.mock()
-mock_transport.post("https://example.org/") % 404
+router = respx.Router()
+router.post("https://example.org/") % 404
 
 
 def test_client():
+    mock_transport = MockTransport(router=router)
     with httpx.Client(transport=mock_transport) as client:
         response = client.post("https://example.org/")
         assert response.status_code == 404
@@ -517,9 +519,6 @@ request, response = respx.calls[-2]  # by call order
 last_request = respx.calls.last.request
 assert respx.calls.last.response.status_code == 200
 ```
-
-!!! attention "Deprecation Warning"
-    As of version `0.14.0`, statistics via `respx.stats` is deprecated, in favour of `respx.calls`.
 
 ### Local route calls
 

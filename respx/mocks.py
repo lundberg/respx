@@ -1,22 +1,23 @@
 import inspect
-from functools import partial, wraps
+from functools import wraps
 from types import TracebackType
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Type, Union
 from unittest import mock
 from warnings import warn
 
+from .models import decode_request, encode_response
 from .router import Router
-from .transports import MockTransport
 
 __all__ = ["MockRouter"]
 
 
 class MockRouter(Router):
     _local = False
+    Mock: Type["BaseMock"]
 
     def init(self):
         super().init()
-        self.transport = MockTransport(handler=self.resolve)
+        self.Mock = HTTPCoreMock
 
     def __call__(
         self,
@@ -94,15 +95,15 @@ class MockRouter(Router):
         Register transport, snapshot router and start patching.
         """
         self.snapshot()
-        HTTPXMock.register(self.transport)
-        HTTPXMock.patch()
+        self.Mock.register(self)
+        self.Mock.start()
 
     def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
         Unregister transport and rollback router.
         Stop patching when no registered transports left.
         """
-        unregistered = HTTPXMock.unregister(self.transport)
+        unregistered = self.Mock.unregister(self)
 
         try:
             if unregistered and not quiet and self._assert_all_called:
@@ -113,13 +114,125 @@ class MockRouter(Router):
             if reset:
                 self.reset()
 
-            HTTPXMock.unpatch()
+            self.Mock.stop()
 
 
-class HTTPXMock:
+class BaseMock:
+    _patches: ClassVar[List[mock._patch]]
+    routers: ClassVar[List[Router]]
+    targets: ClassVar[List[str]]
+    _target_methods: ClassVar[List[str]]
+
+    @classmethod
+    def register(cls, router: Router) -> None:
+        cls.routers.append(router)
+
+    @classmethod
+    def unregister(cls, router: Router) -> bool:
+        if router in cls.routers:
+            cls.routers.remove(router)
+            return True
+        return False
+
+    @classmethod
+    def start(cls) -> None:
+        # Ensure we only patch once!
+        if cls._patches:
+            return
+
+        # Start patching target transports
+        for target in cls.targets:
+            for method in cls._target_methods:
+                try:
+                    spec = f"{target}.{method}"
+                    patch = mock.patch(spec, spec=True, new_callable=cls._mock)
+                    patch.start()
+                    cls._patches.append(patch)
+                except AttributeError:
+                    pass
+
+    @classmethod
+    def stop(cls) -> None:
+        # Ensure we don't stop patching when registered transports exists
+        if cls.routers:
+            return
+
+        # Stop patching HTTPX
+        while cls._patches:
+            patch = cls._patches.pop()
+            patch.stop()
+
+    @classmethod
+    def _merge_args_and_kwargs(cls, argspec, args, kwargs):
+        arg_names = argspec.args[1:]  # Skip self
+        new_kwargs = dict(zip(arg_names[-len(argspec.defaults) :], argspec.defaults))
+        new_kwargs.update(zip(arg_names, args))
+        new_kwargs.update(kwargs)
+        return new_kwargs
+
+    @classmethod
+    def _mock(cls, spec):
+        argspec = inspect.getfullargspec(spec)
+
+        def mock(self, *args, **kwargs):
+            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            request = cls.to_httpx_request(**kwargs)
+            request, kwargs = cls.prepare(request, **kwargs)
+            response = cls.send(request, target=self, pass_through=spec, **kwargs)
+            return response
+
+        async def amock(self, *args, **kwargs):
+            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            request = cls.to_httpx_request(**kwargs)
+            request, kwargs = await cls.aprepare(request, **kwargs)
+            response = cls.send(request, target=self, pass_through=spec, **kwargs)
+            if inspect.isawaitable(response):
+                response = await response
+            return response
+
+        return amock if inspect.iscoroutinefunction(spec) else mock
+
+    @classmethod
+    def send(cls, httpx_request, *, target, pass_through, **kwargs):
+        response = None
+        error = None
+        for router in cls.routers:
+            try:
+                httpx_response = router.resolve(httpx_request)
+                if httpx_response is None:
+                    response = pass_through(target, **kwargs)
+                else:
+                    response = cls.from_httpx_response(httpx_response, target, **kwargs)
+            except AssertionError as e:
+                error = e.args[0]
+                continue
+            else:
+                break
+        else:
+            assert response, error
+        return response
+
+    @classmethod
+    def prepare(cls, httpx_request, **kwargs):
+        raise NotImplementedError()  # pragma: nocover
+
+    @classmethod
+    async def aprepare(cls, httpx_request, **kwargs):
+        raise NotImplementedError()  # pragma: nocover
+
+    @classmethod
+    def to_httpx_request(cls, **kwargs):
+        raise NotImplementedError()  # pragma: nocover
+
+    @classmethod
+    def from_httpx_response(cls, httpx_response, target, **kwargs):
+        raise NotImplementedError()  # pragma: nocover
+
+
+class HTTPCoreMock(BaseMock):
     _patches: ClassVar[List[mock._patch]] = []
-    transports: ClassVar[List["MockTransport"]] = []
-    targets: ClassVar[List[str]] = [
+    routers: ClassVar[List[Router]] = []
+    targets = [
         "httpcore._sync.connection.SyncHTTPConnection",
         "httpcore._sync.connection_pool.SyncConnectionPool",
         "httpcore._sync.http_proxy.SyncHTTPProxy",
@@ -129,87 +242,29 @@ class HTTPXMock:
         "httpx._transports.asgi.ASGITransport",
         "httpx._transports.wsgi.WSGITransport",
     ]
+    _target_methods = ["request", "arequest"]
 
     @classmethod
-    def register(cls, transport: MockTransport) -> None:
-        cls.transports.append(transport)
+    def prepare(cls, httpx_request, **kwargs):
+        httpx_request.read()
+        kwargs["stream"] = httpx_request.stream
+        return httpx_request, kwargs
 
     @classmethod
-    def unregister(cls, transport: MockTransport) -> bool:
-        if transport in cls.transports:
-            cls.transports.remove(transport)
-            return True
-        return False
+    async def aprepare(cls, httpx_request, **kwargs):
+        await httpx_request.aread()
+        kwargs["stream"] = httpx_request.stream
+        return httpx_request, kwargs
 
     @classmethod
-    def patch(cls) -> None:
-        # Ensure we only patch once!
-        if cls._patches:
-            return
-
-        # Start patching target transports
-        for transport in cls.targets:
-            for method, new in (("request", cls._request), ("arequest", cls._arequest)):
-                try:
-                    spec = f"{transport}.{method}"
-                    patch = mock.patch(spec, spec=True, new_callable=new)
-                    patch.start()
-                    cls._patches.append(patch)
-                except AttributeError:
-                    pass
+    def to_httpx_request(cls, **kwargs):
+        request = (kwargs["method"], kwargs["url"], kwargs["headers"], kwargs["stream"])
+        httpx_request = decode_request(request)
+        return httpx_request
 
     @classmethod
-    def unpatch(cls) -> None:
-        # Ensure we don't stop patching when registered transports exists
-        if cls.transports:
-            return
-
-        # Stop patching HTTPX
-        while cls._patches:
-            patch = cls._patches.pop()
-            patch.stop()
-
-    @classmethod
-    def _request(cls, spec):
-        def request(self, *args, **kwargs):
-            pass_through = partial(spec, self)
-            kwargs["ext"] = {**kwargs.get("ext", {}), "pass_through": pass_through}
-            response = None
-            error = None
-            for transport in cls.transports:
-                try:
-                    response = transport.request(*args, **kwargs)
-                except AssertionError as e:
-                    error = e.args[0]
-                    continue
-                else:
-                    break
-            else:
-                assert response, error
-            return response
-
-        return request
-
-    @classmethod
-    def _arequest(cls, spec):
-        async def arequest(self, *args, **kwargs):
-            pass_through = partial(spec, self)
-            kwargs["ext"] = {**kwargs.get("ext", {}), "pass_through": pass_through}
-            response = None
-            error = None
-            for transport in cls.transports:
-                try:
-                    response = await transport.arequest(*args, **kwargs)
-                except AssertionError as e:
-                    error = e.args[0]
-                    continue
-                else:
-                    break
-            else:
-                assert response, error
-            return response
-
-        return arequest
+    def from_httpx_response(cls, httpx_response, target, **kwargs):
+        return encode_response(httpx_response)
 
 
 class DeprecatedMockTransport(MockRouter):

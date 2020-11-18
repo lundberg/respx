@@ -2,8 +2,7 @@ import httpcore
 import httpx
 import pytest
 
-from respx.mocks import MockRouter
-from respx.router import Router
+from respx.router import MockRouter, Router
 from respx.transports import MockTransport
 
 

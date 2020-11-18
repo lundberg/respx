@@ -1,7 +1,12 @@
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+import inspect
+from functools import wraps
+from types import TracebackType
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, overload
+from warnings import warn
 
 import httpx
 
+from .mocks import HTTPCoreMock
 from .models import CallList, Route, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, URLPatternTypes
@@ -18,13 +23,11 @@ class Router:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._bases = parse_url_patterns(base_url, exact=False)
-        self._snapshots: List[Tuple] = []
 
         self.routes: Dict[Union[str, int], Route] = {}
         self.calls = CallList()
-        self.init()
 
-    def init(self) -> None:
+        self._snapshots: List[Tuple] = []
         self.snapshot()
 
     def clear(self) -> None:
@@ -266,3 +269,113 @@ class Router:
             self.record(request, response=response, route=route)
 
         return response
+
+
+class MockRouter(Router):
+    _local = False
+
+    def __call__(
+        self,
+        func: Optional[Callable] = None,
+        *,
+        assert_all_called: Optional[bool] = None,
+        assert_all_mocked: Optional[bool] = None,
+        base_url: Optional[str] = None,
+    ) -> Union["MockRouter", Callable]:
+        """
+        Decorator or Context Manager.
+
+        Use decorator/manager with parentheses for local state, or without parentheses
+        for global state, i.e. shared patterns added outside of scope.
+        """
+        if func is None:
+            # Parantheses used, branch out to new nested instance.
+            # - Only stage when using local ctx `with respx.mock(...) as respx_mock:`
+            # - First stage when using local decorator `@respx.mock(...)`
+            #   FYI, global ctx `with respx.mock:` hits __enter__ directly
+            settings: Dict[str, Any] = {
+                "base_url": base_url,
+            }
+            if assert_all_called is not None:
+                settings["assert_all_called"] = assert_all_called
+            if assert_all_mocked is not None:
+                settings["assert_all_mocked"] = assert_all_mocked
+            respx_mock = self.__class__(**settings)
+            respx_mock._local = True
+            return respx_mock
+
+        # Async Decorator
+        @wraps(func)
+        async def async_decorator(*args, **kwargs):
+            assert func is not None
+            if self._local:
+                kwargs["respx_mock"] = self
+            async with self:
+                return await func(*args, **kwargs)
+
+        # Sync Decorator
+        @wraps(func)
+        def sync_decorator(*args, **kwargs):
+            assert func is not None
+            if self._local:
+                kwargs["respx_mock"] = self
+            with self:
+                return func(*args, **kwargs)
+
+        # Dispatch async/sync decorator, depening on decorated function.
+        # - Only stage when using global decorator `@respx.mock`
+        # - Second stage when using local decorator `@respx.mock(...)`
+        return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
+
+    def __enter__(self) -> "MockRouter":
+        self.start()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None,
+    ) -> None:
+        self.stop(quiet=bool(exc_type is not None))
+
+    async def __aenter__(self) -> "MockRouter":
+        return self.__enter__()
+
+    async def __aexit__(self, *args: Any) -> None:
+        self.__exit__(*args)
+
+    def start(self) -> None:
+        """
+        Register transport, snapshot router and start patching.
+        """
+        self.snapshot()
+        HTTPCoreMock.register(self)
+        HTTPCoreMock.start()
+
+    def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
+        """
+        Unregister transport and rollback router.
+        Stop patching when no registered transports left.
+        """
+        unregistered = HTTPCoreMock.unregister(self)
+
+        try:
+            if unregistered and not quiet and self._assert_all_called:
+                self.assert_all_called()
+        finally:
+            if clear:
+                self.rollback()
+            if reset:
+                self.reset()
+
+            HTTPCoreMock.stop()
+
+
+class DeprecatedMockTransport(MockRouter):
+    def __init__(self, *args, **kwargs):
+        warn(
+            "MockTransport used as router is deprecated. Please use `respx.mock(...)`.",
+            category=DeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)

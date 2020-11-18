@@ -11,8 +11,8 @@ import httpx
 import pytest
 
 import respx
-from respx.mocks import MockRouter
 from respx.models import Route
+from respx.router import MockRouter
 
 
 @pytest.mark.asyncio

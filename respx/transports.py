@@ -55,16 +55,11 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Resolve response
         response = self.handler(request)
-
         if response is None:
-            pass_through = ext.pop("pass_through", None)
-            if pass_through is None:
-                raise ValueError("pass_through not supported with manual transport")
-            raw_response = pass_through(method, url, headers, stream, ext)
-        else:
-            raw_response = encode_response(response)
+            raise ValueError("pass_through not supported when using MockTransport")
 
-        return raw_response
+        raw_response = encode_response(response)
+        return raw_response  # type: ignore
 
     async def arequest(
         self,
@@ -83,16 +78,11 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Resolve response
         response = self.handler(request)
-
         if response is None:
-            pass_through = ext.pop("pass_through", None)
-            if pass_through is None:
-                raise ValueError("pass_through not supported with manual transport")
-            raw_response = await pass_through(method, url, headers, stream, ext)
-        else:
-            raw_response = encode_response(response)
+            raise ValueError("pass_through not supported when using MockTransport")
 
-        return raw_response
+        raw_response = encode_response(response)
+        return raw_response  # type: ignore
 
     def __exit__(
         self,

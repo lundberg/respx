@@ -1,7 +1,6 @@
 from .__version__ import __version__
-from .mocks import DeprecatedMockTransport as MockTransport
 from .models import MockResponse, Route
-from .router import Router
+from .router import DeprecatedMockTransport as MockTransport, Router
 
 from .api import (  # isort:skip
     mock,

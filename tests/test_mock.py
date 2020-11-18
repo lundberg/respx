@@ -4,7 +4,8 @@ import httpx
 import pytest
 
 import respx
-from respx.mocks import HTTPXMock, MockRouter
+from respx.mocks import HTTPCoreMock
+from respx.router import MockRouter
 
 
 @pytest.mark.asyncio
@@ -320,7 +321,7 @@ def test_leakage(mocked_foo, mocked_ham):
     # NOTE: Including session fixtures, since they are pre-registered transports
     assert len(respx.routes) == 0
     assert len(respx.calls) == 0
-    assert len(HTTPXMock.transports) == 2
+    assert len(HTTPCoreMock.routers) == 2
 
 
 @pytest.mark.asyncio

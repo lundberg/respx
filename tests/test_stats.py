@@ -8,7 +8,7 @@ from httpcore._backends.asyncio import AsyncioBackend
 from httpcore._backends.trio import TrioBackend
 
 import respx
-from respx.mocks import MockRouter
+from respx.router import MockRouter
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,8 @@
 from typing import Any, Optional, Union, overload
 
-from .mocks import MockRouter
 from .models import CallList, Route
 from .patterns import Pattern
+from .router import MockRouter
 from .types import DefaultType, URLPatternTypes
 
 mock = MockRouter(assert_all_called=False)

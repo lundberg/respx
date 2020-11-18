@@ -4,8 +4,8 @@ import httpx
 import pytest
 
 import respx
-from respx.mocks import HTTPCoreMock
 from respx.router import MockRouter
+from respx.transports import MockTransport
 
 
 @pytest.mark.asyncio
@@ -321,7 +321,7 @@ def test_leakage(mocked_foo, mocked_ham):
     # NOTE: Including session fixtures, since they are pre-registered transports
     assert len(respx.routes) == 0
     assert len(respx.calls) == 0
-    assert len(HTTPCoreMock.routers) == 2
+    assert len(respx.mock.Mock.routers) == 2
 
 
 @pytest.mark.asyncio
@@ -440,3 +440,16 @@ async def test_uds():  # pragma: no cover
             response = await client.get("https://foo.bar/")
             assert request.called is True
             assert response.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_mock_using_none():
+    @respx.mock(using=None)
+    async def test(respx_mock):
+        respx_mock.get("https://example.org/") % 204
+        transport = MockTransport(handler=respx_mock.resolve)
+        async with httpx.AsyncClient(transport=transport) as client:
+            response = await client.get("https://example.org/")
+            assert response.status_code == 204
+
+    await test()

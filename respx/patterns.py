@@ -24,13 +24,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from .types import (
-    CookieTypes,
-    HeaderTypes,
-    QueryParamTypes,
-    RequestTypes,
-    URLPatternTypes,
-)
+from .types import CookieTypes, HeaderTypes, QueryParamTypes, URLPatternTypes
 
 
 class Lookup(Enum):
@@ -117,7 +111,7 @@ class Pattern(ABC):
         """
         return value
 
-    def parse(self, request: RequestTypes) -> Any:  # pragma: nocover
+    def parse(self, request: httpx.Request) -> Any:  # pragma: nocover
         """
         Parse and return request value to match with pattern value.
         """
@@ -126,7 +120,7 @@ class Pattern(ABC):
     def strip_base(self, value: Any) -> Any:  # pragma: nocover
         return value
 
-    def match(self, request: RequestTypes) -> Match:
+    def match(self, request: httpx.Request) -> Match:
         value = self.parse(request)
 
         # Match and strip base
@@ -183,7 +177,7 @@ class _And(Pattern):
         yield from a
         yield from b
 
-    def match(self, request: RequestTypes) -> Match:
+    def match(self, request: httpx.Request) -> Match:
         a, b = self.value
         match1 = a.match(request)
         match2 = b.match(request)
@@ -204,7 +198,7 @@ class _Or(Pattern):
         yield from a
         yield from b
 
-    def match(self, request: RequestTypes) -> Match:
+    def match(self, request: httpx.Request) -> Match:
         a, b = self.value
         match = a.match(request)
         if not match:
@@ -221,7 +215,7 @@ class _Invert(Pattern):
     def __iter__(self):
         yield from self.value
 
-    def match(self, request: RequestTypes) -> Match:
+    def match(self, request: httpx.Request) -> Match:
         return ~self.value.match(request)
 
 
@@ -232,16 +226,14 @@ class Method(Pattern):
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
         if isinstance(value, str):
-            return value.upper()
+            value = value.upper()
+        else:
+            assert isinstance(value, Sequence)
+            value = tuple(v.upper() for v in value)
         return value
 
-    def parse(self, request: RequestTypes) -> str:
-        if isinstance(request, httpx.Request):
-            method = request.method
-        else:
-            _method, *_ = request
-            method = _method.decode("ascii")
-        return method
+    def parse(self, request: httpx.Request) -> str:
+        return request.method
 
 
 class MultiItemsMixin:
@@ -273,14 +265,8 @@ class Headers(MultiItemsMixin, Pattern):
     def clean(self, value: HeaderTypes) -> httpx.Headers:
         return httpx.Headers(value)
 
-    def parse(self, request: RequestTypes) -> httpx.Headers:
-        if isinstance(request, httpx.Request):
-            headers = request.headers
-        else:
-            _, _, _headers, *_ = request
-            headers = httpx.Headers(_headers)
-
-        return headers
+    def parse(self, request: httpx.Request) -> httpx.Headers:
+        return request.headers
 
 
 class Cookies(Pattern):
@@ -297,12 +283,8 @@ class Cookies(Pattern):
 
         return set(value)
 
-    def parse(self, request: RequestTypes) -> Set[Tuple[str, str]]:
-        if isinstance(request, httpx.Request):
-            headers = request.headers
-        else:
-            _, _, _headers, *_ = request
-            headers = httpx.Headers(_headers)
+    def parse(self, request: httpx.Request) -> Set[Tuple[str, str]]:
+        headers = request.headers
 
         cookie_header = headers.get("cookie")
         if not cookie_header:
@@ -324,16 +306,14 @@ class Scheme(Pattern):
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
         if isinstance(value, str):
-            return value.lower()
+            value = value.lower()
+        else:
+            assert isinstance(value, Sequence)
+            value = tuple(v.lower() for v in value)
         return value
 
-    def parse(self, request: RequestTypes) -> str:
-        if isinstance(request, httpx.Request):
-            scheme = request.url.scheme
-        else:
-            _, (_scheme, *_), *_ = request
-            scheme = _scheme.decode("ascii")
-        return scheme
+    def parse(self, request: httpx.Request) -> str:
+        return request.url.scheme
 
 
 class Host(Pattern):
@@ -348,13 +328,8 @@ class Host(Pattern):
             value = re.compile(value)
         return value
 
-    def parse(self, request: RequestTypes) -> str:
-        if isinstance(request, httpx.Request):
-            host = request.url.host
-        else:
-            _, (_, _host, *_), *_ = request
-            host = _host.decode("ascii")
-        return host
+    def parse(self, request: httpx.Request) -> str:
+        return request.url.host
 
 
 class Port(Pattern):
@@ -362,15 +337,9 @@ class Port(Pattern):
     lookups = (Lookup.EQUAL, Lookup.IN)
     value: Optional[int]
 
-    def parse(self, request: RequestTypes) -> Optional[int]:
-        scheme: Optional[str] = None
-        if isinstance(request, httpx.Request):
-            scheme = request.url.scheme
-            port = request.url.port
-        else:
-            _, (_scheme, _, port, _), *_ = request
-            if _scheme:
-                scheme = _scheme.decode("ascii")
+    def parse(self, request: httpx.Request) -> Optional[int]:
+        scheme = request.url.scheme
+        port = request.url.port
         scheme_port = get_scheme_port(scheme)
         return port or scheme_port
 
@@ -390,14 +359,8 @@ class Path(Pattern):
             value = re.compile(value)
         return value
 
-    def parse(self, request: RequestTypes) -> str:
-        if isinstance(request, httpx.Request):
-            path = request.url.path
-        else:
-            _, (_, _, _, _path), *_ = request
-            _path, _, _ = _path.partition(b"?")
-            path = _path.decode("ascii")
-        return path
+    def parse(self, request: httpx.Request) -> str:
+        return request.url.path
 
     def strip_base(self, value: str) -> str:
         value = urljoin("/", value[len(self.base.value) :])
@@ -412,13 +375,8 @@ class Params(MultiItemsMixin, Pattern):
     def clean(self, value: QueryParamTypes) -> httpx.QueryParams:
         return httpx.QueryParams(value)
 
-    def parse(self, request: RequestTypes) -> httpx.QueryParams:
-        if isinstance(request, httpx.Request):
-            query = request.url.query
-        else:
-            _, url, *_ = request
-            query = httpx.URL(url).query
-
+    def parse(self, request: httpx.Request) -> httpx.QueryParams:
+        query = request.url.query
         return httpx.QueryParams(query)
 
 
@@ -435,9 +393,8 @@ class URL(Pattern):
         url: Union[str, RegexPattern[str]]
         if self.lookup is Lookup.EQUAL and isinstance(value, (str, tuple, httpx.URL)):
             _url = httpx.URL(value)
+            _url = self._ensure_path(_url)
             url = str(_url)
-            if not _url._uri_reference.path:  # Ensure path
-                url += "/"
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
             url = re.compile(value)
         elif isinstance(value, (str, RegexPattern)):
@@ -446,24 +403,19 @@ class URL(Pattern):
             raise ValueError(f"Invalid url: {value!r}")
         return url
 
-    def parse(self, request: RequestTypes) -> str:
-        if isinstance(request, httpx.Request):
-            url = str(request.url)
-            if not request.url._uri_reference.path:  # Ensure path
-                url += "/"
-        else:
-            _, _url, *_ = request
-            url = str(httpx.URL(_url))
+    def parse(self, request: httpx.Request) -> str:
+        url = request.url
+        url = self._ensure_path(url)
+        return str(url)
+
+    def _ensure_path(self, url: httpx.URL) -> httpx.URL:
+        if not url._uri_reference.path:
+            url = url.copy_with(path="/")
         return url
 
 
 class ContentMixin:
-    def parse(self, request: RequestTypes) -> Any:
-        if not isinstance(request, httpx.Request):
-            method, url, headers, stream = request
-            request = httpx.Request(
-                method, httpx.URL(url), headers=headers, stream=stream
-            )
+    def parse(self, request: httpx.Request) -> Any:
         content = request.read()
         return content
 
@@ -487,7 +439,7 @@ class JSON(ContentMixin, PathPattern):
     def clean(self, value: Union[str, List, Dict]) -> str:
         return self.hash(value)
 
-    def parse(self, request: RequestTypes) -> str:
+    def parse(self, request: httpx.Request) -> str:
         content = super().parse(request)
         json = jsonlib.loads(content.decode("utf-8"))
 

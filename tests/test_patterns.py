@@ -201,20 +201,22 @@ def test_params_pattern(lookup, params, url, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,url,context,expected",
+    "lookup,value,context,url,expected",
     [
-        (Lookup.REGEX, r"https?://foo.bar/(?P<slug>\w+)/", {"slug": "baz"}, True),
-        (Lookup.REGEX, re.compile(r"^https://foo.bar/.+$"), {}, True),
-        (Lookup.REGEX, r"https://ham.spam/baz/", {}, False),
-        (Lookup.EQUAL, "https://foo.bar/baz/", {}, True),
-        (Lookup.EQUAL, "https://foo.bar/ham/", {}, False),
-        (Lookup.STARTS_WITH, "https://foo.bar/b", {}, True),
-        (Lookup.STARTS_WITH, "http://foo.bar/baz/", {}, False),
+        (Lookup.REGEX, r"https?://a.b/(?P<c>\w+)/", {"c": "c"}, "http://a.b/c/", True),
+        (Lookup.REGEX, re.compile(r"^https://a.b/.+$"), {}, "https://a.b/c/", True),
+        (Lookup.REGEX, r"https://a.b/c/", {}, "https://x.y/c/", False),
+        (Lookup.EQUAL, "https://a.b/c/", {}, "https://a.b/c/", True),
+        (Lookup.EQUAL, "https://a.b/x/", {}, "https://a.b/c/", False),
+        (Lookup.EQUAL, "https://a.b?x=y", {}, "https://a.b/?x=y", True),
+        (Lookup.EQUAL, "https://a.b/?x=y", {}, "https://a.b?x=y", True),
+        (Lookup.STARTS_WITH, "https://a.b/b", {}, "https://a.b/baz/", True),
+        (Lookup.STARTS_WITH, "http://a.b/baz/", {}, "https://a.b/baz/", False),
     ],
 )
-def test_url_pattern(lookup, url, context, expected):
-    request = httpx.Request("GET", "https://foo.bar/baz/")
-    match = URL(url, lookup=lookup).match(request)
+def test_url_pattern(lookup, value, context, url, expected):
+    request = httpx.Request("GET", url)
+    match = URL(value, lookup=lookup).match(request)
     assert bool(match) is expected
     assert match.context == context
 

@@ -387,9 +387,8 @@ class URL(Pattern):
         url: Union[str, RegexPattern[str]]
         if self.lookup is Lookup.EQUAL and isinstance(value, (str, tuple, httpx.URL)):
             _url = httpx.URL(value)
+            _url = self._ensure_path(_url)
             url = str(_url)
-            if not _url._uri_reference.path:  # Ensure path
-                url += "/"
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
             url = re.compile(value)
         elif isinstance(value, (str, RegexPattern)):
@@ -399,9 +398,13 @@ class URL(Pattern):
         return url
 
     def parse(self, request: httpx.Request) -> str:
-        url = str(request.url)
-        if not request.url._uri_reference.path:  # Ensure path
-            url += "/"
+        url = request.url
+        url = self._ensure_path(url)
+        return str(url)
+
+    def _ensure_path(self, url: httpx.URL) -> httpx.URL:
+        if not url._uri_reference.path:
+            url = url.copy_with(path="/")
         return url
 
 

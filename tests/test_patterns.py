@@ -69,8 +69,9 @@ def test_match_context():
     "lookup,value,expected",
     [
         (Lookup.EQUAL, "GET", True),
+        (Lookup.EQUAL, "get", True),
         (Lookup.EQUAL, "POST", False),
-        (Lookup.IN, ["GET", "POST"], True),
+        (Lookup.IN, ["get", "POST"], True),
         (Lookup.IN, ["POST", "PUT"], False),
     ],
 )

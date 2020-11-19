@@ -226,7 +226,10 @@ class Method(Pattern):
 
     def clean(self, value: Union[str, Sequence[str]]) -> Union[str, Sequence[str]]:
         if isinstance(value, str):
-            return value.upper()
+            value = value.upper()
+        else:
+            assert isinstance(value, Sequence)
+            value = tuple(v.upper() for v in value)
         return value
 
     def parse(self, request: httpx.Request) -> str:

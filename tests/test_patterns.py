@@ -349,10 +349,19 @@ def test_iter_pattern():
 
 
 def test_parse_url_patterns():
-    patterns = parse_url_patterns("https://foo.bar/ham/spam/?egg=yolk")
+    patterns = parse_url_patterns("https://foo.bar:443/ham/spam/?egg=yolk")
     assert patterns == {
         "scheme": Scheme("https"),
         "host": Host("foo.bar"),
+        "path": Path("/ham/spam/"),
+        "params": Params({"egg": "yolk"}, Lookup.EQUAL),
+    }
+
+    patterns = parse_url_patterns("https://foo.bar:1337/ham/spam/?egg=yolk")
+    assert patterns == {
+        "scheme": Scheme("https"),
+        "host": Host("foo.bar"),
+        "port": Port(1337),
         "path": Path("/ham/spam/"),
         "params": Params({"egg": "yolk"}, Lookup.EQUAL),
     }

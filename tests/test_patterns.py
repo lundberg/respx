@@ -119,7 +119,7 @@ def test_cookies_pattern(lookup, cookies, request_cookies, expected):
         (Lookup.EQUAL, "https", True),
         (Lookup.EQUAL, "HTTPS", True),
         (Lookup.EQUAL, "http", False),
-        (Lookup.IN, ["http", "https"], True),
+        (Lookup.IN, ["http", "HTTPS"], True),
     ],
 )
 def test_scheme_pattern(lookup, scheme, expected):

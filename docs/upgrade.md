@@ -14,6 +14,8 @@ respx.post("https://some.url/", status_code=200, content={"x": 1})
 
 # Now
 respx.post("https://some.url/").mock(return_value=Response(200, json={"x": 1}))
+respx.post("https://some.url/").respond(200, json={"x": 1})
+respx.post("https://some.url/") % dict(json={"x": 1})
 ```
 
 The `.add` API has changed to `.route`:

@@ -1,5 +1,5 @@
 import inspect
-from functools import wraps
+from functools import update_wrapper
 from types import TracebackType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, overload
 from warnings import warn
@@ -330,7 +330,6 @@ class MockRouter(Router):
             return respx_mock
 
         # Async Decorator
-        @wraps(func)
         async def async_decorator(*args, **kwargs):
             assert func is not None
             if self._local:
@@ -339,13 +338,16 @@ class MockRouter(Router):
                 return await func(*args, **kwargs)
 
         # Sync Decorator
-        @wraps(func)
         def sync_decorator(*args, **kwargs):
             assert func is not None
             if self._local:
                 kwargs["respx_mock"] = self
             with self:
                 return func(*args, **kwargs)
+
+        if not self._local:
+            async_decorator = update_wrapper(async_decorator, func)
+            sync_decorator = update_wrapper(sync_decorator, func)
 
         # Dispatch async/sync decorator, depening on decorated function.
         # - Only stage when using global decorator `@respx.mock`

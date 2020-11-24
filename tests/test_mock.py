@@ -287,7 +287,7 @@ async def test_configured_router_reuse(client):
 
 @pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
-async def test_nested_base_url(respx_mock=None):
+async def test_nested_base_url(respx_mock):
     request = respx_mock.patch("/egg/") % dict(content="yolk")
     async with respx.mock(base_url="https://foo.bar/api/") as foobar_mock:
         request1 = foobar_mock.get("/baz/") % dict(content="baz")

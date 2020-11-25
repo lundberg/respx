@@ -2,7 +2,8 @@ import httpcore
 import httpx
 import pytest
 
-from respx import Router
+from respx import Route, Router
+from respx.models import RouteList
 from respx.patterns import Host, M, Method
 
 
@@ -297,3 +298,125 @@ def test_rollback():
     router.rollback()
     assert len(router.routes) == 0
     assert route.return_value is None
+
+
+def test_routelist__add():
+    routes = RouteList()
+
+    foobar = Route(method="PUT")
+    routes.add(foobar, name="foobar")
+    assert routes
+    assert list(routes) == [foobar]
+    assert routes["foobar"] == foobar
+    assert routes["foobar"] is routes[0]
+
+    hamspam = Route(method="POST")
+    routes.add(hamspam, name="hamspam")
+    assert list(routes) == [foobar, hamspam]
+    assert routes["hamspam"] == hamspam
+
+
+def test_routelist__pop():
+    routes = RouteList()
+
+    foobar = Route(method="GET")
+    hamspam = Route(method="POST")
+    routes.add(foobar, name="foobar")
+    routes.add(hamspam, name="hamspam")
+    assert list(routes) == [foobar, hamspam]
+
+    _foobar = routes.pop("foobar")
+    assert _foobar == foobar
+    assert list(routes) == [hamspam]
+
+    default = Route()
+    route = routes.pop("egg", default)
+    assert route is default
+    assert list(routes) == [hamspam]
+
+    with pytest.raises(KeyError):
+        routes.pop("egg")
+
+
+def test_routelist__replaces_same_name_and_pattern():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    routes.add(foobar1, name="foobar")
+    assert list(routes) == [foobar1]
+
+    foobar2 = Route(method="GET")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes[0] is foobar1
+
+
+def test_routelist__replaces_same_name_diff_pattern():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    routes.add(foobar1, name="foobar")
+    assert list(routes) == [foobar1]
+
+    foobar2 = Route(method="POST")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes[0] is foobar1
+
+
+def test_routelist__replaces_same_pattern_no_name():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    routes.add(foobar1)
+    assert list(routes) == [foobar1]
+
+    foobar2 = Route(method="GET")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes[0] is foobar1
+
+
+def test_routelist__replaces_same_pattern_diff_name():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    routes.add(foobar1, name="name")
+    assert list(routes) == [foobar1]
+
+    foobar2 = Route(method="GET")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes[0] is foobar1
+
+
+def test_routelist__replaces_same_name_other_pattern_no_name():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    routes.add(foobar1, name="foobar")
+    assert list(routes) == [foobar1]
+
+    hamspam = Route(method="POST")
+    routes.add(hamspam)
+
+    foobar2 = Route(method="POST")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes[0] is foobar1
+
+
+def test_routelist__replaces_same_name_other_pattern_other_name():
+    routes = RouteList()
+
+    foobar1 = Route(method="GET")
+    hamspam = Route(method="POST")
+
+    routes.add(foobar1, name="foobar")
+    routes.add(hamspam, name="hamspam")
+    assert list(routes) == [foobar1, hamspam]
+
+    foobar2 = Route(method="POST")
+    routes.add(foobar2, name="foobar")
+    assert list(routes) == [foobar2]
+    assert routes["foobar"] is foobar1

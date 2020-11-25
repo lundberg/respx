@@ -113,6 +113,10 @@ def test_cookies_pattern(lookup, cookies, request_cookies, expected):
     assert bool(Cookies(cookies, lookup=lookup).match(request)) is expected
 
 
+def test_cookies_pattern__hash():
+    assert Cookies({"x": "1", "y": "2"}) == Cookies({"y": "2", "x": "1"})
+
+
 @pytest.mark.parametrize(
     "lookup,scheme,expected",
     [

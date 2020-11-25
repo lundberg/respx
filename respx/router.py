@@ -7,7 +7,7 @@ from warnings import warn
 import httpx
 
 from .mocks import BaseMock, HTTPCoreMock, HTTPCoreMock as DefaultMock
-from .models import CallList, Route, SideEffectError
+from .models import CallList, Route, RouteList, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, URLPatternTypes
 
@@ -27,7 +27,7 @@ class Router:
         self._assert_all_mocked = assert_all_mocked
         self._bases = parse_url_patterns(base_url, exact=False)
 
-        self.routes: Dict[Union[str, int], Route] = {}
+        self.routes = RouteList()
         self.calls = CallList()
 
         self._snapshots: List[Tuple] = []
@@ -44,12 +44,12 @@ class Router:
         Snapshots current routes and calls state.
         """
         # Snapshot current routes and calls
-        routes = dict(self.routes)
+        routes = RouteList(self.routes)
         calls = CallList(self.calls)
         self._snapshots.append((routes, calls))
 
         # Snapshot each route state
-        for route in routes.values():
+        for route in routes:
             route.snapshot()
 
     def rollback(self) -> None:
@@ -61,12 +61,11 @@ class Router:
 
         # Revert added routes and calls to last snapshot
         routes, calls = self._snapshots.pop()
-        self.routes.clear()
-        self.routes.update(routes)
+        self.routes[:] = routes
         self.calls[:] = calls
 
         # Revert each route state to last snapshot
-        for route in self.routes.values():
+        for route in self.routes:
             route.rollback()
 
     def reset(self) -> None:
@@ -74,16 +73,16 @@ class Router:
         Resets call stats.
         """
         self.calls.clear()
-        for route in self.routes.values():
+        for route in self.routes:
             route.reset()
 
     def assert_all_called(self) -> None:
         assert all(
-            (route.called for route in self.routes.values())
+            (route.called for route in self.routes)
         ), "RESPX: some mocked requests were not called!"
 
-    def __getitem__(self, name: str) -> Optional[Route]:
-        return self.routes.get(name)
+    def __getitem__(self, name: str) -> Route:
+        return self.routes[name]
 
     @overload
     def pop(self, name: str) -> Route:
@@ -115,33 +114,16 @@ class Router:
     def add(self, route: Route, *, name: Optional[str] = None) -> Route:
         """
         Adds a route with optionally given name,
-        replacing any existing route with same pattern.
+        replacing any existing route with same name or pattern.
         """
         if not isinstance(route, Route):
             raise ValueError(
                 f"Invalid route {route!r}, please use respx.route(...).mock(...)"
             )
 
-        # Merge bases
         route.pattern = merge_patterns(route.pattern, **self._bases)
-        route.name = name
-
-        if route.id in self.routes:
-            route = self.replace(route)
-        else:
-            self.routes[route.id] = route
-
+        route = self.routes.add(route, name=name)
         return route
-
-    def replace(self, route: Route) -> Route:
-        """
-        Replace existing route with same pattern, in same place (order).
-        """
-        existing_route = self.routes[route.id]
-        existing_route.return_value = route.return_value
-        existing_route.side_effect = route.side_effect
-        existing_route.pass_through(route.is_pass_through)
-        return existing_route
 
     def request(
         self,
@@ -234,7 +216,7 @@ class Router:
         route: Optional[Route] = None
         response: Optional[Union[httpx.Request, httpx.Response]] = None
 
-        for prospect in self.routes.values():
+        for prospect in self.routes:
             response = prospect.match(request)
             if response:
                 route = prospect

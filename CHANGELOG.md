@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2020-11-26
+### Added
+- Easier support for using HTTPX MockTransport. (PR #118)
+- Support mixed case for `method__in` and `scheme__in` pattern lookups. (PR #113)
+
+### Fixed
+- Handle missing path in URL pattern (PR #113)
+
+### Changed
+- Refactored internal mocking vs `MockTransport`. (PR #112)
+
+### Removed
+- Dropped raw request support when parsing patterns (PR #113)
+
 ## [0.16.1] - 2020-11-16
 ### Added
 - Extended `url` pattern with support for `HTTPX` proxy url format. (PR #110)

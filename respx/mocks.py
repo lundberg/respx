@@ -14,7 +14,7 @@ class BaseMock:
     _patches: ClassVar[List[mock._patch]]
     routers: ClassVar[List["Router"]]
     targets: ClassVar[List[str]]
-    _target_methods: ClassVar[List[str]]
+    target_methods: ClassVar[List[str]]
 
     @classmethod
     def register(cls, router: "Router") -> None:
@@ -35,7 +35,7 @@ class BaseMock:
 
         # Start patching target transports
         for target in cls.targets:
-            for method in cls._target_methods:
+            for method in cls.target_methods:
                 try:
                     spec = f"{target}.{method}"
                     patch = mock.patch(spec, spec=True, new_callable=cls._mock)
@@ -107,11 +107,19 @@ class BaseMock:
 
     @classmethod
     def prepare(cls, httpx_request, **kwargs):
-        raise NotImplementedError()  # pragma: nocover
+        """
+        Sync pre-read request body
+        """
+        httpx_request.read()
+        return httpx_request, kwargs
 
     @classmethod
     async def aprepare(cls, httpx_request, **kwargs):
-        raise NotImplementedError()  # pragma: nocover
+        """
+        Async pre-read request body
+        """
+        await httpx_request.aread()
+        return httpx_request, kwargs
 
     @classmethod
     def to_httpx_request(cls, **kwargs):
@@ -135,26 +143,38 @@ class HTTPCoreMock(BaseMock):
         "httpx._transports.asgi.ASGITransport",
         "httpx._transports.wsgi.WSGITransport",
     ]
-    _target_methods = ["request", "arequest"]
+    target_methods = ["request", "arequest"]
 
     @classmethod
     def prepare(cls, httpx_request, **kwargs):
-        httpx_request.read()
+        """
+        Sync pre-read request body, and update transport request args.
+        """
+        httpx_request, kwargs = super().prepare(httpx_request, **kwargs)
         kwargs["stream"] = httpx_request.stream
         return httpx_request, kwargs
 
     @classmethod
     async def aprepare(cls, httpx_request, **kwargs):
-        await httpx_request.aread()
+        """
+        Async pre-read request body, and update transport request args.
+        """
+        httpx_request, kwargs = await super().aprepare(httpx_request, **kwargs)
         kwargs["stream"] = httpx_request.stream
         return httpx_request, kwargs
 
     @classmethod
     def to_httpx_request(cls, **kwargs):
+        """
+        Create a `HTTPX` request from transport request args.
+        """
         request = (kwargs["method"], kwargs["url"], kwargs["headers"], kwargs["stream"])
         httpx_request = decode_request(request)
         return httpx_request
 
     @classmethod
     def from_httpx_response(cls, httpx_response, target, **kwargs):
+        """
+        Create a transport return tuple from `HTTPX` response.
+        """
         return encode_response(httpx_response)

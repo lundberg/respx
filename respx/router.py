@@ -6,10 +6,13 @@ from warnings import warn
 
 import httpx
 
-from .mocks import HTTPCoreMock
+from .mocks import BaseMock, HTTPCoreMock, HTTPCoreMock as DefaultMock
 from .models import CallList, Route, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, URLPatternTypes
+
+Default = object
+DEFAULT = Default()
 
 
 class Router:
@@ -272,7 +275,27 @@ class Router:
 
 
 class MockRouter(Router):
+    Mock: Optional[Type[BaseMock]]
+    handler = Router.resolve
     _local = False
+
+    def __init__(
+        self,
+        *,
+        assert_all_called: bool = True,
+        assert_all_mocked: bool = True,
+        base_url: Optional[str] = None,
+        using: Optional[Union[str, Default]] = DEFAULT,
+    ) -> None:
+        super().__init__(
+            assert_all_called=assert_all_called,
+            assert_all_mocked=assert_all_mocked,
+            base_url=base_url,
+        )
+        self.Mock = {
+            "httpcore": HTTPCoreMock,
+            DEFAULT: DefaultMock,
+        }.get(using)
 
     def __call__(
         self,
@@ -281,6 +304,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        using: Optional[Union[str, Default]] = DEFAULT,
     ) -> Union["MockRouter", Callable]:
         """
         Decorator or Context Manager.
@@ -295,6 +319,7 @@ class MockRouter(Router):
             #   FYI, global ctx `with respx.mock:` hits __enter__ directly
             settings: Dict[str, Any] = {
                 "base_url": base_url,
+                "using": using,
             }
             if assert_all_called is not None:
                 settings["assert_all_called"] = assert_all_called
@@ -350,15 +375,16 @@ class MockRouter(Router):
         Register transport, snapshot router and start patching.
         """
         self.snapshot()
-        HTTPCoreMock.register(self)
-        HTTPCoreMock.start()
+        if self.Mock:
+            self.Mock.register(self)
+            self.Mock.start()
 
     def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
         Unregister transport and rollback router.
         Stop patching when no registered transports left.
         """
-        unregistered = HTTPCoreMock.unregister(self)
+        unregistered = self.Mock.unregister(self) if self.Mock else True
 
         try:
             if unregistered and not quiet and self._assert_all_called:
@@ -368,8 +394,8 @@ class MockRouter(Router):
                 self.rollback()
             if reset:
                 self.reset()
-
-            HTTPCoreMock.stop()
+            if self.Mock:
+                self.Mock.stop()
 
 
 class DeprecatedMockTransport(MockRouter):

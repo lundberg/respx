@@ -447,7 +447,22 @@ async def test_mock_using_none():
     @respx.mock(using=None)
     async def test(respx_mock):
         respx_mock.get("https://example.org/") % 204
-        transport = MockTransport(handler=respx_mock.resolve)
+        transport = MockTransport(handler=respx_mock.handler)
+        async with httpx.AsyncClient(transport=transport) as client:
+            response = await client.get("https://example.org/")
+            assert response.status_code == 204
+
+    await test()
+
+
+@pytest.mark.asyncio
+async def test_router_using_none():
+    router = MockRouter(using=None)
+    router.get("https://example.org/") % 204
+
+    @router
+    async def test():
+        transport = MockTransport(handler=router.handler)
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204

@@ -276,6 +276,7 @@ class Router:
 
 class MockRouter(Router):
     Mock: Optional[Type[BaseMock]]
+    handler = Router.resolve
     _local = False
 
     def __init__(

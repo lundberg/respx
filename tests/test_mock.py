@@ -457,7 +457,7 @@ async def test_mock_using_none():
 
 @pytest.mark.asyncio
 async def test_router_using_none():
-    router = MockRouter(using=None)
+    router = respx.MockRouter(using=None)
     router.get("https://example.org/") % 204
 
     @router

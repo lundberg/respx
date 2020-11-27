@@ -121,7 +121,7 @@ class Router:
                 f"Invalid route {route!r}, please use respx.route(...).mock(...)"
             )
 
-        route.pattern = merge_patterns(route.pattern, **self._bases)
+        route._pattern = merge_patterns(route.pattern, **self._bases)
         route = self.routes.add(route, name=name)
         return route
 

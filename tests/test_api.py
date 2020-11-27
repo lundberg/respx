@@ -13,6 +13,7 @@ import pytest
 import respx
 from respx.models import Route
 from respx.router import MockRouter
+from respx.patterns import M
 
 
 @pytest.mark.asyncio
@@ -538,6 +539,9 @@ def test_add():
 
         with pytest.raises(NotImplementedError):
             route.name = "spam"
+
+        with pytest.raises(NotImplementedError):
+            route.pattern &= M(params={"foo": "bar"})
 
 
 def test_respond():

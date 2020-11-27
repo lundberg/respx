@@ -119,13 +119,13 @@ class Route:
         *patterns: Pattern,
         **lookups: Any,
     ) -> None:
-        self.pattern = M(*patterns, **lookups)
-        self.calls = CallList()
+        self._pattern = M(*patterns, **lookups)
         self._return_value: Optional[httpx.Response] = None
         self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: bool = False
         self._name: Optional[str] = None
         self._snapshots: List[Tuple] = []
+        self.calls = CallList()
         self.snapshot()
 
     def __eq__(self, other: object) -> bool:
@@ -165,7 +165,15 @@ class Route:
 
     @name.setter
     def name(self, name: str) -> None:
-        raise NotImplementedError("Can't set name on route, use router.add")
+        raise NotImplementedError("Can't set name on route.")
+
+    @property
+    def pattern(self) -> Optional[Pattern]:
+        return self._pattern
+
+    @pattern.setter
+    def pattern(self, pattern: Pattern) -> None:
+        raise NotImplementedError("Can't change route pattern.")
 
     @property
     def return_value(self) -> Optional[httpx.Response]:
@@ -369,7 +377,7 @@ class Route:
         """
         context = {}
 
-        if self.pattern:
+        if self._pattern:
             match = self.pattern.match(request)
             if not match:
                 return None
@@ -448,7 +456,7 @@ class RouteList:
 
         if existing_route:
             # Update existing route's pattern and mock
-            existing_route.pattern = route.pattern
+            existing_route._pattern = route._pattern
             existing_route.return_value = route.return_value
             existing_route.side_effect = route.side_effect
             existing_route.pass_through(route.is_pass_through)

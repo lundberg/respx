@@ -128,6 +128,35 @@ async def test_local_async_decorator(client):
     assert respx.calls.call_count == 0
 
 
+def test_local_decorator_with_reference():
+    router = respx.mock()
+
+    @router
+    def test(respx_mock):
+        assert respx_mock is router
+
+    test()
+
+
+def test_local_decorator_without_reference():
+    router = respx.mock()
+    route = router.get("https://foo.bar/") % 202
+
+    @router
+    def test():
+        assert respx.calls.call_count == 0
+        response = httpx.get("https://foo.bar/")
+        assert route.called is True
+        assert response.status_code == 202
+        assert respx.calls.call_count == 0
+        assert router.calls.call_count == 1
+
+    assert router.calls.call_count == 0
+    assert respx.calls.call_count == 0
+    test()
+    assert respx.calls.call_count == 0
+
+
 @pytest.mark.asyncio
 async def test_global_contextmanager(client):
     with respx.mock:

@@ -277,7 +277,6 @@ class Router:
 class MockRouter(Router):
     Mock: Optional[Type[BaseMock]]
     handler = Router.resolve
-    _local = False
 
     def __init__(
         self,
@@ -326,13 +325,16 @@ class MockRouter(Router):
             if assert_all_mocked is not None:
                 settings["assert_all_mocked"] = assert_all_mocked
             respx_mock = self.__class__(**settings)
-            respx_mock._local = True
             return respx_mock
+
+        # Determine if decorated function needs a `respx_mock` instance
+        argspec = inspect.getfullargspec(func)
+        needs_mock_reference = "respx_mock" in argspec.args
 
         # Async Decorator
         async def async_decorator(*args, **kwargs):
             assert func is not None
-            if self._local:
+            if needs_mock_reference:
                 kwargs["respx_mock"] = self
             async with self:
                 return await func(*args, **kwargs)
@@ -340,12 +342,12 @@ class MockRouter(Router):
         # Sync Decorator
         def sync_decorator(*args, **kwargs):
             assert func is not None
-            if self._local:
+            if "respx_mock" in argspec.args:
                 kwargs["respx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 
-        if not self._local:
+        if not needs_mock_reference:
             async_decorator = update_wrapper(async_decorator, func)
             sync_decorator = update_wrapper(sync_decorator, func)
 

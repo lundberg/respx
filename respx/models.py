@@ -208,6 +208,8 @@ class Route:
 
         self._snapshots.append(
             (
+                self._pattern,
+                self._name,
                 self._return_value,
                 side_effect,
                 self._pass_through,
@@ -219,8 +221,11 @@ class Route:
         if not self._snapshots:
             return
 
-        return_value, side_effect, pass_through, calls = self._snapshots.pop()
+        snapshot = self._snapshots.pop()
+        pattern, name, return_value, side_effect, pass_through, calls = snapshot
 
+        self._pattern = pattern
+        self._name = name
         self._return_value = return_value
         self._side_effect = side_effect
         self.pass_through(pass_through)
@@ -466,7 +471,7 @@ class RouteList:
             self._routes.append(route)
 
         if name:
-            route._name = name  # TODO: snapshot/rollback route name?
+            route._name = name
             self._names[name] = route
 
         return route

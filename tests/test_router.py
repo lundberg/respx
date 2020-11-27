@@ -238,6 +238,8 @@ def test_side_effect_decorator():
 def test_rollback():
     router = Router()
     route = router.get("https://foo.bar/") % 404
+    pattern = route.pattern
+    assert route.name is None
 
     router.snapshot()  # 1. get 404
 
@@ -248,8 +250,13 @@ def test_rollback():
 
     router.snapshot()  # 2. get 200, post
 
+    _route = router.get("https://foo.bar/", name="foobar")
+    _route = router.get("https://foo.bar/baz/", name="foobar")
+    assert _route is route
+    assert route.name == "foobar"
+    assert route.pattern != pattern
     route.return_value = httpx.Response(418)
-    request = httpx.Request("GET", "https://foo.bar")
+    request = httpx.Request("GET", "https://foo.bar/baz/")
     response = router.resolve(request)
     assert response.status_code == 418
 
@@ -297,6 +304,8 @@ def test_rollback():
     route.rollback()
     router.rollback()
     assert len(router.routes) == 0
+    assert route.name is None
+    assert route.pattern == pattern
     assert route.return_value is None
 
 

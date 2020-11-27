@@ -128,6 +128,35 @@ async def test_local_async_decorator(client):
     assert respx.calls.call_count == 0
 
 
+def test_local_decorator_with_reference():
+    router = respx.mock()
+
+    @router
+    def test(respx_mock):
+        assert respx_mock is router
+
+    test()
+
+
+def test_local_decorator_without_reference():
+    router = respx.mock()
+    route = router.get("https://foo.bar/") % 202
+
+    @router
+    def test():
+        assert respx.calls.call_count == 0
+        response = httpx.get("https://foo.bar/")
+        assert route.called is True
+        assert response.status_code == 202
+        assert respx.calls.call_count == 0
+        assert router.calls.call_count == 1
+
+    assert router.calls.call_count == 0
+    assert respx.calls.call_count == 0
+    test()
+    assert respx.calls.call_count == 0
+
+
 @pytest.mark.asyncio
 async def test_global_contextmanager(client):
     with respx.mock:
@@ -287,7 +316,7 @@ async def test_configured_router_reuse(client):
 
 @pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
-async def test_nested_base_url(respx_mock=None):
+async def test_nested_base_url(respx_mock):
     request = respx_mock.patch("/egg/") % dict(content="yolk")
     async with respx.mock(base_url="https://foo.bar/api/") as foobar_mock:
         request1 = foobar_mock.get("/baz/") % dict(content="baz")

@@ -12,6 +12,7 @@ import pytest
 
 import respx
 from respx.models import Route
+from respx.patterns import M
 from respx.router import MockRouter
 
 
@@ -538,6 +539,9 @@ def test_add():
 
         with pytest.raises(NotImplementedError):
             route.name = "spam"
+
+        with pytest.raises(NotImplementedError):
+            route.pattern &= M(params={"foo": "bar"})
 
 
 def test_respond():

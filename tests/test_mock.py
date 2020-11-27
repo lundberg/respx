@@ -462,7 +462,7 @@ async def test_proxies():
 
 @pytest.mark.xfail(strict=True)
 @pytest.mark.asyncio
-async def test_uds():  # pragma: no cover
+async def test_uds():  # pragma: nocover
     async with respx.mock:
         async with httpx.AsyncClient(uds="/foo/bar.sock") as client:
             request = respx.get("https://foo.bar/") % 202

@@ -1,8 +1,8 @@
-from collections.abc import Iterator
 from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -119,22 +119,23 @@ class Route:
         *patterns: Pattern,
         **lookups: Any,
     ) -> None:
-        self.pattern = M(*patterns, **lookups)
-        self.calls = CallList()
+        self._pattern = M(*patterns, **lookups)
         self._return_value: Optional[httpx.Response] = None
         self._side_effect: Optional[SideEffectTypes] = None
         self._pass_through: bool = False
         self._name: Optional[str] = None
         self._snapshots: List[Tuple] = []
+        self.calls = CallList()
         self.snapshot()
 
-    def __hash__(self):
-        if self.pattern:
-            return hash(self.pattern)
-        return id(self)
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Route):
+            return False  # pragma: nocover
+        return self.pattern == other.pattern
 
-    def __repr__(self):
-        return f"<Route {self.pattern!r}>"  # pragma: no cover
+    def __repr__(self):  # pragma: nocover
+        name = f"name={self._name!r} " if self._name else ""
+        return f"<Route {name}{self.pattern!r}>"
 
     def __call__(self, side_effect: CallableSideEffect) -> CallableSideEffect:
         self.side_effect = side_effect
@@ -159,19 +160,20 @@ class Route:
         return self
 
     @property
-    def id(self):
-        return self._name or hash(self)
-
-    @property
     def name(self) -> Optional[str]:
         return self._name
 
     @name.setter
     def name(self, name: str) -> None:
-        if self._name is None:
-            self._name = name
-        else:
-            raise NotImplementedError("Can't change name on route, use pop + add")
+        raise NotImplementedError("Can't set name on route.")
+
+    @property
+    def pattern(self) -> Optional[Pattern]:
+        return self._pattern
+
+    @pattern.setter
+    def pattern(self, pattern: Pattern) -> None:
+        raise NotImplementedError("Can't change route pattern.")
 
     @property
     def return_value(self) -> Optional[httpx.Response]:
@@ -206,6 +208,8 @@ class Route:
 
         self._snapshots.append(
             (
+                self._pattern,
+                self._name,
                 self._return_value,
                 side_effect,
                 self._pass_through,
@@ -217,8 +221,11 @@ class Route:
         if not self._snapshots:
             return
 
-        return_value, side_effect, pass_through, calls = self._snapshots.pop()
+        snapshot = self._snapshots.pop()
+        pattern, name, return_value, side_effect, pass_through, calls = snapshot
 
+        self._pattern = pattern
+        self._name = name
         self._return_value = return_value
         self._side_effect = side_effect
         self.pass_through(pass_through)
@@ -375,7 +382,7 @@ class Route:
         """
         context = {}
 
-        if self.pattern:
+        if self._pattern:
             match = self.pattern.match(request)
             if not match:
                 return None
@@ -386,6 +393,103 @@ class Route:
 
         result = self.resolve(request, **context)
         return result
+
+
+class RouteList:
+    _routes: List[Route]
+    _names: Dict[str, Route]
+
+    def __init__(self, routes: Optional["RouteList"] = None) -> None:
+        if routes is None:
+            self._routes = []
+            self._names = {}
+        else:
+            self._routes = list(routes._routes)
+            self._names = dict(routes._names)
+
+    def __repr__(self) -> str:
+        return repr(self._routes)  # pragma: nocover
+
+    def __iter__(self) -> Iterator[Route]:
+        return iter(self._routes)
+
+    def __bool__(self) -> bool:
+        return bool(self._routes)
+
+    def __len__(self) -> int:
+        return len(self._routes)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._names
+
+    def __getitem__(self, key: Union[int, str]) -> Optional[Route]:
+        if isinstance(key, int):
+            return self._routes[key]
+        else:
+            return self._names[key]
+
+    def __setitem__(self, i: slice, routes: "RouteList") -> None:
+        """
+        Re-set all routes to given routes.
+        """
+        self._routes = list(routes._routes)
+        self._names = dict(routes._names)
+
+    def clear(self) -> None:
+        self._routes.clear()
+        self._names.clear()
+
+    def add(self, route: Route, name: Optional[str] = None) -> Route:
+        # Find route with same name
+        existing_route = self._names.pop(name, None)
+
+        if route in self._routes:
+            if existing_route and existing_route != route:
+                # Re-use existing route with same name, and drop any with same pattern
+                index = self._routes.index(route)
+                same_pattern_route = self._routes.pop(index)
+                if same_pattern_route.name:
+                    del self._names[same_pattern_route.name]
+                    same_pattern_route._name = None
+            elif not existing_route:
+                # Re-use existing route with same pattern
+                index = self._routes.index(route)
+                existing_route = self._routes[index]
+                if existing_route.name:
+                    del self._names[existing_route.name]
+                    existing_route._name = None
+
+        if existing_route:
+            # Update existing route's pattern and mock
+            existing_route._pattern = route._pattern
+            existing_route.return_value = route.return_value
+            existing_route.side_effect = route.side_effect
+            existing_route.pass_through(route.is_pass_through)
+            route = existing_route
+        else:
+            # Add new route
+            self._routes.append(route)
+
+        if name:
+            route._name = name
+            self._names[name] = route
+
+        return route
+
+    def pop(self, name, default=...):
+        """
+        Removes a route by name and returns it.
+
+        Raises KeyError when `default` not provided and name is not found.
+        """
+        try:
+            route = self._names.pop(name)
+            self._routes.remove(route)
+            return route
+        except KeyError as ex:
+            if default is ...:
+                raise ex
+            return default
 
 
 class SideEffectError(Exception):

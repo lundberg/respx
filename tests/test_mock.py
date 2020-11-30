@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 import respx
+from respx.mocks import Mocker
 from respx.router import MockRouter
 from respx.transports import MockTransport
 
@@ -347,10 +348,10 @@ async def test_nested_base_url(respx_mock):
 
 
 def test_leakage(mocked_foo, mocked_ham):
-    # NOTE: Including session fixtures, since they are pre-registered transports
+    # NOTE: Including session fixtures, since they are pre-registered routers
     assert len(respx.routes) == 0
     assert len(respx.calls) == 0
-    assert len(respx.mock.Mock.routers) == 2
+    assert len(respx.mock.Mocker.routers) == 2
 
 
 @pytest.mark.asyncio
@@ -485,7 +486,7 @@ async def test_mock_using_none():
 
 
 @pytest.mark.asyncio
-async def test_router_using_none():
+async def test_router_using__none():
     router = respx.MockRouter(using=None)
     router.get("https://example.org/") % 204
 
@@ -497,3 +498,20 @@ async def test_router_using_none():
             assert response.status_code == 204
 
     await test()
+
+
+def test_router_using__invalid():
+    with pytest.raises(ValueError, match="using"):
+        respx.MockRouter(using=123).using
+
+
+def test_mocker_subclass():
+    with pytest.raises(TypeError, match="unique name"):
+
+        class Foobar(Mocker):
+            name = "httpcore"
+
+    class Hamspam(Mocker):
+        pass
+
+    assert not hasattr(Hamspam, "routers")

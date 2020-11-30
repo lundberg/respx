@@ -1,5 +1,7 @@
 import inspect
-from typing import TYPE_CHECKING, ClassVar, List
+from abc import ABC
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
 from .models import decode_request, encode_response
@@ -7,14 +9,33 @@ from .models import decode_request, encode_response
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
 
-__all__ = ["HTTPCoreMock"]
+__all__ = ["Mocker", "HTTPCoreMocker"]
 
 
-class BaseMock:
+class Mocker(ABC):
     _patches: ClassVar[List[mock._patch]]
+    name: ClassVar[str]
     routers: ClassVar[List["Router"]]
     targets: ClassVar[List[str]]
     target_methods: ClassVar[List[str]]
+
+    # Automatically register all the subclasses in this dict
+    __registry: ClassVar[Dict[str, Type["Mocker"]]] = {}
+    registry = MappingProxyType(__registry)
+
+    def __init_subclass__(cls) -> None:
+        if not getattr(cls, "name", None) or ABC in cls.__bases__:
+            return
+
+        if cls.name in cls.__registry:
+            raise TypeError(
+                "Subclasses of Mocker must define a unique name. "
+                f"{cls.name!r} is already defined as {cls.__registry[cls.name]!r}"
+            )
+
+        cls.routers = []
+        cls._patches = []
+        cls.__registry[cls.name] = cls
 
     @classmethod
     def register(cls, router: "Router") -> None:
@@ -130,9 +151,8 @@ class BaseMock:
         raise NotImplementedError()  # pragma: nocover
 
 
-class HTTPCoreMock(BaseMock):
-    _patches: ClassVar[List[mock._patch]] = []
-    routers: ClassVar[List["Router"]] = []
+class HTTPCoreMocker(Mocker):
+    name = "httpcore"
     targets = [
         "httpcore._sync.connection.SyncHTTPConnection",
         "httpcore._sync.connection_pool.SyncConnectionPool",
@@ -178,3 +198,6 @@ class HTTPCoreMock(BaseMock):
         Create a transport return tuple from `HTTPX` response.
         """
         return encode_response(httpx_response)
+
+
+DEFAULT_MOCKER: str = HTTPCoreMocker.name

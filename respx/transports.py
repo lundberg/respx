@@ -1,5 +1,5 @@
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 
 from httpcore import (
     AsyncByteStream,
@@ -8,20 +8,22 @@ from httpcore import (
     SyncHTTPTransport,
 )
 
-from .models import decode_request, encode_response
-from .router import Router
+from .models import PassThrough, decode_request, encode_response
 from .types import URL, AsyncResponse, Headers, RequestHandler, SyncResponse
+
+if TYPE_CHECKING:
+    from .router import Router  # pragma: nocover
 
 
 class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
     _handler: Optional[RequestHandler]
-    _router: Optional[Router]
+    _router: Optional["Router"]
 
     def __init__(
         self,
         *,
         handler: Optional[RequestHandler] = None,
-        router: Optional[Router] = None,
+        router: Optional["Router"] = None,
     ):
         if handler and not router:
             self._handler = handler
@@ -36,7 +38,7 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
     @property
     def handler(self) -> RequestHandler:
-        return self._handler or self._router.resolve
+        return self._handler or self._router.handler
 
     def request(
         self,
@@ -51,12 +53,9 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Pre-read request
         request.read()
-        stream = request.stream  # type: ignore
 
         # Resolve response
         response = self.handler(request)
-        if response is None:
-            raise ValueError("pass_through not supported when using MockTransport")
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -74,12 +73,9 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Pre-read request
         await request.aread()
-        stream = request.stream  # type: ignore
 
         # Resolve response
         response = self.handler(request)
-        if response is None:
-            raise ValueError("pass_through not supported when using MockTransport")
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -95,3 +91,52 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
     async def __aexit__(self, *args: Any) -> None:
         self.__exit__(*args)
+
+
+class TryTransport(SyncHTTPTransport, AsyncHTTPTransport):
+    def __init__(
+        self, transports: List[Union[SyncHTTPTransport, AsyncHTTPTransport]]
+    ) -> None:
+        self.transports = transports
+
+    def request(
+        self,
+        method: bytes,
+        url: URL,
+        headers: Headers = None,
+        stream: SyncByteStream = None,
+        ext: dict = None,
+    ) -> SyncResponse:
+        error: Exception = None
+        for transport in self.transports:
+            try:
+                assert isinstance(transport, SyncHTTPTransport)
+                return transport.request(method, url, headers, stream, ext)
+            except PassThrough as pass_through:
+                stream = pass_through.request.stream  # type: ignore
+            except AssertionError:
+                raise
+            except Exception as e:
+                error = e
+        raise error
+
+    async def arequest(
+        self,
+        method: bytes,
+        url: URL,
+        headers: Headers = None,
+        stream: AsyncByteStream = None,
+        ext: dict = None,
+    ) -> AsyncResponse:
+        error: Exception = None
+        for transport in self.transports:
+            try:
+                assert isinstance(transport, AsyncHTTPTransport)
+                return await transport.arequest(method, url, headers, stream, ext)
+            except PassThrough as pass_through:
+                stream = pass_through.request.stream  # type: ignore
+            except AssertionError:
+                raise
+            except Exception as e:
+                error = e
+        raise error

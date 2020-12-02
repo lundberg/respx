@@ -496,3 +496,9 @@ class SideEffectError(Exception):
     def __init__(self, route: Route, origin: Exception) -> None:
         self.route = route
         self.origin = origin
+
+
+class PassThrough(Exception):
+    def __init__(self, message: str, *, request: httpx.Request) -> None:
+        super().__init__(message)
+        self.request = request

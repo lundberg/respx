@@ -50,7 +50,7 @@ Response = Tuple[
     ByteStream,  # body
     dict,  # ext
 ]
-RequestHandler = Callable[[httpx.Request], Optional[httpx.Response]]
+RequestHandler = Callable[[httpx.Request], httpx.Response]
 
 HeaderTypes = Union[
     httpx.Headers,

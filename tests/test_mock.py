@@ -1,5 +1,6 @@
 from contextlib import ExitStack as does_not_raise
 
+import httpcore
 import httpx
 import pytest
 
@@ -97,8 +98,9 @@ async def test_global_async_decorator(client):
     assert respx.calls.call_count == 0
 
 
-def test_local_sync_decorator():
-    @respx.mock()
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+def test_local_sync_decorator(using):
+    @respx.mock(using=using)
     def test(respx_mock):
         assert respx.calls.call_count == 0
         request = respx_mock.get("https://foo.bar/") % 202
@@ -108,14 +110,18 @@ def test_local_sync_decorator():
         assert respx.calls.call_count == 0
         assert respx_mock.calls.call_count == 1
 
+        with pytest.raises(AssertionError, match="not mocked"):
+            httpx.post("https://foo.bar/")
+
     assert respx.calls.call_count == 0
     test()
     assert respx.calls.call_count == 0
 
 
 @pytest.mark.asyncio
-async def test_local_async_decorator(client):
-    @respx.mock()
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+async def test_local_async_decorator(client, using):
+    @respx.mock(using=using)
     async def test(respx_mock):
         assert respx.calls.call_count == 0
         request = respx_mock.get("https://foo.bar/") % 202
@@ -125,6 +131,10 @@ async def test_local_async_decorator(client):
         assert respx.calls.call_count == 0
         assert respx_mock.calls.call_count == 1
 
+        with pytest.raises(AssertionError, match="not mocked"):
+            httpx.post("https://foo.bar/")
+
+    assert respx.calls.call_count == 0
     await test()
     assert respx.calls.call_count == 0
 
@@ -351,7 +361,7 @@ def test_leakage(mocked_foo, mocked_ham):
     # NOTE: Including session fixtures, since they are pre-registered routers
     assert len(respx.routes) == 0
     assert len(respx.calls) == 0
-    assert len(respx.mock.Mocker.routers) == 2
+    assert len(Mocker.registry["httpcore"].routers) == 2
 
 
 @pytest.mark.asyncio
@@ -515,3 +525,62 @@ def test_mocker_subclass():
         pass
 
     assert not hasattr(Hamspam, "routers")
+
+
+def test_sync_httpx_mocker():
+    class TestTransport(httpcore.SyncHTTPTransport):
+        def request(self, *args, **kwargs):
+            raise RuntimeError("would pass through")
+
+    client = httpx.Client(transport=TestTransport())
+
+    @respx.mock(using="httpx")
+    def test(respx_mock):
+        mock_route = respx_mock.get("https://example.org/") % 204
+        pass_route = respx_mock.get(host="pass-through").pass_through()
+
+        with client:
+            response = client.get("https://example.org/")
+            assert response.status_code == 204
+            assert mock_route.call_count == 1
+
+            with pytest.raises(RuntimeError, match="would pass through"):
+                client.get("https://pass-through/")
+            assert pass_route.call_count == 1
+
+            with pytest.raises(AssertionError, match="not mocked"):
+                client.get("https://not-mocked/")
+
+    with respx.mock(using="httpx"):  # extra registered router
+        test()
+
+
+@pytest.mark.asyncio
+async def test_async_httpx_mocker():
+    class TestTransport(httpcore.AsyncHTTPTransport):
+        async def arequest(self, *args, **kwargs):
+            raise RuntimeError("would pass through")
+
+    client = httpx.AsyncClient(transport=TestTransport())
+
+    @respx.mock
+    @respx.mock(using="httpx")
+    async def test(respx_mock):
+        respx.get(host="foo.bar")
+        mock_route = respx_mock.get("https://example.org/") % 204
+        pass_route = respx_mock.get(host="pass-through").pass_through()
+
+        async with client:
+            response = await client.get("https://example.org/")
+            assert response.status_code == 204
+            assert mock_route.call_count == 1
+
+            with pytest.raises(RuntimeError, match="would pass through"):
+                await client.get("https://pass-through/")
+            assert pass_route.call_count == 1
+
+            with pytest.raises(AssertionError, match="not mocked"):
+                await client.get("https://not-mocked/")
+
+    async with respx.mock(using="httpx"):  # extra registered router
+        await test()

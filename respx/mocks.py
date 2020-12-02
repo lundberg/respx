@@ -4,7 +4,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
-from .models import decode_request, encode_response
+from .models import PassThrough, decode_request, encode_response
+from .transports import MockTransport, TryTransport
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
@@ -59,7 +60,7 @@ class Mocker(ABC):
             for method in cls.target_methods:
                 try:
                     spec = f"{target}.{method}"
-                    patch = mock.patch(spec, spec=True, new_callable=cls._mock)
+                    patch = mock.patch(spec, spec=True, new_callable=cls.mock)
                     patch.start()
                     cls._patches.append(patch)
                 except AttributeError:
@@ -77,6 +78,70 @@ class Mocker(ABC):
             patch.stop()
 
     @classmethod
+    def handler(cls, httpx_request):
+        httpx_response = None
+        error = None
+        for router in cls.routers:
+            try:
+                httpx_response = router.handler(httpx_request)
+            except AssertionError as e:
+                error = e.args[0]
+                continue
+            else:
+                break
+        else:
+            assert httpx_response, error
+        return httpx_response
+
+    @classmethod
+    def mock(cls, spec):
+        raise NotImplementedError()  # pragma: nocover
+
+
+class HTTPXMocker(Mocker):
+    name = "httpx"
+    targets = [
+        "httpx._client.Client",
+        "httpx._client.AsyncClient",
+    ]
+    target_methods = ["_transport_for_url"]
+
+    @classmethod
+    def mock(cls, spec):
+        mock_transport = MockTransport(handler=cls.handler)
+
+        def _transport_for_url(self, *args, **kwargs):
+            pass_through_transport = spec(self, *args, **kwargs)
+            transport = TryTransport([mock_transport, pass_through_transport])
+            return transport
+
+        return _transport_for_url
+
+
+class AbstractRequestMocker(Mocker):
+    @classmethod
+    def mock(cls, spec):
+        argspec = inspect.getfullargspec(spec)
+
+        def mock(self, *args, **kwargs):
+            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            request = cls.to_httpx_request(**kwargs)
+            request, kwargs = cls.prepare(request, **kwargs)
+            response = cls._send(request, instance=self, target_spec=spec, **kwargs)
+            return response
+
+        async def amock(self, *args, **kwargs):
+            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            request = cls.to_httpx_request(**kwargs)
+            request, kwargs = await cls.aprepare(request, **kwargs)
+            response = cls._send(request, instance=self, target_spec=spec, **kwargs)
+            if inspect.isawaitable(response):
+                response = await response
+            return response
+
+        return amock if inspect.iscoroutinefunction(spec) else mock
+
+    @classmethod
     def _merge_args_and_kwargs(cls, argspec, args, kwargs):
         arg_names = argspec.args[1:]  # Skip self
         new_kwargs = dict(zip(arg_names[-len(argspec.defaults) :], argspec.defaults))
@@ -85,45 +150,13 @@ class Mocker(ABC):
         return new_kwargs
 
     @classmethod
-    def _mock(cls, spec):
-        argspec = inspect.getfullargspec(spec)
-
-        def mock(self, *args, **kwargs):
-            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
-            request = cls.to_httpx_request(**kwargs)
-            request, kwargs = cls.prepare(request, **kwargs)
-            response = cls.send(request, target=self, pass_through=spec, **kwargs)
-            return response
-
-        async def amock(self, *args, **kwargs):
-            kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
-            request = cls.to_httpx_request(**kwargs)
-            request, kwargs = await cls.aprepare(request, **kwargs)
-            response = cls.send(request, target=self, pass_through=spec, **kwargs)
-            if inspect.isawaitable(response):
-                response = await response
-            return response
-
-        return amock if inspect.iscoroutinefunction(spec) else mock
-
-    @classmethod
-    def send(cls, httpx_request, *, target, pass_through, **kwargs):
-        response = None
-        error = None
-        for router in cls.routers:
-            try:
-                httpx_response = router.resolve(httpx_request)
-                if httpx_response is None:
-                    response = pass_through(target, **kwargs)
-                else:
-                    response = cls.from_httpx_response(httpx_response, target, **kwargs)
-            except AssertionError as e:
-                error = e.args[0]
-                continue
-            else:
-                break
+    def _send(cls, httpx_request, *, instance, target_spec, **kwargs):
+        try:
+            httpx_response = cls.handler(httpx_request)
+        except PassThrough:
+            response = target_spec(instance, **kwargs)
         else:
-            assert response, error
+            response = cls.from_httpx_response(httpx_response, instance, **kwargs)
         return response
 
     @classmethod
@@ -151,7 +184,7 @@ class Mocker(ABC):
         raise NotImplementedError()  # pragma: nocover
 
 
-class HTTPCoreMocker(Mocker):
+class HTTPCoreMocker(AbstractRequestMocker):
     name = "httpcore"
     targets = [
         "httpcore._sync.connection.SyncHTTPConnection",

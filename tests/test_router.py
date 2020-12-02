@@ -3,7 +3,7 @@ import httpx
 import pytest
 
 from respx import Route, Router
-from respx.models import RouteList
+from respx.models import PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
@@ -51,6 +51,9 @@ def test_pass_through():
     assert matched_route is route
     assert matched_route.is_pass_through
     assert response is request
+
+    with pytest.raises(PassThrough):
+        router.handler(request)
 
     route.pass_through(False)
     matched_route, response = router.match(request)

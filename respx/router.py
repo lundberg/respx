@@ -1,18 +1,29 @@
 import inspect
 from functools import update_wrapper
 from types import TracebackType
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NewType,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    overload,
+)
 from warnings import warn
 
 import httpx
 
-from .mocks import BaseMock, HTTPCoreMock, HTTPCoreMock as DefaultMock
+from .mocks import Mocker
 from .models import CallList, Route, RouteList, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, URLPatternTypes
 
-Default = object
-DEFAULT = Default()
+Default = NewType("Default", object)
+DEFAULT = Default(...)
 
 
 class Router:
@@ -257,7 +268,7 @@ class Router:
 
 
 class MockRouter(Router):
-    Mock: Optional[Type[BaseMock]]
+    Mocker: Optional[Type[Mocker]]
     handler = Router.resolve
 
     def __init__(
@@ -273,10 +284,7 @@ class MockRouter(Router):
             assert_all_mocked=assert_all_mocked,
             base_url=base_url,
         )
-        self.Mock = {
-            "httpcore": HTTPCoreMock,
-            DEFAULT: DefaultMock,
-        }.get(using)
+        self._using = using
 
     def __call__(
         self,
@@ -356,21 +364,37 @@ class MockRouter(Router):
     async def __aexit__(self, *args: Any) -> None:
         self.__exit__(*args)
 
+    @property
+    def using(self) -> Optional[str]:
+        from respx.mocks import DEFAULT_MOCKER
+
+        if self._using is None:
+            using = None
+        elif self._using is DEFAULT:
+            using = DEFAULT_MOCKER
+        elif isinstance(self._using, str):
+            using = self._using
+        else:
+            raise ValueError(f"Invalid Router `using` kwarg: {self._using!r}")
+
+        return using
+
     def start(self) -> None:
         """
         Register transport, snapshot router and start patching.
         """
         self.snapshot()
-        if self.Mock:
-            self.Mock.register(self)
-            self.Mock.start()
+        self.Mocker = Mocker.registry.get(self.using)
+        if self.Mocker:
+            self.Mocker.register(self)
+            self.Mocker.start()
 
     def stop(self, clear: bool = True, reset: bool = True, quiet: bool = False) -> None:
         """
         Unregister transport and rollback router.
         Stop patching when no registered transports left.
         """
-        unregistered = self.Mock.unregister(self) if self.Mock else True
+        unregistered = self.Mocker.unregister(self) if self.Mocker else True
 
         try:
             if unregistered and not quiet and self._assert_all_called:
@@ -380,8 +404,8 @@ class MockRouter(Router):
                 self.rollback()
             if reset:
                 self.reset()
-            if self.Mock:
-                self.Mock.stop()
+            if self.Mocker:
+                self.Mocker.stop()
 
 
 class DeprecatedMockTransport(MockRouter):

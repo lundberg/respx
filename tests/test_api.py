@@ -474,6 +474,11 @@ def test_pop():
         popped = respx.pop("foobar")
         assert popped is request
 
+        with pytest.raises(KeyError):
+            respx.pop("foobar")
+
+        assert respx.pop("foobar", "custom default") == "custom default"
+
 
 @respx.mock
 @pytest.mark.asyncio

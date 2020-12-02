@@ -63,7 +63,7 @@ async def test_transport_assertions():
     ],
 )
 async def test_httpcore_request(url, port):
-    async with MockRouter() as router:
+    async with MockRouter(using="httpcore") as router:
         router.get(url) % dict(text="foobar")
 
         with httpcore.SyncConnectionPool() as http:
@@ -81,27 +81,6 @@ async def test_httpcore_request(url, port):
 
             body = b"".join([chunk async for chunk in stream])
             assert body == b"foobar"
-
-
-@pytest.mark.asyncio
-async def test_transport_pop():
-    url = "https://foo.bar/"
-    name = "ny_named_route"
-
-    transport = MockRouter()
-    transport.get(url, name=name) % 404
-
-    route = transport.pop(name)
-
-    assert route.resolve(httpx.Request("GET", "https://foo.bar/")).status_code == 404
-    assert route.name == name
-
-    assert not transport.routes
-
-    with pytest.raises(KeyError):
-        transport.pop(name)
-
-    assert transport.pop(name, "custom default") == "custom default"
 
 
 def test_required_kwarg():

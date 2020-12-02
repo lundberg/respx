@@ -1,27 +1,35 @@
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
+    ConnectError,
     SyncByteStream,
     SyncHTTPTransport,
 )
 
 from .models import decode_request, encode_response
-from .router import Router
 from .types import URL, AsyncResponse, Headers, RequestHandler, SyncResponse
+
+if TYPE_CHECKING:
+    from .router import Router  # pragma: nocover
+
+
+class TransportError(ConnectError):
+    def __init__(self, request):
+        self.request = request
 
 
 class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
     _handler: Optional[RequestHandler]
-    _router: Optional[Router]
+    _router: Optional["Router"]
 
     def __init__(
         self,
         *,
         handler: Optional[RequestHandler] = None,
-        router: Optional[Router] = None,
+        router: Optional["Router"] = None,
     ):
         if handler and not router:
             self._handler = handler
@@ -51,12 +59,11 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Pre-read request
         request.read()
-        stream = request.stream  # type: ignore
 
         # Resolve response
         response = self.handler(request)
         if response is None:
-            raise ValueError("pass_through not supported when using MockTransport")
+            raise TransportError((method, url, headers, request.stream, ext))
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -74,12 +81,11 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Pre-read request
         await request.aread()
-        stream = request.stream  # type: ignore
 
         # Resolve response
         response = self.handler(request)
         if response is None:
-            raise ValueError("pass_through not supported when using MockTransport")
+            raise TransportError((method, url, headers, request.stream, ext))
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -95,3 +101,52 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
     async def __aexit__(self, *args: Any) -> None:
         self.__exit__(*args)
+
+
+class TryTransport(SyncHTTPTransport, AsyncHTTPTransport):
+    def __init__(
+        self, transports: List[Union[SyncHTTPTransport, AsyncHTTPTransport]]
+    ) -> None:
+        self.transports = transports
+
+    def request(
+        self,
+        method: bytes,
+        url: URL,
+        headers: Headers = None,
+        stream: SyncByteStream = None,
+        ext: dict = None,
+    ) -> SyncResponse:
+        error: Exception = None
+        for transport in self.transports:
+            try:
+                assert isinstance(transport, SyncHTTPTransport)
+                return transport.request(method, url, headers, stream, ext)
+            except TransportError as e:
+                method, url, headers, stream, ext = e.request
+            except AssertionError:
+                raise
+            except Exception as e:
+                error = e
+        raise error
+
+    async def arequest(
+        self,
+        method: bytes,
+        url: URL,
+        headers: Headers = None,
+        stream: AsyncByteStream = None,
+        ext: dict = None,
+    ) -> AsyncResponse:
+        error: Exception = None
+        for transport in self.transports:
+            try:
+                assert isinstance(transport, AsyncHTTPTransport)
+                return await transport.arequest(method, url, headers, stream, ext)
+            except TransportError as e:
+                method, url, headers, stream, ext = e.request
+            except AssertionError:
+                raise
+            except Exception as e:
+                error = e
+        raise error

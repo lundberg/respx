@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
 from .models import decode_request, encode_response
+from .transports import MockTransport, TryTransport
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
@@ -96,6 +97,25 @@ class Mocker(ABC):
     def mock(cls, spec):
         raise NotImplementedError()  # pragma: nocover
 
+
+class HTTPXMocker(Mocker):
+    name = "httpx"
+    targets = [
+        "httpx._client.Client",
+        "httpx._client.AsyncClient",
+    ]
+    target_methods = ["_transport_for_url"]
+
+    @classmethod
+    def mock(cls, spec):
+        mock_transport = MockTransport(handler=cls.handler)
+
+        def _transport_for_url(self, *args, **kwargs):
+            pass_through_transport = spec(self, *args, **kwargs)
+            transport = TryTransport([mock_transport, pass_through_transport])
+            return transport
+
+        return _transport_for_url
 
 
 class AbstractRequestMocker(Mocker):

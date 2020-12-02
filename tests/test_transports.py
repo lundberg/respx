@@ -18,7 +18,7 @@ def test_sync_transport():
     with httpx.Client(transport=transport) as client:
         response = client.get(url)
         assert response.status_code == 404
-        with pytest.raises(ValueError, match="pass_through"):
+        with pytest.raises(httpx.ConnectError):
             client.post(url)
 
 
@@ -35,7 +35,7 @@ async def test_async_transport():
     async with httpx.AsyncClient(transport=transport) as client:
         response = await client.get(url)
         assert response.status_code == 404
-        with pytest.raises(ValueError, match="pass_through"):
+        with pytest.raises(httpx.ConnectError):
             await client.post(url)
 
 

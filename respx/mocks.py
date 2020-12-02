@@ -4,7 +4,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
-from .models import decode_request, encode_response
+from .models import PassThrough, decode_request, encode_response
 from .transports import MockTransport, TryTransport
 
 if TYPE_CHECKING:
@@ -83,7 +83,7 @@ class Mocker(ABC):
         error = None
         for router in cls.routers:
             try:
-                httpx_response = router.resolve(httpx_request)
+                httpx_response = router.handler(httpx_request)
             except AssertionError as e:
                 error = e.args[0]
                 continue
@@ -151,9 +151,10 @@ class AbstractRequestMocker(Mocker):
 
     @classmethod
     def _send(cls, httpx_request, *, instance, target_spec, **kwargs):
-        httpx_response = cls.handler(httpx_request)
-        if httpx_response is None:
-            response = target_spec(instance, **kwargs)  # pass-through
+        try:
+            httpx_response = cls.handler(httpx_request)
+        except PassThrough:
+            response = target_spec(instance, **kwargs)
         else:
             response = cls.from_httpx_response(httpx_response, instance, **kwargs)
         return response

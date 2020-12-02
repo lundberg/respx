@@ -18,7 +18,7 @@ from warnings import warn
 import httpx
 
 from .mocks import Mocker
-from .models import CallList, Route, RouteList, SideEffectError
+from .models import CallList, PassThrough, Route, RouteList, SideEffectError
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, URLPatternTypes
 
@@ -266,10 +266,17 @@ class Router:
 
         return response
 
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        response = self.resolve(request)
+        if response is None:
+            raise PassThrough(
+                f"Request marked to pass through: {request!r}", request=request
+            )
+        return response
+
 
 class MockRouter(Router):
     Mocker: Optional[Type[Mocker]]
-    handler = Router.resolve
 
     def __init__(
         self,

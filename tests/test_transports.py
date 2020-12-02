@@ -2,6 +2,7 @@ import httpcore
 import httpx
 import pytest
 
+from respx.models import PassThrough
 from respx.router import MockRouter, Router
 from respx.transports import MockTransport
 
@@ -13,12 +14,12 @@ def test_sync_transport():
     router.get(url) % 404
     router.post(url).pass_through()
     router.put(url)
-    transport = MockTransport(handler=router.resolve)
+    transport = MockTransport(handler=router.handler)
 
     with httpx.Client(transport=transport) as client:
         response = client.get(url)
         assert response.status_code == 404
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(PassThrough):
             client.post(url)
 
 
@@ -30,12 +31,12 @@ async def test_async_transport():
     router.get(url) % 404
     router.post(url).pass_through()
     router.put(url)
-    transport = MockTransport(handler=router.resolve)
+    transport = MockTransport(handler=router.handler)
 
     async with httpx.AsyncClient(transport=transport) as client:
         response = await client.get(url)
         assert response.status_code == 404
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(PassThrough):
             await client.post(url)
 
 

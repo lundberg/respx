@@ -4,21 +4,15 @@ from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 from httpcore import (
     AsyncByteStream,
     AsyncHTTPTransport,
-    ConnectError,
     SyncByteStream,
     SyncHTTPTransport,
 )
 
-from .models import decode_request, encode_response
+from .models import PassThrough, decode_request, encode_response
 from .types import URL, AsyncResponse, Headers, RequestHandler, SyncResponse
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
-
-
-class TransportError(ConnectError):
-    def __init__(self, request):
-        self.request = request
 
 
 class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
@@ -44,7 +38,7 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
     @property
     def handler(self) -> RequestHandler:
-        return self._handler or self._router.resolve
+        return self._handler or self._router.handler
 
     def request(
         self,
@@ -62,8 +56,6 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Resolve response
         response = self.handler(request)
-        if response is None:
-            raise TransportError((method, url, headers, request.stream, ext))
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -84,8 +76,6 @@ class MockTransport(SyncHTTPTransport, AsyncHTTPTransport):
 
         # Resolve response
         response = self.handler(request)
-        if response is None:
-            raise TransportError((method, url, headers, request.stream, ext))
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -122,8 +112,8 @@ class TryTransport(SyncHTTPTransport, AsyncHTTPTransport):
             try:
                 assert isinstance(transport, SyncHTTPTransport)
                 return transport.request(method, url, headers, stream, ext)
-            except TransportError as e:
-                method, url, headers, stream, ext = e.request
+            except PassThrough as pass_through:
+                stream = pass_through.request.stream  # type: ignore
             except AssertionError:
                 raise
             except Exception as e:
@@ -143,8 +133,8 @@ class TryTransport(SyncHTTPTransport, AsyncHTTPTransport):
             try:
                 assert isinstance(transport, AsyncHTTPTransport)
                 return await transport.arequest(method, url, headers, stream, ext)
-            except TransportError as e:
-                method, url, headers, stream, ext = e.request
+            except PassThrough as pass_through:
+                stream = pass_through.request.stream  # type: ignore
             except AssertionError:
                 raise
             except Exception as e:

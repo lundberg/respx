@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [master]
+### Fixed
+- Fixed decorator `respx_mock` kwarg, mistreated as a `pytest` fixture. (PR #117)
+
+### Added
+- Snapshot and rollback of routes' pattern and name. (PR #120)
+- Internally extracted a `RouteList` from `Router`. (PR #120)
+- Auto registration of `Mocker` implementations and their `using` name. (PR #121)
+- Added `HTTPXMocker`, optionally patching `HTTPX`. (PR #122)
+
+### Changed
+- Protected a routes' pattern to be modified. (PR #120)
+
 ## [0.16.2] - 2020-11-26
 ### Added
 - Easier support for using HTTPX MockTransport. (PR #118)

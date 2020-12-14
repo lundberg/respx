@@ -257,6 +257,23 @@ async def test_json_content(client, content, headers, expected_headers):
         assert sync_response.json() == content
 
 
+def test_json_post_body():
+    post_url = "https://example.org/"
+    get_url = "https://something.else/"
+
+    with respx.mock:
+        post_route = respx.post(post_url, json={"foo": "bar"}) % 201
+        get_route = respx.get(get_url) % 204
+
+        post_response = httpx.post(post_url, json={"foo": "bar"})
+        assert post_response.status_code == 201
+        assert post_route.called
+
+        get_response = httpx.get(get_url)
+        assert get_response.status_code == 204
+        assert get_route.called
+
+
 @pytest.mark.asyncio
 async def test_raising_content(client):
     async with MockRouter() as respx_mock:

@@ -5,6 +5,7 @@ from abc import ABC
 from enum import Enum
 from functools import reduce
 from http.cookies import SimpleCookie
+from json.decoder import JSONDecodeError
 from types import MappingProxyType
 from typing import (
     Any,
@@ -441,7 +442,10 @@ class JSON(ContentMixin, PathPattern):
 
     def parse(self, request: httpx.Request) -> str:
         content = super().parse(request)
-        json = jsonlib.loads(content.decode("utf-8"))
+        try:
+            json = jsonlib.loads(content.decode("utf-8"))
+        except JSONDecodeError:
+            return ""
 
         if self.path:
             value = json

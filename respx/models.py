@@ -99,7 +99,7 @@ class MockResponse(httpx.Response):
         http_version: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        if callable(content) or isinstance(content, (dict, Exception)):  # type: ignore
+        if callable(content) or isinstance(content, (dict, Exception)):
             raise ValueError(
                 f"MockResponse content can only be str, bytes or byte stream"
                 f"got {content!r}. Please use json=... or side effects."

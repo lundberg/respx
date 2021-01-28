@@ -1,4 +1,12 @@
-# RESPX
+<p align="center" style="margin: 0 0 10px">
+  <img width="350" height="208" src="img/respx.png" alt="RESPX">
+</p>
+
+<h1 align="center" style="font-size: 3rem; margin: -15px 0">
+RESPX
+</h1>
+
+---
 
 Mock [HTTPX](https://www.python-httpx.org/) with awesome request patterns and response side effects.
 
@@ -7,7 +15,6 @@ Mock [HTTPX](https://www.python-httpx.org/) with awesome request patterns and re
 [![PyPi Version](https://img.shields.io/pypi/v/respx.svg)](https://pypi.org/project/respx/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/respx.svg)](https://pypi.org/project/respx/)
 
----
 
 ## QuickStart
 

@@ -1,6 +1,11 @@
-# RESPX
+<p align="center">
+  <a href="https://lundberg.github.io/respx/"><img width="350" height="208" src="https://raw.githubusercontent.com/lundberg/respx/master/docs/img/respx.png" alt='RESPX'></a>
+</p>
+<p align="center">
+  <strong>RESPX</strong> <em>- Mock HTTPX with awesome request patterns and response side effects.</em>
+</p>
 
-Mock [HTTPX](https://www.python-httpx.org/) with awesome request patterns and response side effects.
+---
 
 ![](https://github.com/lundberg/respx/workflows/test/badge.svg)
 [![codecov](https://codecov.io/gh/lundberg/respx/branch/master/graph/badge.svg)](https://codecov.io/gh/lundberg/respx)

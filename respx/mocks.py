@@ -50,6 +50,21 @@ class Mocker(ABC):
         return False
 
     @classmethod
+    def add_targets(cls, *targets: str) -> None:
+        targets = tuple(filter(lambda t: t not in cls.targets, targets))
+        if targets:
+            cls.targets.extend(targets)
+            cls.restart()
+
+    @classmethod
+    def remove_targets(cls, *targets: str) -> None:
+        targets = tuple(filter(lambda t: t in cls.targets, targets))
+        if targets:
+            for target in targets:
+                cls.targets.remove(target)
+            cls.restart()
+
+    @classmethod
     def start(cls) -> None:
         # Ensure we only patch once!
         if cls._patches:
@@ -67,15 +82,22 @@ class Mocker(ABC):
                     pass
 
     @classmethod
-    def stop(cls) -> None:
+    def stop(cls, force: bool = False) -> None:
         # Ensure we don't stop patching when registered transports exists
-        if cls.routers:
+        if cls.routers and not force:
             return
 
         # Stop patching HTTPX
         while cls._patches:
             patch = cls._patches.pop()
             patch.stop()
+
+    @classmethod
+    def restart(cls) -> None:
+        # Only stop and start if started
+        if cls._patches:  # pragma: nocover
+            cls.stop(force=True)
+            cls.start()
 
     @classmethod
     def handler(cls, httpx_request):

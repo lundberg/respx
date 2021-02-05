@@ -463,6 +463,31 @@ async def test_asgi():
             assert response.json() == {"status": "ok"}
 
 
+def test_add_remove_targets():
+    from respx.mocks import HTTPCoreMocker
+
+    target = "httpcore._sync.connection.SyncHTTPConnection"
+    assert HTTPCoreMocker.targets.count(target) == 1
+    HTTPCoreMocker.add_targets(target)
+    assert HTTPCoreMocker.targets.count(target) == 1
+
+    pre_add_count = len(HTTPCoreMocker.targets)
+    HTTPCoreMocker.add_targets(
+        "httpx._transports.asgi.ASGITransport",
+        "httpx._transports.wsgi.WSGITransport",
+    )
+    assert len(HTTPCoreMocker.targets) == pre_add_count + 2
+
+    HTTPCoreMocker.remove_targets("foobar")
+    assert len(HTTPCoreMocker.targets) == pre_add_count + 2
+
+    HTTPCoreMocker.remove_targets(
+        "httpx._transports.asgi.ASGITransport",
+        "httpx._transports.wsgi.WSGITransport",
+    )
+    assert len(HTTPCoreMocker.targets) == pre_add_count
+
+
 @pytest.mark.asyncio
 async def test_proxies():
     with respx.mock:

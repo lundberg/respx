@@ -448,19 +448,37 @@ async def test_assert_all_mocked(client, assert_all_mocked, raises):
 
 @pytest.mark.asyncio
 async def test_asgi():
-    async with respx.mock:
-        async with httpx.AsyncClient(app="fake-asgi") as client:
-            url = "https://foo.bar/"
-            jzon = {"status": "ok"}
-            headers = {"X-Foo": "bar"}
-            request = respx.get(url) % dict(status_code=202, headers=headers, json=jzon)
-            response = await client.get(url)
-            assert request.called is True
-            assert response.status_code == 202
-            assert response.headers == httpx.Headers(
-                {"Content-Type": "application/json", "Content-Length": "16", **headers}
-            )
-            assert response.json() == {"status": "ok"}
+    from respx.mocks import HTTPCoreMocker
+
+    try:
+        HTTPCoreMocker.add_targets(
+            "httpx._transports.asgi.ASGITransport",
+            "httpx._transports.wsgi.WSGITransport",
+        )
+        async with respx.mock:
+            async with httpx.AsyncClient(app="fake-asgi") as client:
+                url = "https://foo.bar/"
+                jzon = {"status": "ok"}
+                headers = {"X-Foo": "bar"}
+                request = respx.get(url) % dict(
+                    status_code=202, headers=headers, json=jzon
+                )
+                response = await client.get(url)
+                assert request.called is True
+                assert response.status_code == 202
+                assert response.headers == httpx.Headers(
+                    {
+                        "Content-Type": "application/json",
+                        "Content-Length": "16",
+                        **headers,
+                    }
+                )
+                assert response.json() == {"status": "ok"}
+    finally:
+        HTTPCoreMocker.remove_targets(
+            "httpx._transports.asgi.ASGITransport",
+            "httpx._transports.wsgi.WSGITransport",
+        )
 
 
 def test_add_remove_targets():

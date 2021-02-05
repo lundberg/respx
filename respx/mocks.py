@@ -215,8 +215,6 @@ class HTTPCoreMocker(AbstractRequestMocker):
         "httpcore._async.connection.AsyncHTTPConnection",
         "httpcore._async.connection_pool.AsyncConnectionPool",
         "httpcore._async.http_proxy.AsyncHTTPProxy",
-        "httpx._transports.asgi.ASGITransport",
-        "httpx._transports.wsgi.WSGITransport",
     ]
     target_methods = ["request", "arequest"]
 

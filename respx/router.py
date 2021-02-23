@@ -255,7 +255,7 @@ class Router:
 
             else:
                 # Mocked response
-                assert isinstance(mock, httpx.Response)
+                assert isinstance(mock, httpx.Response), f"RESPX: {mock!r} is not a instance of httpx.Response"
                 response = mock
 
         except SideEffectError as error:

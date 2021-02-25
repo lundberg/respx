@@ -249,16 +249,11 @@ class Router:
                 # Auto mock a successful empty response
                 response = httpx.Response(200)
 
-            elif mock == request:
-                # Pass-through request
-                response = None
+            elif isinstance(mock, httpx.Response):
+                response = mock
 
             else:
-                # Mocked response
-                assert isinstance(
-                    mock, httpx.Response
-                ), f"RESPX: {mock!r} is not a instance of httpx.Response"
-                response = mock
+                raise TypeError(f"RESPX: {mock!r} is not a instance of httpx.Response")
 
         except SideEffectError as error:
             self.record(request, response=None, route=error.route)

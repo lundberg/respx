@@ -249,6 +249,10 @@ class Router:
                 # Auto mock a successful empty response
                 response = httpx.Response(200)
 
+            elif mock == request:
+                # Pass-through request
+                response = None
+
             elif isinstance(mock, httpx.Response):
                 response = mock
 

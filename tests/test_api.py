@@ -357,7 +357,7 @@ async def test_request_callback(client):
         )
         assert response.text == "hello lundberg"
 
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             respx_mock.get("https://ham.spam/").mock(side_effect=lambda req: "invalid")
             await client.get("https://ham.spam/")
 
@@ -580,10 +580,10 @@ def test_respond():
         assert response.headers.get("Content-Type") == "text/xml"
         assert response.http_version == "HTTP/2"
 
-        with pytest.raises(ValueError, match="content can only be"):
+        with pytest.raises(TypeError, match="content can only be"):
             route.respond(content={})
 
-        with pytest.raises(ValueError, match="content can only be"):
+        with pytest.raises(TypeError, match="content can only be"):
             route.respond(content=Exception())
 
 

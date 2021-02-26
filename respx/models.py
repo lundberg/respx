@@ -181,6 +181,8 @@ class Route:
 
     @return_value.setter
     def return_value(self, return_value: Optional[httpx.Response]) -> None:
+        if return_value is not None and not isinstance(return_value, httpx.Response):
+            raise TypeError(f"{return_value!r} is not an instance of httpx.Response")
         self.pass_through(False)
         self._return_value = return_value
 

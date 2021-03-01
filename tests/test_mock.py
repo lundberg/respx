@@ -326,6 +326,15 @@ async def test_configured_router_reuse(client):
 
 
 @pytest.mark.asyncio
+async def test_router_return_type_misuse():
+    router = respx.mock(assert_all_called=False)
+    route = router.get("https://hot.dog/")
+
+    with pytest.raises(TypeError):
+        route.return_value = "not-a-httpx-response"
+
+
+@pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
 async def test_nested_base_url(respx_mock):
     request = respx_mock.patch("/egg/") % dict(content="yolk")

@@ -144,7 +144,7 @@ def test_mod_response():
     assert response.json() == {"error": "x"}
     assert matched_route is route3
 
-    with pytest.raises(ValueError, match="Route can only"):
+    with pytest.raises(TypeError, match="Route can only"):
         router.route() % []
 
 

@@ -100,7 +100,7 @@ class MockResponse(httpx.Response):
         **kwargs: Any,
     ) -> None:
         if callable(content) or isinstance(content, (dict, Exception)):
-            raise ValueError(
+            raise TypeError(
                 f"MockResponse content can only be str, bytes or byte stream"
                 f"got {content!r}. Please use json=... or side effects."
             )
@@ -153,7 +153,7 @@ class Route:
             self.return_value = response
 
         else:
-            raise ValueError(
+            raise TypeError(
                 f"Route can only % with int, dict or Response, got {response!r}"
             )
 
@@ -181,6 +181,8 @@ class Route:
 
     @return_value.setter
     def return_value(self, return_value: Optional[httpx.Response]) -> None:
+        if return_value is not None and not isinstance(return_value, httpx.Response):
+            raise TypeError(f"{return_value!r} is not an instance of httpx.Response")
         self.pass_through(False)
         self._return_value = return_value
 
@@ -312,7 +314,7 @@ class Route:
 
         # Validate result
         if result and not isinstance(result, (httpx.Response, httpx.Request)):
-            raise ValueError(
+            raise TypeError(
                 f"Side effects must return; either a `httpx.Response`,"
                 f"a `httpx.Request` for pass-through, "
                 f"or `None` for a non-match. Got {result!r}"

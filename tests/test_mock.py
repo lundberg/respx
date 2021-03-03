@@ -124,12 +124,22 @@ async def test_local_async_decorator(client, using):
     @respx.mock(using=using)
     async def test(respx_mock):
         assert respx.calls.call_count == 0
-        request = respx_mock.get("https://foo.bar/") % 202
+
+        async def raw_stream():
+            yield b"foo"
+            yield b"bar"
+
+        request = respx_mock.get("https://foo.bar/").mock(
+            return_value=httpx.Response(202, stream=raw_stream())
+        )
+
         response = await client.get("https://foo.bar/")
         assert request.called is True
         assert response.status_code == 202
+        assert response.content == b"foobar"
         assert respx.calls.call_count == 0
         assert respx_mock.calls.call_count == 1
+        assert await respx_mock.calls.last.response.aread() == b""  # TODO: Exhausted!
 
         with pytest.raises(AssertionError, match="not mocked"):
             httpx.post("https://foo.bar/")

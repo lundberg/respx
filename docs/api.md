@@ -325,7 +325,7 @@ Matches request *headers*, using [contains](#contains) as default lookup.
 > Lookups: [contains](#contains), [eq](#eq)
 ``` python
 respx.route(headers={"foo": "bar", "ham": "spam"})
-respx.route(params=[("foo", "bar"), ("ham", "spam")])
+respx.route(headers=[("foo", "bar"), ("ham", "spam")])
 ```
 
 ### Cookies

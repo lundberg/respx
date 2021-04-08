@@ -38,5 +38,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     python_requires=">=3.6",
-    install_requires=["httpx>=0.15"],
+    # install_requires=["httpx>=0.15"],
+    install_requires=[
+        "httpx @ https://github.com/encode/httpx/archive/refs/heads/master.zip"
+    ],
 )

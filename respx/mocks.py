@@ -4,6 +4,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
+from httpcore import AsyncIteratorByteStream, IteratorByteStream
+
 from .models import PassThrough, decode_request, encode_response
 from .transports import MockTransport, TryTransport
 
@@ -150,6 +152,8 @@ class AbstractRequestMocker(Mocker):
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = cls.prepare(request, **kwargs)
             response = cls._send(request, instance=self, target_spec=spec, **kwargs)
+            status_code, headers, stream, extensions = response
+            response = (status_code, headers, IteratorByteStream(stream), extensions)
             return response
 
         async def amock(self, *args, **kwargs):
@@ -159,6 +163,13 @@ class AbstractRequestMocker(Mocker):
             response = cls._send(request, instance=self, target_spec=spec, **kwargs)
             if inspect.isawaitable(response):
                 response = await response
+            status_code, headers, stream, extensions = response
+            response = (
+                status_code,
+                headers,
+                AsyncIteratorByteStream(stream),
+                extensions,
+            )
             return response
 
         return amock if inspect.iscoroutinefunction(spec) else mock
@@ -166,7 +177,11 @@ class AbstractRequestMocker(Mocker):
     @classmethod
     def _merge_args_and_kwargs(cls, argspec, args, kwargs):
         arg_names = argspec.args[1:]  # Skip self
-        new_kwargs = dict(zip(arg_names[-len(argspec.defaults) :], argspec.defaults))
+        new_kwargs = (
+            dict(zip(arg_names[-len(argspec.defaults) :], argspec.defaults))
+            if argspec.defaults
+            else dict()
+        )
         new_kwargs.update(zip(arg_names, args))
         new_kwargs.update(kwargs)
         return new_kwargs
@@ -216,7 +231,7 @@ class HTTPCoreMocker(AbstractRequestMocker):
         "httpcore._async.connection_pool.AsyncConnectionPool",
         "httpcore._async.http_proxy.AsyncHTTPProxy",
     ]
-    target_methods = ["request", "arequest"]
+    target_methods = ["handle_request", "handle_async_request"]
 
     @classmethod
     def prepare(cls, httpx_request, **kwargs):
@@ -241,7 +256,12 @@ class HTTPCoreMocker(AbstractRequestMocker):
         """
         Create a `HTTPX` request from transport request args.
         """
-        request = (kwargs["method"], kwargs["url"], kwargs["headers"], kwargs["stream"])
+        request = (
+            kwargs["method"],
+            kwargs["url"],
+            kwargs.get("headers"),
+            kwargs.get("stream"),
+        )
         httpx_request = decode_request(request)
         return httpx_request
 

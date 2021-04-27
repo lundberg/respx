@@ -68,7 +68,7 @@ async def test_httpcore_request(url, port):
         router.get(url) % dict(text="foobar")
 
         with httpcore.SyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = http.request(
+            (status_code, headers, stream, ext) = http.handle_request(
                 method=b"GET", url=(b"https", b"foo.bar", port, b"/")
             )
 
@@ -76,7 +76,7 @@ async def test_httpcore_request(url, port):
             assert body == b"foobar"
 
         async with httpcore.AsyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = await http.arequest(
+            (status_code, headers, stream, ext) = await http.handle_async_request(
                 method=b"GET", url=(b"https", b"foo.bar", port, b"/")
             )
 

@@ -45,7 +45,7 @@ def encode_response(response: httpx.Response) -> Response:
         response.status_code,
         response.headers.raw,
         response.stream,
-        response.ext,
+        response.extensions,
     )
 
 
@@ -58,7 +58,7 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
         headers=response.headers,
         stream=response.stream,
         request=request,
-        ext=dict(response.ext),
+        extensions=dict(response.extensions),
     )
     if isinstance(response.stream, Iterable):
         response.read()  # Pre-read stream for easier call stats usage
@@ -101,7 +101,9 @@ class MockResponse(httpx.Response):
         http_version: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        if callable(content) or isinstance(content, (dict, Exception)):
+        if not isinstance(content, (str, bytes)) and (
+            callable(content) or isinstance(content, (dict, Exception))
+        ):
             raise TypeError(
                 f"MockResponse content can only be str, bytes or byte stream"
                 f"got {content!r}. Please use json=... or side effects."
@@ -112,7 +114,7 @@ class MockResponse(httpx.Response):
         if content_type:
             self.headers["Content-Type"] = content_type
         if http_version:
-            self.ext["http_version"] = http_version
+            self.extensions["http_version"] = http_version.encode("ascii")
 
 
 class Route:
@@ -340,7 +342,7 @@ class Route:
                 self,
                 origin=(
                     Error("Mock Error", request=request)
-                    if issubclass(Error, httpx.HTTPError)
+                    if issubclass(Error, httpx.RequestError)
                     else Error()
                 ),
             )

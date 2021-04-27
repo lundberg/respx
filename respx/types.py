@@ -1,9 +1,7 @@
 from typing import (
     Any,
-    AsyncIterable,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     Optional,
@@ -16,7 +14,6 @@ from typing import (
 )
 
 import httpx
-from httpcore import AsyncByteStream, SyncByteStream
 
 URL = Tuple[
     bytes,  # scheme
@@ -25,7 +22,7 @@ URL = Tuple[
     bytes,  # path
 ]
 Headers = List[Tuple[bytes, bytes]]
-ByteStream = Union[Iterable[bytes], AsyncIterable[bytes]]
+ByteStream = Union[httpx.SyncByteStream, httpx.AsyncByteStream]
 Request = Tuple[
     bytes,  # http method
     URL,
@@ -35,13 +32,13 @@ Request = Tuple[
 SyncResponse = Tuple[
     int,  # status code
     Headers,
-    SyncByteStream,  # body
+    httpx.SyncByteStream,  # body
     dict,  # ext
 ]
 AsyncResponse = Tuple[
     int,  # status code
     Headers,
-    AsyncByteStream,  # body
+    httpx.AsyncByteStream,  # body
     dict,  # ext
 ]
 Response = Tuple[

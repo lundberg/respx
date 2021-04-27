@@ -52,17 +52,8 @@ async def backend_test(backend):
     assert _request.url == url
     assert _response.status_code == get_response.status_code == 202
     assert _response.content == get_response.content == b"get"
-    assert {
-        _response.status_code,
-        tuple(_response.headers.raw),
-        _response.stream,
-        tuple(_response.ext.items()),
-    } == {
-        get_response.status_code,
-        tuple(get_response.headers.raw),
-        get_response.stream,
-        tuple(get_response.ext.items()),
-    }
+    assert tuple(_response.headers.raw) == tuple(get_response.headers.raw)
+    assert _response.extensions == get_response.extensions
     assert id(_response) != id(get_response)
 
     _request, _response = foobar2.calls[-1]
@@ -72,17 +63,8 @@ async def backend_test(backend):
     assert _request.url == url
     assert _response.status_code == del_response.status_code == 200
     assert _response.content == del_response.content == b"del"
-    assert {
-        _response.status_code,
-        tuple(_response.headers.raw),
-        _response.stream,
-        tuple(_response.ext.items()),
-    } == {
-        del_response.status_code,
-        tuple(del_response.headers.raw),
-        del_response.stream,
-        tuple(del_response.ext.items()),
-    }
+    assert tuple(_response.headers.raw) == tuple(del_response.headers.raw)
+    assert _response.extensions == del_response.extensions
     assert id(_response) != id(del_response)
 
     assert respx.calls.call_count == 2

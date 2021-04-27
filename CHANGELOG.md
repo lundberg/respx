@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2021-04-27
+### Changed
+- Require `HTTPX` 0.18.0 and implement the new transport API. (PR #142)
+- Removed ASGI and WSGI transports from httpcore patch list. (PR #131)
+- Don't pre-read mocked async resposne streams. (PR #136)
+
+### Fixed
+- Fixed syntax highlighting in docs, thanks @florimondmanca. (PR #134)
+- Type check `route.return_value`, thanks @tzing. (PR #133)
+- Fixed a typo in the docs, thanks @lewoudar. (PR #139)
+
+### Added
+- Added support for adding/removing patch targets. (PR #131)
+- Added test session for python 3.10. (PR #140)
+- Added RESPX Mock Swallowtail to README. (PR #128)
+
 ## [0.16.3] - 2020-12-14
 ### Fixed
 - Fixed decorator `respx_mock` kwarg, mistreated as a `pytest` fixture. (PR #117)

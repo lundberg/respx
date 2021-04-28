@@ -201,6 +201,7 @@ def test_side_effect_exception():
     router.get("https://foo.bar/").mock(side_effect=httpx.ConnectError)
     router.get("https://ham.spam/").mock(side_effect=httpcore.NetworkError)
     router.get("https://egg.plant/").mock(side_effect=httpcore.NetworkError())
+    router.get("https://hot.dog/").mock(return_value="Not a response instance")
 
     request = httpx.Request("GET", "https://foo.bar")
     with pytest.raises(httpx.ConnectError) as e:
@@ -213,6 +214,10 @@ def test_side_effect_exception():
 
     request = httpx.Request("GET", "https://egg.plant")
     with pytest.raises(httpcore.NetworkError):
+        router.resolve(request)
+
+    request = httpx.Request("GET", "https://hot.dog")
+    with pytest.raises(TypeError):
         router.resolve(request)
 
 

@@ -550,7 +550,7 @@ async def test_mock_using_none():
     @respx.mock(using=None)
     async def test(respx_mock):
         respx_mock.get("https://example.org/") % 204
-        transport = MockTransport(handler=respx_mock.handler)
+        transport = MockTransport(router=respx_mock)
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204
@@ -565,7 +565,7 @@ async def test_router_using__none():
 
     @router
     async def test():
-        transport = MockTransport(handler=router.handler)
+        transport = MockTransport(router=router)
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204
@@ -647,3 +647,32 @@ async def test_async_httpx_mocker():
 
     async with respx.mock(using="httpx"):  # extra registered router
         await test()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+async def test_async_side_effect(client, using):
+    async def effect(request, slug):
+        return httpx.Response(204, text=slug)
+
+    async with respx.mock(using=using) as respx_mock:
+        mock_route = respx_mock.get(
+            "https://example.org/", path__regex=r"/(?P<slug>\w+)/"
+        ).mock(side_effect=effect)
+        response = await client.get("https://example.org/hello/")
+        assert response.status_code == 204
+        assert response.text == "hello"
+        assert mock_route.called
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+async def test_async_side_effect__exception(client, using):
+    async def effect(request):
+        raise httpx.ConnectTimeout("X-P", request=request)
+
+    async with respx.mock(using=using) as respx_mock:
+        mock_route = respx_mock.get("https://example.org/").mock(side_effect=effect)
+        with pytest.raises(httpx.ConnectTimeout):
+            await client.get("https://example.org/")
+        assert mock_route.called

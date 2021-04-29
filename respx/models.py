@@ -1,3 +1,4 @@
+import inspect
 from typing import (
     Any,
     Callable,
@@ -22,7 +23,9 @@ from .types import (
     CallableSideEffect,
     HeaderTypes,
     RequestTypes,
+    ResolvedResponseTypes,
     Response,
+    RouteResultTypes,
     SideEffectTypes,
 )
 
@@ -309,15 +312,19 @@ class Route:
 
     def _call_side_effect(
         self, effect: CallableSideEffect, request: httpx.Request, **kwargs: Any
-    ) -> Optional[Union[httpx.Request, httpx.Response]]:
+    ) -> RouteResultTypes:
         try:
             # Call side effect
-            result = effect(request, **kwargs)
+            result: RouteResultTypes = effect(request, **kwargs)
         except Exception as error:
             raise SideEffectError(self, origin=error) from error
 
         # Validate result
-        if result and not isinstance(result, (httpx.Response, httpx.Request)):
+        if (
+            result
+            and not inspect.isawaitable(result)
+            and not isinstance(result, (httpx.Response, httpx.Request))
+        ):
             raise TypeError(
                 f"Side effects must return; either a `httpx.Response`,"
                 f"a `httpx.Request` for pass-through, "
@@ -328,7 +335,7 @@ class Route:
 
     def _resolve_side_effect(
         self, request: httpx.Request, **kwargs: Any
-    ) -> Optional[Union[httpx.Request, httpx.Response]]:
+    ) -> RouteResultTypes:
         effect = self._next_side_effect()
 
         # Handle Exception `instance` side effect
@@ -352,12 +359,11 @@ class Route:
             result = self._call_side_effect(effect, request, **kwargs)
             return result
 
+        # Resolved effect is a mocked response
         return effect
 
-    def resolve(
-        self, request: httpx.Request, **kwargs: Any
-    ) -> Optional[Union[httpx.Request, httpx.Response]]:
-        result: Optional[Union[httpx.Response, httpx.Request]] = None
+    def resolve(self, request: httpx.Request, **kwargs: Any) -> RouteResultTypes:
+        result: RouteResultTypes = None
 
         if self._side_effect:
             result = self._resolve_side_effect(request, **kwargs)
@@ -377,9 +383,7 @@ class Route:
 
         return result
 
-    def match(
-        self, request: httpx.Request
-    ) -> Optional[Union[httpx.Request, httpx.Response]]:
+    def match(self, request: httpx.Request) -> RouteResultTypes:
         """
         Matches and resolves request with given patterns and optional side effect.
 
@@ -505,6 +509,13 @@ class SideEffectError(Exception):
 
 
 class PassThrough(Exception):
-    def __init__(self, message: str, *, request: httpx.Request) -> None:
+    def __init__(self, message: str, *, request: httpx.Request, origin: Route) -> None:
         super().__init__(message)
         self.request = request
+        self.origin = origin
+
+
+class ResolvedRoute:
+    def __init__(self):
+        self.route: Optional[Route] = None
+        self.response: Optional[ResolvedResponseTypes] = None

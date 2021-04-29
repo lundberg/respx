@@ -1,5 +1,6 @@
 from typing import (
     Any,
+    Awaitable,
     Callable,
     Dict,
     Iterator,
@@ -48,6 +49,7 @@ Response = Tuple[
     dict,  # ext
 ]
 RequestHandler = Callable[[httpx.Request], httpx.Response]
+AsyncRequestHandler = Callable[[httpx.Request], Awaitable[httpx.Response]]
 
 HeaderTypes = Union[
     httpx.Headers,
@@ -64,7 +66,9 @@ URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
 QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
 RequestTypes = Union[Request, httpx.Request]
 
-CallableSideEffect = Callable[..., Optional[Union[httpx.Request, httpx.Response]]]
+ResolvedResponseTypes = Optional[Union[httpx.Request, httpx.Response]]
+RouteResultTypes = Union[ResolvedResponseTypes, Awaitable[ResolvedResponseTypes]]
+CallableSideEffect = Callable[..., RouteResultTypes]
 SideEffectListTypes = Union[httpx.Response, Exception, Type[Exception]]
 SideEffectTypes = Union[
     CallableSideEffect,

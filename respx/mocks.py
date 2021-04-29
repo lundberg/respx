@@ -118,6 +118,22 @@ class Mocker(ABC):
         return httpx_response
 
     @classmethod
+    async def async_handler(cls, httpx_request):
+        httpx_response = None
+        error = None
+        for router in cls.routers:
+            try:
+                httpx_response = await router.async_handler(httpx_request)
+            except AssertionError as e:
+                error = e.args[0]
+                continue
+            else:
+                break
+        else:
+            assert httpx_response, error
+        return httpx_response
+
+    @classmethod
     def mock(cls, spec):
         raise NotImplementedError()  # pragma: nocover
 
@@ -132,7 +148,9 @@ class HTTPXMocker(Mocker):
 
     @classmethod
     def mock(cls, spec):
-        mock_transport = MockTransport(handler=cls.handler)
+        mock_transport = MockTransport(
+            handler=cls.handler, async_handler=cls.async_handler
+        )
 
         def _transport_for_url(self, *args, **kwargs):
             pass_through_transport = spec(self, *args, **kwargs)
@@ -160,9 +178,9 @@ class AbstractRequestMocker(Mocker):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = await cls.aprepare(request, **kwargs)
-            response = cls._send(request, instance=self, target_spec=spec, **kwargs)
-            if inspect.isawaitable(response):
-                response = await response
+            response = await cls._asend(
+                request, instance=self, target_spec=spec, **kwargs
+            )
             status_code, headers, stream, extensions = response
             response = (
                 status_code,
@@ -192,6 +210,16 @@ class AbstractRequestMocker(Mocker):
             httpx_response = cls.handler(httpx_request)
         except PassThrough:
             response = target_spec(instance, **kwargs)
+        else:
+            response = cls.from_httpx_response(httpx_response, instance, **kwargs)
+        return response
+
+    @classmethod
+    async def _asend(cls, httpx_request, *, instance, target_spec, **kwargs):
+        try:
+            httpx_response = await cls.async_handler(httpx_request)
+        except PassThrough:
+            response = await target_spec(instance, **kwargs)
         else:
             response = cls.from_httpx_response(httpx_response, instance, **kwargs)
         return response

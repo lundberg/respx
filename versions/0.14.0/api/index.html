@@ -1,0 +1,1194 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A utility for mocking out the Python HTTPX library.">
+      
+      
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-7.1.3">
+    
+    
+      
+        <title>Developer Interface - RESPX</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.e35208c4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ef6f36e2.min.css">
+        
+          
+          
+          <meta name="theme-color" content="#7e56c2">
+        
+      
+    
+    
+    
+      
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700%7CRoboto+Mono&display=fallback">
+        <style>:root{--md-text-font-family:"Roboto";--md-code-font-family:"Roboto Mono"}</style>
+      
+    
+    
+    
+    
+      
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple">
+  
+    
+    <script>function __prefix(e){return new URL("../../..",location).pathname+"."+e}function __get(e,t=localStorage){return JSON.parse(t.getItem(__prefix(e)))}</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#developer-interface-version-0140" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="RESPX" class="md-header__button md-logo" aria-label="RESPX" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RESPX
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Developer Interface
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+      </label>
+      
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" data-md-state="active" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </label>
+      <button type="reset" class="md-search__icon md-icon" aria-label="Clear" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        
+<a href="https://github.com/lundberg/respx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lundberg/respx
+  </div>
+</a>
+      </div>
+    
+  </nav>
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="RESPX" class="md-nav__button md-logo" aria-label="RESPX" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+
+    </a>
+    RESPX
+  </label>
+  
+    <div class="md-nav__source">
+      
+<a href="https://github.com/lundberg/respx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lundberg/respx
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        Introduction
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guide/" class="md-nav__link">
+        User Guide
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        API Reference
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/" class="md-nav__link">
+        Test Case Examples
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../upgrade/" class="md-nav__link">
+        Upgrading
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6" type="checkbox" id="__nav_6" checked>
+      
+      <label class="md-nav__link" for="__nav_6">
+        Older Versions
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="Older Versions" data-md-level="1">
+        <label class="md-nav__title" for="__nav_6">
+          <span class="md-nav__icon md-icon"></span>
+          Older Versions
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6_1" type="checkbox" id="__nav_6_1" checked>
+      
+      <label class="md-nav__link" for="__nav_6_1">
+        0.14.0
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="0.14.0" data-md-level="2">
+        <label class="md-nav__title" for="__nav_6_1">
+          <span class="md-nav__icon md-icon"></span>
+          0.14.0
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mocking/" class="md-nav__link">
+        Mock HTTPX
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Developer Interface
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Developer Interface
+      </a>
+      
+        
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mocking-responses" class="md-nav__link">
+    Mocking Responses
+  </a>
+  
+    <nav class="md-nav" aria-label="Mocking Responses">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http-method-api" class="md-nav__link">
+    HTTP Method API
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-api" class="md-nav__link">
+    Request API
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#matching-requests" class="md-nav__link">
+    Matching Requests
+  </a>
+  
+    <nav class="md-nav" aria-label="Matching Requests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-url" class="md-nav__link">
+    Exact URL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#url-pattern" class="md-nav__link">
+    URL pattern
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#base-url" class="md-nav__link">
+    Base URL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-callback" class="md-nav__link">
+    Request callback
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repeated-patterns" class="md-nav__link">
+    Repeated patterns
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manipulating-existing-patterns" class="md-nav__link">
+    Manipulating Existing Patterns
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-content" class="md-nav__link">
+    Response Content
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Content">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#json-content" class="md-nav__link">
+    JSON content
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#content-callback" class="md-nav__link">
+    Content callback
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-error" class="md-nav__link">
+    Request Error
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-assertions" class="md-nav__link">
+    Built-in Assertions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-history" class="md-nav__link">
+    Call History
+  </a>
+  
+    <nav class="md-nav" aria-label="Call History">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retreiving-mocked-calls" class="md-nav__link">
+    Retreiving mocked calls
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-pattern-calls" class="md-nav__link">
+    Request Pattern calls
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reset-stats" class="md-nav__link">
+    Reset stats
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mocking-responses" class="md-nav__link">
+    Mocking Responses
+  </a>
+  
+    <nav class="md-nav" aria-label="Mocking Responses">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http-method-api" class="md-nav__link">
+    HTTP Method API
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-api" class="md-nav__link">
+    Request API
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#matching-requests" class="md-nav__link">
+    Matching Requests
+  </a>
+  
+    <nav class="md-nav" aria-label="Matching Requests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-url" class="md-nav__link">
+    Exact URL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#url-pattern" class="md-nav__link">
+    URL pattern
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#base-url" class="md-nav__link">
+    Base URL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-callback" class="md-nav__link">
+    Request callback
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repeated-patterns" class="md-nav__link">
+    Repeated patterns
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manipulating-existing-patterns" class="md-nav__link">
+    Manipulating Existing Patterns
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-content" class="md-nav__link">
+    Response Content
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Content">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#json-content" class="md-nav__link">
+    JSON content
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#content-callback" class="md-nav__link">
+    Content callback
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-error" class="md-nav__link">
+    Request Error
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-assertions" class="md-nav__link">
+    Built-in Assertions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-history" class="md-nav__link">
+    Call History
+  </a>
+  
+    <nav class="md-nav" aria-label="Call History">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retreiving-mocked-calls" class="md-nav__link">
+    Retreiving mocked calls
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request-pattern-calls" class="md-nav__link">
+    Request Pattern calls
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reset-stats" class="md-nav__link">
+    Reset stats
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content" data-md-component="content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                
+                <div class="admonition attention">
+<p class="admonition-title">Warning</p>
+<p>This is the documentaion of the older version <code>0.14.0</code>. See <a href="../../../">latest</a> for current release.</p>
+</div>
+<h1 id="developer-interface-version-0140">Developer Interface - Version 0.14.0</h1>
+<h2 id="mocking-responses">Mocking Responses</h2>
+<h3 id="http-method-api">HTTP Method API</h3>
+<p>For regular and simple use, use the HTTP method shorthands.
+See <a href="#request-api">Request API</a> for parameters.</p>
+<blockquote>
+<div class="autodoc">
+<div class="autodoc-signature"><code>respx.<strong>get</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">url=None</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">*</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">name=None</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">**lookups</em><span class="autodoc-punctuation">)</span></div>
+</div>
+<p><code>respx.<strong>options</strong>(...)</strong></code></p>
+<p><code>respx.<strong>head</strong>(...)</strong></code></p>
+<p><code>respx.<strong>post</strong>(...)</strong></code></p>
+<p><code>respx.<strong>put</strong>(...)</strong></code></p>
+<p><code>respx.<strong>patch</strong>(...)</strong></code></p>
+<p><code>respx.<strong>delete</strong>(...)</strong></code></p>
+</blockquote>
+<h3 id="request-api">Request API</h3>
+<p>For full control, use the core <code>add</code> method.</p>
+<blockquote>
+<div class="autodoc">
+<div class="autodoc-signature"><code>respx.<strong>add</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">route</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">*</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">name=None</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"></div>
+</div>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><strong>method</strong> - <em>str | callable | RequestPattern</em><br />
+  Request HTTP method, or <a href="#request-callback">Request callback</a>, to match.</li>
+<li><strong>url</strong> - <em>(optional) str | pattern | tuple (httpcore) | httpx.URL</em><br />
+  Request exact URL, or <a href="#url-pattern">URL pattern</a>, to match.</li>
+<li><strong>params</strong> - <em>(optional) str | list | dict</em><br />
+  Request URL params to merge with url.</li>
+<li><strong>status_code</strong> - <em>(optional) int - default: <code>200</code></em><br />
+  Response status code to mock.</li>
+<li><strong>headers</strong> - <em>(optional) dict</em><br />
+  Response headers to mock.</li>
+<li><strong>content_type</strong> - <em>(optional) str</em><br />
+  Response Content-Type header value to mock.</li>
+<li><strong>content</strong> - <em>(optional) bytes | str | list | dict | callable | exception - default <code>b""</code></em><br />
+  Response content to mock. - <em>See <a href="#response-content">Response Content</a>.</em></li>
+<li><strong>text</strong> - <em>(optional) str</em><br />
+  Response <em>text</em> content to mock, with automatic content type header.</li>
+<li><strong>html</strong> - <em>(optional) str</em><br />
+  Response <em>html</em> content to mock, with automatic content type header.</li>
+<li><strong>json</strong> - <em>(optional) str | list | dict</em><br />
+  Response <em>json</em> content to mock, with automatic content type header.</li>
+<li><strong>pass_through</strong> - <em>(optional) bool - default <code>False</code></em><br />
+  Mark matched request to pass-through to real server, <em>e.g. don't mock</em>.</li>
+<li><strong>alias</strong> - <em>(optional) str</em><br />
+  Name this request pattern. - <em>See <a href="#call-statistics">Call Statistics</a>.</em></li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="matching-requests">Matching Requests</h2>
+<h3 id="exact-url">Exact URL</h3>
+<p>To match and mock a request by an exact URL, pass the <code>url</code> parameter as a <em>string</em>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="url-pattern">URL pattern</h3>
+<p>Instead of matching an <a href="#exact-url">exact URL</a>, you can pass a <em>compiled regex</em> to match the request URL.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">url_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^https://foo.bar/\w+/$&quot;</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url_pattern</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Baz&quot;</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">==</span> <span class="s2">&quot;Baz&quot;</span>
+</code></pre></div>
+
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Named groups in the regex pattern will be passed as <code>kwargs</code> to the response content <a href="#content-callback">callback</a>, if used.</p>
+</div>
+<h3 id="base-url">Base URL</h3>
+<p>When adding a lot of request patterns sharing the same domain/prefix, you can configure RESPX with a <code>base_url</code> to use as the base when matching URLs.</p>
+<p>Like <code>url</code>, the <code>base_url</code> can also be passed as a <em>compiled regex</em>, with optional named groups.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://foo.bar&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">test_something</span><span class="p">(</span><span class="n">respx_mock</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://foo.bar&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">respx_mock</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/baz/&quot;</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Baz&quot;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/baz/&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">==</span> <span class="s2">&quot;Baz&quot;</span>
+</code></pre></div>
+
+<h3 id="request-callback">Request callback</h3>
+<p>For full control of what request to <strong>match</strong> and what response to <strong>mock</strong>,
+pass a <em>callback</em> function as the <code>add(method, ...)</code> parameter.
+The callback's response argument will be pre-populated with any additional response parameters.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="k">def</span> <span class="nf">match_and_mock</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return `None` to not match the request.</span>
+<span class="sd">    Return the `response` to match and mock this request.</span>
+<span class="sd">    Return the `request` for pass-through behaviour.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">!=</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="s2">&quot;X-Auth-Token&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="p">:</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">401</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;OK&quot;</span>
+
+    <span class="k">return</span> <span class="n">response</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">custom_request</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">match_and_mock</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">custom_request</span><span class="o">.</span><span class="n">called</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">401</span>
+    <span class="k">assert</span> <span class="n">custom_request</span><span class="o">.</span><span class="n">called</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">})</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span>
+    <span class="k">assert</span> <span class="n">custom_request</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">2</span>
+</code></pre></div>
+
+<h3 id="repeated-patterns">Repeated patterns</h3>
+<p>If you mock several responses with the same <em>request pattern</em>, they will be matched in order, and popped til the last one.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">})</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span>  <span class="c1"># First match</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>  <span class="c1"># Second match</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">}</span>
+</code></pre></div>
+
+<h3 id="manipulating-existing-patterns">Manipulating Existing Patterns</h3>
+<p>Clearing all existing patterns:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>  <span class="c1"># no patterns will be matched after this call</span>
+</code></pre></div>
+
+<p>Removing and optionally re-using an existing pattern by alias:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
+    <span class="n">request_pattern</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_pattern</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="response-content">Response Content</h2>
+<h3 id="json-content">JSON content</h3>
+<p>To mock a response with json content, pass a <code>list</code> or a <code>dict</code>.<br />
+The <code>Content-Type</code> header will automatically be set to <code>application/json</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">})</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/123/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">}</span>
+</code></pre></div>
+
+<h3 id="content-callback">Content callback</h3>
+<p>If you need dynamic response content, pass a <em>callback</em> function.<br />
+When used together with a <a href="#url-pattern">URL pattern</a>, named groups will be passed
+as <code>kwargs</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="k">def</span> <span class="nf">some_content</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">slug</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Return bytes, str, list or a dict. &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;slug&quot;</span><span class="p">:</span> <span class="n">slug</span><span class="p">}</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">url_pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^https://foo.bar/(?P&lt;slug&gt;\w+)/$&quot;</span><span class="p">)</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url_pattern</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">some_content</span><span class="p">)</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/apa/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;slug&quot;</span><span class="p">:</span> <span class="s2">&quot;apa&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<h3 id="request-error">Request Error</h3>
+<p>To simulate a failing request, <em>like a connection error</em>, pass an <code>Exception</code> instance.
+This is useful when you need to test proper <code>HTTPX</code> error handling in your app.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">httpcore</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">httpcore</span><span class="o">.</span><span class="n">ConnectTimeout</span><span class="p">())</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>  <span class="c1"># Will raise</span>
+</code></pre></div>
+
+<hr />
+<h2 id="built-in-assertions">Built-in Assertions</h2>
+<p>RESPX has the following build-in assertion checks:</p>
+<blockquote>
+<ul>
+<li><strong>assert_all_mocked</strong><br />
+  Asserts that all captured <code>HTTPX</code> requests are mocked. Defaults to <code>True</code>.</li>
+<li><strong>assert_all_called</strong><br />
+  Asserts that all mocked request patterns were called. Defaults to <code>True</code>.</li>
+</ul>
+</blockquote>
+<p>Configure checks by using the <code>respx.mock</code> decorator / context manager <em>with</em> parentheses.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">assert_all_called</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">(</span><span class="n">respx_mock</span><span class="p">):</span>
+    <span class="n">respx_mock</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://some.url/&quot;</span><span class="p">)</span>  <span class="c1"># OK</span>
+    <span class="n">respx_mock</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="k">assert</span> <span class="n">respx_mock</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">respx</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">assert_all_mocked</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">respx_mock</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>  <span class="c1"># OK</span>
+    <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="k">assert</span> <span class="n">respx_mock</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+</code></pre></div>
+
+<div class="admonition attention">
+<p class="admonition-title">Without Parentheses</p>
+<p>When using the <em>global</em> scope <code>@respx.mock</code> decorator / context manager, <code>assert_all_called</code> is <strong>disabled</strong>.</p>
+</div>
+<hr />
+<h2 id="call-history">Call History</h2>
+<p>The <code>respx</code> API includes a <code>.calls</code> object, containing captured (<code>request</code>, <code>response</code>) named tuples and MagicMock's <em>bells and whistles</em>, i.e. <code>call_count</code>, <code>assert_called</code> etc.</p>
+<h3 id="retreiving-mocked-calls">Retreiving mocked calls</h3>
+<p>A matched and mocked <code>Call</code> can be retrived from call history, by either unpacking...</p>
+<div class="highlight"><pre><span></span><code><span class="n">request</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span>
+<span class="n">request</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># by call order</span>
+</code></pre></div>
+
+<p>...or by accessing <code>request</code> or <code>response</code> directly...</p>
+<div class="highlight"><pre><span></span><code><span class="n">last_response</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span>
+
+<span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+<span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+</code></pre></div>
+
+<div class="admonition attention">
+<p class="admonition-title">Deprecation Warning</p>
+<p>As of version <code>0.14.0</code>, statistics via <code>respx.stats</code> is deprecated, in favour of <code>respx.calls</code>.</p>
+</div>
+<h3 id="request-pattern-calls">Request Pattern calls</h3>
+<p>Each mocked response <em>request pattern</em> has its own <code>.calls</code>, along with <code>.called</code> and <code>.call_count</code> stats shortcuts.</p>
+<p>Example using locally added request pattern:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+    <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">request</span><span class="o">.</span><span class="n">called</span>
+    <span class="k">assert</span> <span class="n">request</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">request</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">assert_called_once</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Example using globally aliased request pattern:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+<span class="c1"># Added somewhere outside the test</span>
+<span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">called</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">last_index_response</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span>
+</code></pre></div>
+
+<h3 id="reset-stats">Reset stats</h3>
+<p>To reset stats during a test case, <em>without stop mocking</em>, use <code>respx.reset()</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">assert_called_once</span><span class="p">()</span>
+
+    <span class="n">respx</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">assert_not_called</span><span class="p">()</span>
+</code></pre></div>
+
+<h3 id="examples">Examples</h3>
+<p>Here's a handful example usages of the call stats API.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">httpx</span>
+<span class="kn">import</span> <span class="nn">respx</span>
+
+
+<span class="nd">@respx</span><span class="o">.</span><span class="n">mock</span>
+<span class="k">def</span> <span class="nf">test_something</span><span class="p">():</span>
+    <span class="c1"># Mock some calls</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
+    <span class="n">baz_request</span> <span class="o">=</span> <span class="n">respx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+
+    <span class="c1"># Make some calls</span>
+    <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/&quot;</span><span class="p">)</span>
+    <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;https://foo.bar/baz/&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Assert mocked</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">called</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+
+    <span class="k">assert</span> <span class="n">baz_request</span><span class="o">.</span><span class="n">called</span>
+    <span class="k">assert</span> <span class="n">baz_request</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">baz_request</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">assert_called_once</span><span class="p">()</span>
+
+    <span class="c1"># Global stats increased</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">2</span>
+
+    <span class="c1"># Assert responses</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">aliases</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span> <span class="ow">is</span> <span class="n">baz_request</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">last</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span>
+
+    <span class="c1"># Reset</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">assert</span> <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="n">respx</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">assert_not_called</span><span class="p">()</span>
+</code></pre></div>
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+        
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <nav class="md-footer__inner md-grid" aria-label="Footer">
+      
+        <a href="../mocking/" class="md-footer__link md-footer__link--prev" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Mock HTTPX
+            </div>
+          </div>
+        </a>
+      
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        Made with
+        <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+          Material for MkDocs
+        </a>
+        
+      </div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}, "search": "../../../assets/javascripts/workers/search.fe42c31b.min.js", "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.4ea5477f.min.js"></script>
+      
+    
+  </body>
+</html>

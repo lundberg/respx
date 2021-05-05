@@ -6,7 +6,7 @@ import pytest
 
 import respx
 from respx.mocks import Mocker
-from respx.router import MockRouter
+from respx.router import ASGIHandler, MockRouter, WSGIHandler
 from respx.transports import MockTransport
 
 
@@ -676,3 +676,49 @@ async def test_async_side_effect__exception(client, using):
         with pytest.raises(httpx.ConnectTimeout):
             await client.get("https://example.org/")
         assert mock_route.called
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+async def test_async_app_route(client, using):
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    async def baz(request):
+        return JSONResponse({"ham": "spam"})
+
+    app = Starlette(routes=[Route("/baz/", baz)])
+
+    async with respx.mock(using=using, base_url="https://foo.bar/") as respx_mock:
+        app_route = respx_mock.route().mock(side_effect=ASGIHandler(app))
+        response = await client.get("https://foo.bar/baz/")
+        assert response.json() == {"ham": "spam"}
+        assert app_route.called
+
+    async with respx.mock:
+        respx.route(host="foo.bar").mock(side_effect=ASGIHandler(app))
+        response = await client.get("https://foo.bar/baz/")
+        assert response.json() == {"ham": "spam"}
+
+
+@pytest.mark.parametrize("using", ["httpcore", "httpx"])
+def test_sync_app_route(using):
+    from flask import Flask
+
+    app = Flask("foobar")
+
+    @app.route("/baz/")
+    def baz():
+        return {"ham": "spam"}
+
+    with respx.mock(using=using, base_url="https://foo.bar/") as respx_mock:
+        app_route = respx_mock.route().mock(side_effect=WSGIHandler(app))
+        response = httpx.get("https://foo.bar/baz/")
+        assert response.json() == {"ham": "spam"}
+        assert app_route.called
+
+    with respx.mock:
+        respx.route(host="foo.bar").mock(side_effect=WSGIHandler(app))
+        response = httpx.get("https://foo.bar/baz/")
+        assert response.json() == {"ham": "spam"}

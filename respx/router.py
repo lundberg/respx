@@ -444,6 +444,59 @@ class MockRouter(Router):
                 self.Mocker.stop()
 
 
+class WSGIHandler:
+    def __init__(self, app: Callable, **kwargs: Any) -> None:
+        self.transport = httpx.WSGITransport(app=app, **kwargs)
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if not isinstance(request.stream, httpx.SyncByteStream):  # pragma: nocover
+            raise RuntimeError("Attempted to route an async request to a sync app.")
+
+        (status_code, headers, stream, extensions) = self.transport.handle_request(
+            request.method.encode(),
+            request.url.raw,
+            headers=request.headers.raw,
+            stream=request.stream,
+            extensions={},
+        )
+        return httpx.Response(
+            status_code,
+            headers=headers,
+            stream=stream,
+            extensions=extensions,
+            request=request,
+        )
+
+
+class ASGIHandler:
+    def __init__(self, app: Callable, **kwargs: Any) -> None:
+        self.transport = httpx.ASGITransport(app=app, **kwargs)
+
+    async def __call__(self, request: httpx.Request) -> httpx.Response:
+        if not isinstance(request.stream, httpx.AsyncByteStream):  # pragma: nocover
+            raise RuntimeError("Attempted to route a sync request to an async app.")
+
+        (
+            status_code,
+            headers,
+            stream,
+            extensions,
+        ) = await self.transport.handle_async_request(
+            request.method.encode(),
+            request.url.raw,
+            headers=request.headers.raw,
+            stream=request.stream,
+            extensions={},
+        )
+        return httpx.Response(
+            status_code,
+            headers=headers,
+            stream=stream,
+            extensions=extensions,
+            request=request,
+        )
+
+
 class DeprecatedMockTransport(MockRouter):
     def __init__(self, *args, **kwargs):
         warn(

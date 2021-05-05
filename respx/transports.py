@@ -4,7 +4,14 @@ from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 from httpx import AsyncBaseTransport, AsyncByteStream, BaseTransport, SyncByteStream
 
 from .models import PassThrough, decode_request, encode_response
-from .types import URL, AsyncResponse, Headers, RequestHandler, SyncResponse
+from .types import (
+    URL,
+    AsyncRequestHandler,
+    AsyncResponse,
+    Headers,
+    RequestHandler,
+    SyncResponse,
+)
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
@@ -12,20 +19,24 @@ if TYPE_CHECKING:
 
 class MockTransport(BaseTransport, AsyncBaseTransport):
     _handler: Optional[RequestHandler]
+    _async_handler: Optional[AsyncRequestHandler]
     _router: Optional["Router"]
 
     def __init__(
         self,
         *,
         handler: Optional[RequestHandler] = None,
+        async_handler: Optional[AsyncRequestHandler] = None,
         router: Optional["Router"] = None,
     ):
         if handler and not router:
-            self._handler = handler
             self._router = None
+            self._handler = handler
+            self._async_handler = async_handler
         elif router:
             self._router = router
             self._handler = None
+            self._async_handler = None
         else:
             raise RuntimeError(
                 "Missing a MockTransport required handler or router argument"
@@ -34,6 +45,10 @@ class MockTransport(BaseTransport, AsyncBaseTransport):
     @property
     def handler(self) -> RequestHandler:
         return self._handler or self._router.handler
+
+    @property
+    def async_handler(self) -> AsyncRequestHandler:
+        return self._async_handler or self._router.async_handler
 
     def handle_request(
         self,
@@ -70,7 +85,7 @@ class MockTransport(BaseTransport, AsyncBaseTransport):
         await request.aread()
 
         # Resolve response
-        response = self.handler(request)
+        response = await self.async_handler(request)
 
         raw_response = encode_response(response)
         return raw_response  # type: ignore
@@ -102,7 +117,6 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
         stream: SyncByteStream,
         extensions: dict,
     ) -> SyncResponse:
-        error: Exception = None
         for transport in self.transports:
             try:
                 assert isinstance(transport, BaseTransport)
@@ -111,11 +125,8 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
                 )
             except PassThrough as pass_through:
                 stream = pass_through.request.stream  # type: ignore
-            except AssertionError:
-                raise
-            except Exception as e:
-                error = e
-        raise error
+
+        raise RuntimeError()  # pragma: nocover
 
     async def handle_async_request(
         self,
@@ -125,7 +136,6 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
         stream: AsyncByteStream,
         extensions: dict,
     ) -> AsyncResponse:
-        error: Exception = None
         for transport in self.transports:
             try:
                 assert isinstance(transport, AsyncBaseTransport)
@@ -134,8 +144,5 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
                 )
             except PassThrough as pass_through:
                 stream = pass_through.request.stream  # type: ignore
-            except AssertionError:
-                raise
-            except Exception as e:
-                error = e
-        raise error
+
+        raise RuntimeError()  # pragma: nocover

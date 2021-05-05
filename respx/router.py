@@ -1,4 +1,5 @@
 import inspect
+from contextlib import contextmanager
 from functools import update_wrapper
 from types import TracebackType
 from typing import (
@@ -18,9 +19,16 @@ from warnings import warn
 import httpx
 
 from .mocks import Mocker
-from .models import CallList, PassThrough, Route, RouteList, SideEffectError
+from .models import (
+    CallList,
+    PassThrough,
+    ResolvedRoute,
+    Route,
+    RouteList,
+    SideEffectError,
+)
 from .patterns import Pattern, merge_patterns, parse_url_patterns
-from .types import DefaultType, URLPatternTypes
+from .types import DefaultType, RouteResultTypes, URLPatternTypes
 
 Default = NewType("Default", object)
 DEFAULT = Default(...)
@@ -220,59 +228,80 @@ class Router:
         if route:
             route.calls.append(call)
 
-    def match(
-        self,
-        request: httpx.Request,
-    ) -> Tuple[Optional[Route], Optional[Union[httpx.Request, httpx.Response]]]:
-        route: Optional[Route] = None
-        response: Optional[Union[httpx.Request, httpx.Response]] = None
-
-        for prospect in self.routes:
-            response = prospect.match(request)
-            if response:
-                route = prospect
-                break
-
-        return route, response
-
-    def resolve(self, request: httpx.Request) -> Optional[httpx.Response]:
-        route: Optional[Route] = None
-        response: Optional[httpx.Response] = None
+    @contextmanager
+    def resolver(self, request):
+        resolved = ResolvedRoute()
 
         try:
-            route, mock = self.match(request)
+            yield resolved
 
-            if route is None:
+            if resolved.route is None:
                 # Assert we always get a route match, if check is enabled
                 assert not self._assert_all_mocked, f"RESPX: {request!r} not mocked!"
 
                 # Auto mock a successful empty response
-                response = httpx.Response(200)
+                resolved.response = httpx.Response(200)
 
-            elif mock == request:
+            elif resolved.response == request:
                 # Pass-through request
-                response = None
+                raise PassThrough(
+                    f"Request marked to pass through: {request!r}",
+                    request=request,
+                    origin=resolved.route,
+                )
 
             else:
                 # Mocked response
-                assert isinstance(mock, httpx.Response)
-                response = mock
+                assert isinstance(resolved.response, httpx.Response)
 
         except SideEffectError as error:
             self.record(request, response=None, route=error.route)
-            raise error.origin
+            raise error.origin from error
+        except PassThrough:
+            self.record(request, response=None, route=resolved.route)
+            raise
         else:
-            self.record(request, response=response, route=route)
+            self.record(request, response=resolved.response, route=resolved.route)
 
-        return response
+    def resolve(self, request: httpx.Request) -> ResolvedRoute:
+        with self.resolver(request) as resolved:
+            for route in self.routes:
+                prospect = route.match(request)
+                if prospect is not None:
+                    resolved.route = route
+                    resolved.response = prospect
+                    break
+
+        return resolved
+
+    async def aresolve(self, request: httpx.Request) -> ResolvedRoute:
+        with self.resolver(request) as resolved:
+            for route in self.routes:
+                prospect: RouteResultTypes = route.match(request)
+
+                # Await async side effect and wrap any exception
+                if inspect.isawaitable(prospect):
+                    try:
+                        prospect = await prospect  # type: ignore
+                    except Exception as error:
+                        raise SideEffectError(route, origin=error) from error
+
+                if prospect is not None:
+                    resolved.route = route
+                    resolved.response = prospect
+                    break
+
+        return resolved
 
     def handler(self, request: httpx.Request) -> httpx.Response:
-        response = self.resolve(request)
-        if response is None:
-            raise PassThrough(
-                f"Request marked to pass through: {request!r}", request=request
-            )
-        return response
+        resolved = self.resolve(request)
+        assert isinstance(resolved.response, httpx.Response)
+        return resolved.response
+
+    async def async_handler(self, request: httpx.Request) -> httpx.Response:
+        resolved = await self.aresolve(request)
+        assert isinstance(resolved.response, httpx.Response)
+        return resolved.response
 
 
 class MockRouter(Router):

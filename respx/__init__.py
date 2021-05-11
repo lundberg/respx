@@ -1,12 +1,7 @@
 from .__version__ import __version__
+from .handlers import ASGIHandler, WSGIHandler
 from .models import MockResponse, Route
-from .router import (
-    ASGIHandler,
-    DeprecatedMockTransport as MockTransport,
-    MockRouter,
-    Router,
-    WSGIHandler,
-)
+from .router import DeprecatedMockTransport as MockTransport, MockRouter, Router
 
 from .api import (  # isort:skip
     mock,

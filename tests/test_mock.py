@@ -5,8 +5,9 @@ import httpx
 import pytest
 
 import respx
+from respx import ASGIHandler, WSGIHandler
 from respx.mocks import Mocker
-from respx.router import ASGIHandler, MockRouter, WSGIHandler
+from respx.router import MockRouter
 from respx.transports import MockTransport
 
 

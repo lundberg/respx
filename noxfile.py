@@ -11,7 +11,8 @@ docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
 
 @nox.session(python=["3.6", "3.7", "3.8", "3.9", "3.10"])
 def test(session):
-    session.install("--upgrade", "pytest", "pytest-asyncio", "pytest-cov", "trio")
+    deps = ["pytest", "pytest-asyncio", "pytest-cov", "trio", "starlette", "flask"]
+    session.install("--upgrade", *deps)
     session.install("-e", ".")
 
     options = session.posargs

@@ -1,4 +1,5 @@
 from .__version__ import __version__
+from .handlers import ASGIHandler, WSGIHandler
 from .models import MockResponse, Route
 from .router import DeprecatedMockTransport as MockTransport, MockRouter, Router
 
@@ -28,6 +29,8 @@ __all__ = [
     "MockTransport",
     "MockResponse",
     "MockRouter",
+    "ASGIHandler",
+    "WSGIHandler",
     "Router",
     "Route",
     "mock",

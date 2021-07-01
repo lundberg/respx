@@ -58,7 +58,7 @@ async def mocked_api(event_loop):  # noqa: F811
 ### Async Test Cases
 ``` python
 import httpx
-import rexpx
+import respx
 
 
 @respx.mock

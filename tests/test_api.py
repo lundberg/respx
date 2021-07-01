@@ -385,7 +385,7 @@ async def test_pass_through(client, using, route, expected):
         request = respx_mock.add(route)
 
         with mock.patch(
-            "asyncio.open_connection",
+            "anyio.connect_tcp",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
             with pytest.raises(httpx.NetworkError):
@@ -399,7 +399,7 @@ async def test_pass_through(client, using, route, expected):
         request = respx_mock.add(route)
 
         with mock.patch(
-            "socket.socket.connect", side_effect=socket.error("test request blocked")
+            "socket.create_connection", side_effect=socket.error("test request blocked")
         ) as connect:
             with pytest.raises(httpx.NetworkError):
                 httpx.get("https://example.org/")

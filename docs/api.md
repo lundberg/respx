@@ -275,6 +275,7 @@ Matches request *URL query params*, using <code>[contains](#contains)</code> as 
 ``` python
 respx.route(params={"foo": "bar", "ham": "spam"})
 respx.route(params=[("foo", "bar"), ("ham", "spam")])
+respx.route(params=(("foo", "bar"), ("ham", "spam")))
 respx.route(params="foo=bar&ham=spam")
 ```
 

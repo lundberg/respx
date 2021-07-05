@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2021-06-05
+### Added
+- Implement support for async side effects in router. (#147)
+- Support mocking responses using asgi/wsgi apps. (#146)
+- Added pytest fixture and configuration marker. (#150)
+
+### Fixed
+- Typo in import from examples.md, thanks @shelbylsmith. (#148)
+- Fix pass-through test case. (#149)
+
 ## [0.17.0] - 2021-04-27
 ### Changed
 - Require `HTTPX` 0.18.0 and implement the new transport API. (PR #142)

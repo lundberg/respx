@@ -35,6 +35,7 @@ setup(
     },
     packages=["respx"],
     package_data={"respx": ["py.typed"]},
+    entry_points={"pytest11": ["respx = respx.plugin"]},
     include_package_data=True,
     zip_safe=False,
     python_requires=">=3.6",

@@ -40,8 +40,28 @@ def test_example():
 > Read the [User Guide](guide.md) for a complete walk-through.
 
 
-!!! attention "Warning"
-    As of RESPX version `0.15.0`, the API has changed, but kept with **deprecation** warnings, later to be **broken** for backward compatibility in `0.16.0`. Read the [Upgrade Guide](upgrade.md) for an easier transision to latest release.
+### pytest + httpx
+
+For a neater `pytest` experience, RESPX includes a `respx_mock` *fixture* for easy `HTTPX` mocking, along with an optional `respx` *marker* to fine-tune the mock [settings](api.md#configuration).
+
+``` python
+import httpx
+import pytest
+
+
+def test_default(respx_mock):
+    respx_mock.get("https://foo.bar/").mock(return_value=httpx.Response(204))
+    response = httpx.get("https://foo.bar/")
+    assert response.status_code == 204
+
+
+@pytest.mark.respx(base_url="https://foo.bar")
+def test_with_marker(respx_mock):
+    respx_mock.get("/baz/").mock(return_value=httpx.Response(204))
+    response = httpx.get("https://foo.bar/baz/")
+    assert response.status_code == 204
+```
+
 
 ## Installation
 

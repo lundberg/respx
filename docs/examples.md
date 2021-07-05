@@ -2,7 +2,40 @@
 
 ## pytest
 
-### Fixtures
+### Built-in Fixture
+
+RESPX includes the `respx_mock` pytest httpx *fixture*.
+
+``` python
+import httpx
+
+
+def test_fixture(respx_mock):
+    respx_mock.get("https://foo.bar/").mock(return_value=httpx.Response(204))
+    response = httpx.get("https://foo.bar/")
+    assert response.status_code == 204
+```
+
+### Built-in Marker
+
+To configure the `respx_mock` fixture, use the `respx` *marker*.
+
+``` python
+import httpx
+import pytest
+
+
+@pytest.mark.respx(base_url="https://foo.bar")
+def test_configured_fixture(respx_mock):
+    respx_mock.get("/baz/").mock(return_value=httpx.Response(204))
+    response = httpx.get("https://foo.bar/baz/")
+    assert response.status_code == 204
+```
+
+> See router [configuration](api.md#configuration) reference for more details.
+
+
+### Custom Fixtures
 ``` python
 # conftest.py
 import pytest

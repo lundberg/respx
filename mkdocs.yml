@@ -1,5 +1,6 @@
 site_name: RESPX
 site_description: A utility for mocking out the Python HTTPX library.
+site_url: https://lundberg.github.io/respx/
 
 theme:
   name: "material"

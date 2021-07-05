@@ -353,7 +353,7 @@ async def test_nested_base_url(respx_mock):
         request1 = foobar_mock.get("/baz/") % dict(content="baz")
         request2 = foobar_mock.post(path__regex=r"(?P<slug>\w+)/?$") % dict(text="slug")
         request3 = foobar_mock.route() % dict(content="ok")
-        request4 = foobar_mock.head("http://localhost/apa/") % 204
+        request4 = foobar_mock.patch("http://localhost/egg/") % 204
 
         async with httpx.AsyncClient(base_url="https://foo.bar/api") as client:
             response = await client.get("/baz/")
@@ -368,7 +368,7 @@ async def test_nested_base_url(respx_mock):
             assert request3.called is True
             assert response.text == "ok"
 
-            response = await client.head("http://localhost/apa/")
+            response = await client.patch("http://localhost/egg/")
             assert request4.called is True
             assert response.status_code == 204
 

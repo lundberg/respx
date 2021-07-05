@@ -4,6 +4,8 @@ import pytest
 import respx
 from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 
+pytest_plugins = ["pytester"]
+
 
 @pytest.fixture
 async def client():

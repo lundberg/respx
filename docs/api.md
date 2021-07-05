@@ -20,6 +20,9 @@ Creates a mock `Router` instance, ready to be used as decorator/manager for acti
 >
 > **Returns:** `Router`
 
+!!! tip "pytest"
+    Use the `@pytest.mark.respx(...)` marker with these parameters to configure the `respx_mock` [pytest fixture](examples.md#built-in-marker).
+
 !!! note "NOTE"
     When using the *default* mock router `respx.mock`, *without settings*, `assert_all_called` is **disabled**.
 

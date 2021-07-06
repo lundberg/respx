@@ -8,7 +8,8 @@ import respx
 from respx import ASGIHandler, WSGIHandler
 from respx.mocks import Mocker
 from respx.router import MockRouter
-from respx.transports import MockTransport
+
+# from respx.transports import MockTransport
 
 
 @pytest.mark.asyncio
@@ -551,7 +552,7 @@ async def test_mock_using_none():
     @respx.mock(using=None)
     async def test(respx_mock):
         respx_mock.get("https://example.org/") % 204
-        transport = MockTransport(router=respx_mock)
+        transport = httpx.MockTransport(respx_mock.handler)
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204
@@ -566,7 +567,7 @@ async def test_router_using__none():
 
     @router
     async def test():
-        transport = MockTransport(router=router)
+        transport = httpx.MockTransport(router.handler)
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204
@@ -631,12 +632,22 @@ async def test_async_httpx_mocker():
     @respx.mock(using="httpx")
     async def test(respx_mock):
         respx.get(host="foo.bar")
-        mock_route = respx_mock.get("https://example.org/") % 204
+
+        async def streaming_side_effect(request):
+            async def content():
+                yield b'{"foo"'
+                yield b':"bar"}'
+
+            return httpx.Response(204, content=content())
+
+        mock_route = respx_mock.get("https://example.org/")
+        mock_route.side_effect = streaming_side_effect
         pass_route = respx_mock.get(host="pass-through").pass_through()
 
         async with client:
             response = await client.get("https://example.org/")
             assert response.status_code == 204
+            assert response.json() == {"foo": "bar"}
             assert mock_route.call_count == 1
 
             with pytest.raises(RuntimeError, match="would pass through"):
@@ -723,3 +734,32 @@ def test_sync_app_route(using):
         respx.route(host="foo.bar").mock(side_effect=WSGIHandler(app))
         response = httpx.get("https://foo.bar/baz/")
         assert response.json() == {"ham": "spam"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url,port",
+    [
+        ("https://foo.bar/", None),
+        ("https://foo.bar:443/", 443),
+    ],
+)
+async def test_httpcore_request(url, port):
+    async with MockRouter(using="httpcore") as router:
+        router.get(url) % dict(text="foobar")
+
+        with httpcore.SyncConnectionPool() as http:
+            (status_code, headers, stream, ext) = http.handle_request(
+                method=b"GET", url=(b"https", b"foo.bar", port, b"/")
+            )
+
+            body = b"".join([chunk for chunk in stream])
+            assert body == b"foobar"
+
+        async with httpcore.AsyncConnectionPool() as http:
+            (status_code, headers, stream, ext) = await http.handle_async_request(
+                method=b"GET", url=(b"https", b"foo.bar", port, b"/")
+            )
+
+            body = b"".join([chunk async for chunk in stream])
+            assert body == b"foobar"

@@ -19,37 +19,13 @@ import httpx
 
 from .patterns import M, Pattern
 from .types import (
-    ByteStream,
     CallableSideEffect,
+    Content,
     HeaderTypes,
-    RequestTypes,
     ResolvedResponseTypes,
-    Response,
     RouteResultTypes,
     SideEffectTypes,
 )
-
-
-def decode_request(request: RequestTypes) -> httpx.Request:
-    """
-    Build a httpx Request from httpcore request args.
-    """
-    if isinstance(request, httpx.Request):
-        return request  # pragma: nocover
-    method, url, headers, stream = request
-    return httpx.Request(method, url, headers=headers, stream=stream)
-
-
-def encode_response(response: httpx.Response) -> Response:
-    """
-    Builds a raw response tuple from httpx Response.
-    """
-    return (
-        response.status_code,
-        response.headers.raw,
-        response.stream,
-        response.extensions,
-    )
 
 
 def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Response:
@@ -99,7 +75,7 @@ class MockResponse(httpx.Response):
         self,
         status_code: Optional[int] = None,
         *,
-        content: Optional[Union[str, bytes, ByteStream]] = None,
+        content: Optional[Content] = None,
         content_type: Optional[str] = None,
         http_version: Optional[str] = None,
         **kwargs: Any,
@@ -258,11 +234,11 @@ class Route:
         status_code: int = 200,
         *,
         headers: Optional[HeaderTypes] = None,
-        content: Optional[Union[str, bytes, ByteStream]] = None,
+        content: Optional[Content] = None,
         text: Optional[str] = None,
         html: Optional[str] = None,
         json: Optional[Union[str, List, Dict]] = None,
-        stream: Optional[ByteStream] = None,
+        stream: Optional[Union[httpx.SyncByteStream, httpx.AsyncByteStream]] = None,
         content_type: Optional[str] = None,
         http_version: Optional[str] = None,
         **kwargs: Any,

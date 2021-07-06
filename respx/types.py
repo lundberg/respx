@@ -63,7 +63,9 @@ CookieTypes = Union[Dict[str, str], Sequence[Tuple[str, str]]]
 DefaultType = TypeVar("DefaultType", bound=Any)
 
 URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
-QueryParamTypes = Union[bytes, str, List[Tuple[str, Any]], Dict[str, Any]]
+QueryParamTypes = Union[
+    bytes, str, List[Tuple[str, Any]], Dict[str, Any], Tuple[Tuple[str, Any], ...]
+]
 RequestTypes = Union[Request, httpx.Request]
 
 ResolvedResponseTypes = Optional[Union[httpx.Request, httpx.Response]]

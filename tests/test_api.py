@@ -508,6 +508,7 @@ def test_pop():
         ("https://foo/", b"foo=bar", "https://foo/", b"foo=bar"),
         ("https://foo/", [("foo", "bar")], "https://foo/", [("foo", "bar")]),
         ("https://foo/", {"foo": "bar"}, "https://foo/", {"foo": "bar"}),
+        ("https://foo/", (("foo", "bar"),), "https://foo/", (("foo", "bar"),)),
         ("https://foo?foo=bar", "baz=qux", "https://foo?foo=bar", "baz=qux"),
         ("https://foo?foo=bar", "baz=qux", "https://foo?foo=bar&baz=qux", None),
         (re.compile(r"https://foo/(\w+)/"), "foo=bar", "https://foo/bar/", "foo=bar"),

@@ -14,7 +14,6 @@ from typing import (
     Union,
     overload,
 )
-from warnings import warn
 
 import httpx
 
@@ -442,12 +441,3 @@ class MockRouter(Router):
                 self.reset()
             if self.Mocker:
                 self.Mocker.stop()
-
-
-class DeprecatedMockTransport(MockRouter):
-    def __init__(self, *args, **kwargs):
-        warn(
-            "MockTransport used as router is deprecated. Please use `respx.mock(...)`.",
-            category=DeprecationWarning,
-        )
-        super().__init__(*args, **kwargs)

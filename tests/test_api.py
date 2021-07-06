@@ -3,7 +3,6 @@ import json as jsonlib
 import os
 import re
 import socket
-import warnings
 from unittest import mock
 
 import httpcore
@@ -605,9 +604,3 @@ async def test_async_post_content(kwargs):
         async with httpx.AsyncClient() as client:
             response = await client.post("https://foo.bar/", **kwargs)
             assert response.status_code == 201
-
-
-def test_deprecated_mock_transport():
-    with warnings.catch_warnings(record=True) as w:
-        respx.MockTransport()
-        assert len(w) == 1

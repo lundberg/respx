@@ -1,7 +1,7 @@
 from .__version__ import __version__
 from .handlers import ASGIHandler, WSGIHandler
 from .models import MockResponse, Route
-from .router import DeprecatedMockTransport as MockTransport, MockRouter, Router
+from .router import MockRouter, Router
 
 from .api import (  # isort:skip
     mock,
@@ -26,7 +26,6 @@ from .api import (  # isort:skip
 
 __all__ = [
     "__version__",
-    "MockTransport",
     "MockResponse",
     "MockRouter",
     "ASGIHandler",

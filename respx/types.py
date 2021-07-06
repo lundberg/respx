@@ -1,8 +1,10 @@
 from typing import (
     Any,
+    AsyncIterable,
     Awaitable,
     Callable,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -23,33 +25,7 @@ URL = Tuple[
     bytes,  # path
 ]
 Headers = List[Tuple[bytes, bytes]]
-ByteStream = Union[httpx.SyncByteStream, httpx.AsyncByteStream]
-Request = Tuple[
-    bytes,  # http method
-    URL,
-    Headers,
-    ByteStream,  # body
-]
-SyncResponse = Tuple[
-    int,  # status code
-    Headers,
-    httpx.SyncByteStream,  # body
-    dict,  # ext
-]
-AsyncResponse = Tuple[
-    int,  # status code
-    Headers,
-    httpx.AsyncByteStream,  # body
-    dict,  # ext
-]
-Response = Tuple[
-    int,  # status code
-    Headers,
-    ByteStream,  # body
-    dict,  # ext
-]
-RequestHandler = Callable[[httpx.Request], httpx.Response]
-AsyncRequestHandler = Callable[[httpx.Request], Awaitable[httpx.Response]]
+Content = Union[str, bytes, Iterable[bytes], AsyncIterable[bytes]]
 
 HeaderTypes = Union[
     httpx.Headers,
@@ -66,7 +42,6 @@ URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
 QueryParamTypes = Union[
     bytes, str, List[Tuple[str, Any]], Dict[str, Any], Tuple[Tuple[str, Any], ...]
 ]
-RequestTypes = Union[Request, httpx.Request]
 
 ResolvedResponseTypes = Optional[Union[httpx.Request, httpx.Response]]
 RouteResultTypes = Union[ResolvedResponseTypes, Awaitable[ResolvedResponseTypes]]

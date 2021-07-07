@@ -1,6 +1,5 @@
 import asyncio
 import json as jsonlib
-import os
 import re
 import socket
 from unittest import mock
@@ -406,35 +405,6 @@ async def test_pass_through(client, using, route, expected):
         assert connect.called is True
         assert request.called is True
         assert request.is_pass_through is expected
-
-
-@pytest.mark.skipif(
-    os.environ.get("PASS_THROUGH") is None, reason="External pass-through disabled"
-)
-@pytest.mark.asyncio
-@pytest.mark.parametrize("using", ["httpcore", "httpx"])
-async def test_external_pass_through(client, using):  # pragma: nocover
-    with respx.mock(using=using) as respx_mock:
-        # Mock pass-through call
-        url = "https://httpbin.org/post"
-        route = respx_mock.post(url, json__foo="bar").pass_through()
-
-        # Make external pass-through call
-        assert route.call_count == 0
-        response = await client.post(url, json={"foo": "bar"})
-
-        assert response.content is not None
-        assert len(response.content) > 0
-        assert "Content-Length" in response.headers
-        assert int(response.headers["Content-Length"]) > 0
-        assert response.json()["json"] == {"foo": "bar"}
-
-        assert respx_mock.calls.last.request.url == url
-        assert respx_mock.calls.last.response is None
-
-        # TODO: Routed and recorded twice; AsyncConnectionPool + AsyncHTTPConnection
-        assert route.call_count == (2 if using == "httpcore" else 1)
-        assert respx_mock.calls.call_count == (2 if using == "httpcore" else 1)
 
 
 @respx.mock

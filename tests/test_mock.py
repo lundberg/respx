@@ -1,4 +1,4 @@
-from contextlib import ExitStack as does_not_raise
+from contextlib import ExitStack as does_not_raise, contextmanager
 
 import httpcore
 import httpx
@@ -458,40 +458,44 @@ async def test_assert_all_mocked(client, assert_all_mocked, raises):
     assert respx_mock.calls.call_count == 0
 
 
-@pytest.mark.xfail(strict=False)
 @pytest.mark.asyncio
-async def test_asgi():  # pragma: nocover
-    from respx.mocks import HTTPCoreMocker
+async def test_asgi():
+    @contextmanager
+    def mock_targets():
+        from respx.mocks import HTTPCoreMocker
 
-    try:
-        HTTPCoreMocker.add_targets(
-            "httpx._transports.asgi.ASGITransport",
-            "httpx._transports.wsgi.WSGITransport",
-        )
-        async with respx.mock:
-            async with httpx.AsyncClient(app="fake-asgi") as client:
-                url = "https://foo.bar/"
-                jzon = {"status": "ok"}
-                headers = {"X-Foo": "bar"}
-                request = respx.get(url) % dict(
-                    status_code=202, headers=headers, json=jzon
-                )
-                response = await client.get(url)
-                assert request.called is True
-                assert response.status_code == 202
-                assert response.headers == httpx.Headers(
-                    {
-                        "Content-Type": "application/json",
-                        "Content-Length": "16",
-                        **headers,
-                    }
-                )
-                assert response.json() == {"status": "ok"}
-    finally:
-        HTTPCoreMocker.remove_targets(
-            "httpx._transports.asgi.ASGITransport",
-            "httpx._transports.wsgi.WSGITransport",
-        )
+        try:
+            HTTPCoreMocker.add_targets(
+                "httpx._transports.asgi.ASGITransport",
+                "httpx._transports.wsgi.WSGITransport",
+            )
+            with respx.mock(using="httpcore") as respx_mock:
+                yield respx_mock
+        finally:
+            HTTPCoreMocker.remove_targets(
+                "httpx._transports.asgi.ASGITransport",
+                "httpx._transports.wsgi.WSGITransport",
+            )
+
+    with mock_targets() as respx_mock:
+        async with httpx.AsyncClient(app="fake-asgi") as client:
+            url = "https://foo.bar/"
+            jzon = {"status": "ok"}
+            headers = {"X-Foo": "bar"}
+            request = respx_mock.get(url) % dict(
+                status_code=202, headers=headers, json=jzon
+            )
+            response = await client.get(url)
+            assert request.called is True
+            assert response.status_code == 202
+            assert response.headers == httpx.Headers(
+                {
+                    "Content-Type": "application/json",
+                    "Content-Length": "16",
+                    **headers,
+                }
+            )
+            assert response.json() == {"status": "ok"}
 
 
 def test_add_remove_targets():
@@ -503,20 +507,21 @@ def test_add_remove_targets():
     assert HTTPCoreMocker.targets.count(target) == 1
 
     pre_add_count = len(HTTPCoreMocker.targets)
-    HTTPCoreMocker.add_targets(
-        "httpx._transports.asgi.ASGITransport",
-        "httpx._transports.wsgi.WSGITransport",
-    )
-    assert len(HTTPCoreMocker.targets) == pre_add_count + 2
+    try:
+        HTTPCoreMocker.add_targets(
+            "httpx._transports.asgi.ASGITransport",
+            "httpx._transports.wsgi.WSGITransport",
+        )
+        assert len(HTTPCoreMocker.targets) == pre_add_count + 2
 
-    HTTPCoreMocker.remove_targets("foobar")
-    assert len(HTTPCoreMocker.targets) == pre_add_count + 2
-
-    HTTPCoreMocker.remove_targets(
-        "httpx._transports.asgi.ASGITransport",
-        "httpx._transports.wsgi.WSGITransport",
-    )
-    assert len(HTTPCoreMocker.targets) == pre_add_count
+        HTTPCoreMocker.remove_targets("foobar")
+        assert len(HTTPCoreMocker.targets) == pre_add_count + 2
+    finally:
+        HTTPCoreMocker.remove_targets(
+            "httpx._transports.asgi.ASGITransport",
+            "httpx._transports.wsgi.WSGITransport",
+        )
+        assert len(HTTPCoreMocker.targets) == pre_add_count
 
 
 @pytest.mark.asyncio
@@ -536,11 +541,11 @@ async def test_proxies():
         assert response.json() == {"foo": "bar"}
 
 
-@pytest.mark.xfail(strict=True)
 @pytest.mark.asyncio
-async def test_uds():  # pragma: nocover
+async def test_uds():
     async with respx.mock:
-        async with httpx.AsyncClient(uds="/foo/bar.sock") as client:
+        uds = httpx.AsyncHTTPTransport(uds="/tmp/foobar.sock")
+        async with httpx.AsyncClient(transport=uds) as client:
             request = respx.get("https://foo.bar/") % 202
             response = await client.get("https://foo.bar/")
             assert request.called is True

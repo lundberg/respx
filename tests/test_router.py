@@ -1,3 +1,5 @@
+import warnings
+
 import httpcore
 import httpx
 import pytest
@@ -167,6 +169,46 @@ def test_side_effect_no_match():
     response = router.handler(request)
     assert response.status_code == 204
     assert response.request.respx_was_here is True
+
+
+def test_side_effect_with_route_kwarg():
+    router = Router()
+
+    def foobar(request, route, slug):
+        response = httpx.Response(201, json={"id": route.call_count + 1, "slug": slug})
+        if route.call_count > 0:
+            route.mock(return_value=httpx.Response(501))
+        return response
+
+    router.post(path__regex=r"/(?P<slug>\w+)/").mock(side_effect=foobar)
+
+    request = httpx.Request("POST", "https://foo.bar/baz/")
+    response = router.handler(request)
+    assert response.status_code == 201
+    assert response.json() == {"id": 1, "slug": "baz"}
+
+    response = router.handler(request)
+    assert response.status_code == 201
+    assert response.json() == {"id": 2, "slug": "baz"}
+
+    response = router.handler(request)
+    assert response.status_code == 501
+
+
+def test_side_effect_with_reserved_route_kwarg():
+    router = Router()
+
+    def foobar(request, route):
+        assert isinstance(route, Route)
+        return httpx.Response(202)
+
+    router.get(path__regex=r"/(?P<route>\w+)/").mock(side_effect=foobar)
+
+    with warnings.catch_warnings(record=True) as w:
+        request = httpx.Request("GET", "https://foo.bar/baz/")
+        response = router.handler(request)
+        assert response.status_code == 202
+        assert len(w) == 1
 
 
 def test_side_effect_list():

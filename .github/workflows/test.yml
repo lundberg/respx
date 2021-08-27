@@ -2,6 +2,9 @@ name: test
 
 on: [push, pull_request]
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }}

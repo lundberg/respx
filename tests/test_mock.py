@@ -768,3 +768,28 @@ async def test_httpcore_request(url, port):
 
             body = b"".join([chunk async for chunk in stream])
             assert body == b"foobar"
+
+
+@pytest.mark.asyncio
+async def test_route_rollback():
+    respx_mock = respx.mock()
+
+    def example(request, route):
+        route.mock(return_value=httpx.Response(404))
+        return httpx.Response(202)
+
+    route = respx_mock.delete("https://example.org/foobar/")
+    route.side_effect = example
+
+    with respx_mock:
+        async with httpx.AsyncClient(base_url="https://example.org/") as client:
+            response = await client.delete("/foobar/")
+            assert response.status_code == 202
+
+            response = await client.delete("/foobar/")
+            assert response.status_code == 404
+
+    with respx_mock:
+        async with httpx.AsyncClient(base_url="https://example.org/") as client:
+            response = await client.delete("/foobar/")
+            assert response.status_code == 202

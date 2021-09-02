@@ -28,6 +28,7 @@ jobs:
         pip install --upgrade nox
         nox -s docs
     - name: Publish
+      if: github.repository_owner == 'lundberg'
       run: |
         git config user.email ${{ secrets.GITHUB_EMAIL }}
         git remote set-url origin https://${{ secrets.GITHUB_USER }}:${{ secrets.GITHUB_PAGES_TOKEN }}@github.com/lundberg/respx.git

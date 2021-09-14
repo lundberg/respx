@@ -6,7 +6,6 @@ from typing import (
     Callable,
     List,
     Optional,
-    Tuple,
     Type,
     Union,
     cast,
@@ -17,7 +16,6 @@ import httpx
 from httpx import AsyncBaseTransport, BaseTransport
 
 from .models import PassThrough
-from .types import URL, Headers
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
@@ -74,40 +72,22 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
     ) -> None:
         self.transports = transports
 
-    def handle_request(
-        self,
-        method: bytes,
-        url: URL,
-        headers: Headers,
-        stream: httpx.SyncByteStream,
-        extensions: dict,
-    ) -> Tuple[int, Headers, httpx.SyncByteStream, dict]:
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
         for transport in self.transports:
             try:
                 transport = cast(BaseTransport, transport)
-                return transport.handle_request(
-                    method, url, headers, stream, extensions
-                )
-            except PassThrough as pass_through:
-                stream = pass_through.request.stream  # type: ignore
+                return transport.handle_request(request)
+            except PassThrough:
+                continue
 
         raise RuntimeError()  # pragma: nocover
 
-    async def handle_async_request(
-        self,
-        method: bytes,
-        url: URL,
-        headers: Headers,
-        stream: httpx.AsyncByteStream,
-        extensions: dict,
-    ) -> Tuple[int, Headers, httpx.AsyncByteStream, dict]:
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         for transport in self.transports:
             try:
                 transport = cast(AsyncBaseTransport, transport)
-                return await transport.handle_async_request(
-                    method, url, headers, stream, extensions
-                )
-            except PassThrough as pass_through:
-                stream = pass_through.request.stream  # type: ignore
+                return await transport.handle_async_request(request)
+            except PassThrough:
+                continue
 
         raise RuntimeError()  # pragma: nocover

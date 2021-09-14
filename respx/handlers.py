@@ -11,20 +11,7 @@ class TransportHandler:
         if not isinstance(request.stream, httpx.SyncByteStream):  # pragma: nocover
             raise RuntimeError("Attempted to route an async request to a sync app.")
 
-        (status_code, headers, stream, extensions) = self.transport.handle_request(
-            request.method.encode(),
-            request.url.raw,
-            headers=request.headers.raw,
-            stream=request.stream,
-            extensions={},
-        )
-        return httpx.Response(
-            status_code,
-            headers=headers,
-            stream=stream,
-            extensions=extensions,
-            request=request,
-        )
+        return self.transport.handle_request(request)
 
 
 class AsyncTransportHandler:
@@ -35,25 +22,7 @@ class AsyncTransportHandler:
         if not isinstance(request.stream, httpx.AsyncByteStream):  # pragma: nocover
             raise RuntimeError("Attempted to route a sync request to an async app.")
 
-        (
-            status_code,
-            headers,
-            stream,
-            extensions,
-        ) = await self.transport.handle_async_request(
-            request.method.encode(),
-            request.url.raw,
-            headers=request.headers.raw,
-            stream=request.stream,
-            extensions={},
-        )
-        return httpx.Response(
-            status_code,
-            headers=headers,
-            stream=stream,
-            extensions=extensions,
-            request=request,
-        )
+        return await self.transport.handle_async_request(request)
 
 
 class WSGIHandler(TransportHandler):

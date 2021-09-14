@@ -1,4 +1,4 @@
-from contextlib import ExitStack as does_not_raise, contextmanager
+from contextlib import ExitStack as does_not_raise
 
 import httpcore
 import httpx
@@ -127,11 +127,7 @@ async def test_local_async_decorator(client, using):
     async def test(respx_mock):
         assert respx.calls.call_count == 0
 
-        async def raw_stream():
-            yield b"foo"
-            yield b"bar"
-
-        stream = httpcore.AsyncIteratorByteStream(raw_stream())
+        stream = httpx.ByteStream(b"foobar")
         request = respx_mock.get("https://foo.bar/").mock(
             return_value=httpx.Response(202, stream=stream)
         )
@@ -456,46 +452,6 @@ async def test_assert_all_mocked(client, assert_all_mocked, raises):
             assert respx_mock.calls.call_count == 1
             assert response.status_code == 200
     assert respx_mock.calls.call_count == 0
-
-
-@pytest.mark.asyncio
-async def test_asgi():
-    @contextmanager
-    def mock_targets():
-        from respx.mocks import HTTPCoreMocker
-
-        try:
-            HTTPCoreMocker.add_targets(
-                "httpx._transports.asgi.ASGITransport",
-                "httpx._transports.wsgi.WSGITransport",
-            )
-            with respx.mock(using="httpcore") as respx_mock:
-                yield respx_mock
-        finally:
-            HTTPCoreMocker.remove_targets(
-                "httpx._transports.asgi.ASGITransport",
-                "httpx._transports.wsgi.WSGITransport",
-            )
-
-    with mock_targets() as respx_mock:
-        async with httpx.AsyncClient(app="fake-asgi") as client:
-            url = "https://foo.bar/"
-            jzon = {"status": "ok"}
-            headers = {"X-Foo": "bar"}
-            request = respx_mock.get(url) % dict(
-                status_code=202, headers=headers, json=jzon
-            )
-            response = await client.get(url)
-            assert request.called is True
-            assert response.status_code == 202
-            assert response.headers == httpx.Headers(
-                {
-                    "Content-Type": "application/json",
-                    "Content-Length": "16",
-                    **headers,
-                }
-            )
-            assert response.json() == {"status": "ok"}
 
 
 def test_add_remove_targets():

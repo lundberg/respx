@@ -3,7 +3,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     NamedTuple,
@@ -40,8 +39,6 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
         request=request,
         extensions=dict(response.extensions),
     )
-    if isinstance(response.stream, Iterable):
-        response.read()  # Pre-read stream for easier call stats usage
     return response
 
 

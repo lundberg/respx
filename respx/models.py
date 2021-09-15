@@ -3,7 +3,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     NamedTuple,
@@ -14,6 +13,7 @@ from typing import (
     cast,
 )
 from unittest import mock
+from warnings import warn
 
 import httpx
 
@@ -39,8 +39,6 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
         request=request,
         extensions=dict(response.extensions),
     )
-    if isinstance(response.stream, Iterable):
-        response.read()  # Pre-read stream for easier call stats usage
     return response
 
 
@@ -289,6 +287,13 @@ class Route:
     def _call_side_effect(
         self, effect: CallableSideEffect, request: httpx.Request, **kwargs: Any
     ) -> RouteResultTypes:
+        # Add route kwarg if the side effect wants it
+        argspec = inspect.getfullargspec(effect)
+        if "route" in kwargs:
+            warn(f"Matched context contains reserved word `route`: {self.pattern!r}")
+        if "route" in argspec.args:
+            kwargs["route"] = self
+
         try:
             # Call side effect
             result: RouteResultTypes = effect(request, **kwargs)

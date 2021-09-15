@@ -271,6 +271,9 @@ class Router:
                     resolved.response = prospect
                     break
 
+        if isinstance(resolved.response.stream, httpx.ByteStream):
+            resolved.response.read()  # Pre-read stream
+
         return resolved
 
     async def aresolve(self, request: httpx.Request) -> ResolvedRoute:
@@ -289,6 +292,9 @@ class Router:
                     resolved.route = route
                     resolved.response = prospect
                     break
+
+        if isinstance(resolved.response.stream, httpx.ByteStream):
+            await resolved.response.aread()  # Pre-read stream
 
         return resolved
 

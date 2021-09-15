@@ -9,6 +9,34 @@ from respx.models import PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
+@pytest.mark.asyncio
+async def test_empty_router():
+    router = Router()
+
+    request = httpx.Request("GET", "https://example.org/")
+    with pytest.raises(AssertionError, match="not mocked"):
+        router.resolve(request)
+
+    with pytest.raises(AssertionError, match="not mocked"):
+        await router.aresolve(request)
+
+
+@pytest.mark.asyncio
+async def test_empty_router__auto_mocked():
+    router = Router(assert_all_mocked=False)
+
+    request = httpx.Request("GET", "https://example.org/")
+    resolved = router.resolve(request)
+
+    assert resolved.route is None
+    assert resolved.response.status_code == 200
+
+    resolved = await router.aresolve(request)
+
+    assert resolved.route is None
+    assert resolved.response.status_code == 200
+
+
 @pytest.mark.parametrize(
     "args,kwargs,expected",
     [

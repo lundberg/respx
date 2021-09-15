@@ -6,12 +6,14 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     List,
     NewType,
     Optional,
     Tuple,
     Type,
     Union,
+    cast,
     overload,
 )
 
@@ -27,7 +29,7 @@ from .models import (
     SideEffectError,
 )
 from .patterns import Pattern, merge_patterns, parse_url_patterns
-from .types import DefaultType, RouteResultTypes, URLPatternTypes
+from .types import DefaultType, ResolvedResponseTypes, RouteResultTypes, URLPatternTypes
 
 Default = NewType("Default", object)
 DEFAULT = Default(...)
@@ -228,7 +230,7 @@ class Router:
             route.calls.append(call)
 
     @contextmanager
-    def resolver(self, request):
+    def resolver(self, request: httpx.Request) -> Generator[ResolvedRoute, None, None]:
         resolved = ResolvedRoute()
 
         try:
@@ -268,7 +270,7 @@ class Router:
                 prospect = route.match(request)
                 if prospect is not None:
                     resolved.route = route
-                    resolved.response = prospect
+                    resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
         if isinstance(resolved.response.stream, httpx.ByteStream):
@@ -290,7 +292,7 @@ class Router:
 
                 if prospect is not None:
                     resolved.route = route
-                    resolved.response = prospect
+                    resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
         if isinstance(resolved.response.stream, httpx.ByteStream):

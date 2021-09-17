@@ -1,5 +1,7 @@
 # Test Case Examples
 
+Here's some test case examples, not exactly *how-to*, but to be inspired from.
+
 ## pytest
 
 ### Built-in Fixture
@@ -117,7 +119,24 @@ async def test_async_ctx_manager():
 
 ## unittest
 
-### SetUp & TearDown
+### Regular Decoration
+
+``` python
+# test_api.py
+import httpx
+import respx
+import unittest
+
+
+class APITestCase(unittest.TestCase):
+    @respx.mock
+    def test_some_endpoint(self):
+        respx.get("https://example.org/") % 202
+        response = httpx.get("https://example.org/")
+        self.assertEqual(response.status_code, 202)
+```
+
+### Reuse SetUp & TearDown
 
 ``` python
 # testcases.py
@@ -138,9 +157,7 @@ class MockedAPIMixin:
 
     def setUp(self):
         self.mocked_api.start()
-
-    def tearDown(self):
-        self.mocked_api.stop()
+        self.addCleanup(self.mocked_api.stop)
 ```
 ``` python
 # test_api.py

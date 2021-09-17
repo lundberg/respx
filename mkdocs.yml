@@ -19,6 +19,7 @@ nav:
   - User Guide: "guide.md"
   - API Reference: "api.md"
   - Test Case Examples: "examples.md"
+  - Migrate from requests: "migrate.md"
   - Upgrading: "upgrade.md"
   - Older Versions:
     - 0.14.0:

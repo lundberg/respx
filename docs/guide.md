@@ -13,7 +13,8 @@ To skip mocking a specific request, a route can be marked to [pass through](#pas
 
 ## Mock HTTPX
 
-To patch `HTTPX`, and activate the router, use the `respx.mock` decorator *or* context manager.
+To patch `HTTPX`, and activate the RESPX router,
+use the `respx.mock` decorator/context manager, or the  `respx_mock` *pytest* fixture.
 
 ### Using the Decorator
 
@@ -46,38 +47,56 @@ def test_ctx_manager():
         assert response.status_code == 200
 ```
 
+### Using the pytest Fixture
+
+``` python
+import httpx
+
+
+def test_fixture(respx_mock):
+    my_route = respx_mock.get("https://example.org/")
+    response = httpx.get("https://example.org/")
+    assert my_route.called
+    assert response.status_code == 200
+```
+
 ### Router Settings
 
 The RESPX router can be configured with built-in assertion checks and an *optional* [base URL](#base-url).
 
-By configuring, a nested router is created, and the settings are *locally* bound to the routes added.
+By configuring, an isolated router is created, and settings are *locally* bound to the routes added.
 
-When decorating a test case with a configured router, the test function will receive the router instance as a `respx_mock` argument.
+Either of the decorator, context manager and fixture takes the same configuration arguments. 
+
+> See router [configuration](api.md#configuration) reference for more details.
+
+**Configure the Decorator**
+
+When decorating a test case with configured router settings, the test function will receive the router instance as a `respx_mock` argument.
 
 ``` python
-@respx.mock(assert_all_mocked=False)
+@respx.mock(...)
 def test_something(respx_mock):
     ...
 ```
 
-> See router [configuration](api.md#configuration) reference for more details.
+**Configure the Context Manager**
 
-
-Settings Examples:
+When passing settings to the context manager, the configured router instance will be *yielded*.
 
 ``` python
-@respx.mock(assert_all_called=False)
-def test_something(respx_mock):
-    respx_mock.get("https://example.org/")
-    respx_mock.get("https://some.url/")  # Not called, yet not asserted
-
-    response = httpx.get("https://example.org/")
-    assert response.status_code == 200
+with respx.mock(...) as respx_mock:
+    ...
 ```
+
+**Configure the Fixture**
+
+To configure the router when using the `pytest` fixture, decorate the test case with the `respx` *pytest marker*.
+
 ``` python
-with respx.mock(assert_all_mocked=False) as respx_mock:
-    response = httpx.get("https://example.org/")  # Not mocked, yet not asserted
-    assert response.status_code == 200
+@pytest.mark.respx(...)
+def test_something(respx_mock):
+    ...
 ```
 
 #### Base URL
@@ -99,6 +118,49 @@ async def test_something(respx_mock):
         assert response.text == "Baz"
 ```
 
+#### Assert all Mocked
+
+By default, asserts that all sent and captured `HTTPX` requests are routed and mocked.
+
+``` python
+@respx.mock(assert_all_mocked=True)
+def test_something(respx_mock):
+    response = httpx.get("https://example.org/")  # Not mocked, will raise
+```
+
+If *disabled*, all non-routed requests will be auto-mocked with status code `200`.
+
+``` python
+@respx.mock(assert_all_mocked=False)
+def test_something(respx_mock):
+    response = httpx.get("https://example.org/")  # Will auto-mock
+    assert response.status_code == 200
+```
+
+#### Assert all Called
+
+By default, asserts that all added and mocked routes were called when exiting *decorated* test case, *context manager* scope or exiting a text case using the pytest fixture.
+
+``` python
+@respx.mock(assert_all_called=True)
+def test_something(respx_mock):
+    respx_mock.get("https://example.org/")
+    respx_mock.get("https://some.url/")  # Not called, will fail the test
+
+    response = httpx.get("https://example.org/")
+```
+
+
+``` python
+@respx.mock(assert_all_called=False)
+def test_something(respx_mock):
+    respx_mock.get("https://example.org/")
+    respx_mock.get("https://some.url/")  # Not called, yet not asserted
+
+    response = httpx.get("https://example.org/")
+    assert response.status_code == 200
+```
+
 ---
 
 ## Routing Requests
@@ -106,6 +168,8 @@ async def test_something(respx_mock):
 The easiest way to add routes is to use the [HTTP Method](#http-method-helpers) helpers.
 
 For full control over the request pattern matching, use the [route](#route-api) API.
+
+Routes are matched and routed in *added order*. This means that routes with more specific patterns should to be added earlier than the ones with less "details".
 
 ### HTTP Method Helpers
 
@@ -184,13 +248,13 @@ def test_route_call():
     assert last_home_response.status_code == 200
 ```
 
-### Nested Routers
+### Reusable Routers
 
-As described under [settings](#router-settings), a nested router is created when calling `respx.mock(...)`.
+As described under [settings](#router-settings), an isolated router is created when calling `respx.mock(...)`.
 
-Nested routers are useful when mocking multiple remote APIs, allowing grouped routes per API, and to be mocked individually and reused across tests.
+Isolated routers are useful when mocking multiple remote APIs, allowing grouped routes per API, and to be mocked individually or stacked for reuse across tests.
 
-Use the nested router as decorator or context manager to patch `HTTPX` and activate the routes.
+Use the router instance as decorator or context manager to patch `HTTPX` and activate the routes.
 
 ``` python
 import httpx
@@ -223,7 +287,61 @@ def test_ctx_manager():
 ```
 
 !!! note "NOTE"
-    Named routes in a *nested router* can be directly accessed via `my_mock_router[<route name>]`
+    Named routes in a *reusable router* can be directly accessed via `my_mock_router[<route name>]`
+
+### Route with an App
+
+As an alternative one can route and mock responses with an `app` by passing either a `respx.WSGIHandler` or `respx.ASGIHandler` as side effect when mocking.
+
+**Sync App Example**
+
+``` python
+import httpx
+import respx
+
+from flask import Flask
+
+app = Flask("foobar")
+
+
+@app.route("/baz/")
+def baz():
+    return {"ham": "spam"}
+
+
+@respx.mock(base_url="https://foo.bar/")
+def test_baz(respx_mock):
+    app_route = respx_mock.route().mock(side_effect=WSGIHandler(app))
+    response = httpx.get("https://foo.bar/baz/")
+    assert response.json() == {"ham": "spam"}
+    assert app_route.called
+```
+
+**Async App Example**
+
+``` python
+import httpx
+import respx
+
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+
+async def baz(request):
+    return JSONResponse({"ham": "spam"})
+
+
+app = Starlette(routes=[Route("/baz/", baz)])
+
+
+@respx.mock(base_url="https://foo.bar/")
+async def test_baz(respx_mock):
+    app_route = respx_mock.route().mock(side_effect=ASGIHandler(app))
+    response = await httpx.AsyncClient().get("https://foo.bar/baz/")
+    assert response.json() == {"ham": "spam"}
+    assert app_route.called
+```
 
 
 ---
@@ -235,6 +353,8 @@ To mock a [route](#routing-requests) response, use `<route>.mock(...)` to either
 * set the `httpx.Response` to be [returned](#mock-a-response).
 * set a [side effect](#mock-with-a-side-effect) to be triggered.
 
+The route's mock interface is inspired by pythons built-in `Mock()` object,
+e.g. ``side_effect`` has precedence over ``return_value``, side effects can either be functions, exceptions or an iterable, raising ``StopIteration`` when "exhausted" etc.
 
 ### Mock a Response
 
@@ -272,7 +392,7 @@ route.side_effect = ...
 
 #### Functions
 
-Function *side effects* will be called with the *captured* request argument, and should either...
+Function *side effects* will be called with the *captured* ``request`` argument, and should either...
 
 * return a mocked [Response](api.md#response).
 * raise an `Exception` to simulate a request error.
@@ -294,6 +414,29 @@ def test_side_effect():
 
     response = httpx.post("https://example.org/")
     assert response.status_code == 201
+```
+
+Optionally, a side effect can include a `route` argument for cases where call stats,
+or modifying the route within the side effect, is needed.
+
+``` python
+import httpx
+import respx
+
+
+def my_side_effect(request, route):
+    return httpx.Response(201, json={"id": route.call_count + 1})
+
+
+@respx.mock
+def test_side_effect():
+    respx.post("https://example.org/").mock(side_effect=my_side_effect)
+
+    response = httpx.post("https://example.org/")
+    assert response.json() == {"id": 1}
+
+    response = httpx.post("https://example.org/")
+    assert response.json() == {"id": 2}
 ```
 
 If any of the route patterns are using a [regex lookup](api.md#regex), containing *named groups*, the regex groups will be passed as *kwargs* to the *side effect*.
@@ -379,7 +522,18 @@ def test_stacked_responses():
     assert route.call_count == 2
 ```
 
-### Modulo Shortcut
+### Shortcuts
+
+#### Respond
+
+For convenience, `<route>.respond(...)` can be used as a shortcut to `return_value`.
+
+``` python
+respx.post("https://example.org/").respond(201)
+```
+> See [.respond()](api.md#respond) reference for more details.
+
+#### Modulo
 
 For simple mocking, a quick way is to use the python modulo (`%`) operator to mock the response.
 
@@ -414,7 +568,7 @@ assert response.status_code == httpx.codes.IM_A_TEAPOT
 
 When exiting a [decorated](#using-the-decorator) test case, or [context manager](#using-the-context-manager), the routes and their mocked values, *i.e.* `return_value` and `side_effect`, will be *rolled back* and restored to their initial state.
 
-This means that you can safely modify existing routes, or add new ones, *within* a test case, without affecting other tests.
+This means that you can safely modify existing routes, or add new ones, *within* a test case, without affecting other tests that are using the same router.
 
 ``` python
 import httpx
@@ -464,9 +618,7 @@ def test_remote_response():
 
 ## Mock without patching HTTPX
 
-The RESPX implements the [HTTP Core](https://www.encode.io/httpcore/) transport interface. 
-
-If you don't *need* to patch `HTTPX`, pass a `MockTransport` as `transport`, when instantiating your `HTTPX` client, or alike.
+If you don't *need* to patch `HTTPX`, use `httpx.MockTransport` with a REPX router as handler, when instantiating your client.
 
 ``` python
 import httpx
@@ -479,11 +631,14 @@ router.post("https://example.org/") % 404
 
 
 def test_client():
-    mock_transport = MockTransport(router=router)
+    mock_transport = httpx.MockTransport(router.handler)
     with httpx.Client(transport=mock_transport) as client:
         response = client.post("https://example.org/")
         assert response.status_code == 404
 ```
+
+!!! note "NOTE"
+    Use `httpx.MockTransport(router.async_handler)` when using an `httpx.AsyncClient`.
 
 !!! Hint
     You can use `RESPX` not only to mock out `HTTPX`, but actually mock any library using `HTTP Core` transports.

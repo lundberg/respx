@@ -11,20 +11,20 @@ Creates a mock `Router` instance, ready to be used as decorator/manager for acti
 > **Parameters:**
 >
 > * **assert_all_mocked** - *(optional) bool - default: `True`*  
->   Asserts that all sent and captured `HTTPX` requests are routed and mocked.
+>   Asserts that all sent and captured `HTTPX` requests are routed and mocked.  
+>   If disabled, all non-routed requests will be auto mocked with status code `200`.  
 > * **assert_all_called** - *(optional) bool - default: `True`*  
 >   Asserts that all added and mocked routes were called when exiting context.  
->   If disabled, all non-routed requests will be auto mocked with status code `200`.
 > * **base_url** - *(optional) str*  
 >   Base URL to match, on top of each route specific pattern *and/or* side effect.
 >
 > **Returns:** `Router`
 
-!!! tip "pytest"
-    Use the `@pytest.mark.respx(...)` marker with these parameters to configure the `respx_mock` [pytest fixture](examples.md#built-in-marker).
-
 !!! note "NOTE"
     When using the *default* mock router `respx.mock`, *without settings*, `assert_all_called` is **disabled**.
+
+!!! tip "pytest"
+    Use the `@pytest.mark.respx(...)` marker with these parameters to configure the `respx_mock` [pytest fixture](examples.md#built-in-marker).
 
 
 ### .route()

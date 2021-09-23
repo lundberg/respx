@@ -21,6 +21,7 @@ from typing import (
     Type,
     Union,
 )
+from unittest.mock import ANY
 from urllib.parse import urljoin
 
 import httpx
@@ -241,18 +242,33 @@ class MultiItemsMixin:
     lookup: Lookup
     value: Any
 
+    def _multi_items(
+        self, value: Any, *, parse_any: bool = False
+    ) -> Tuple[Tuple[str, Any], ...]:
+        return tuple(
+            sorted(
+                (key, ANY if parse_any and value == str(ANY) else value)
+                for key, value in value.multi_items()
+            )
+        )
+
     def __hash__(self):
-        return hash((self.__class__, self.lookup, str(self.value)))
+        return hash((self.__class__, self.lookup, self._multi_items(self.value)))
+
+    def _eq(self, value: Any) -> Match:
+        value_items = self._multi_items(self.value, parse_any=True)
+        request_items = self._multi_items(value)
+        return Match(value_items == request_items)
 
     def _contains(self, value: Any) -> Match:
-        value_list = self.value.multi_items()
-        request_list = value.multi_items()
+        value_items = self._multi_items(self.value, parse_any=True)
+        request_items = self._multi_items(value)
 
-        if len(value_list) > len(request_list):
+        if len(value_items) > len(request_items):
             return Match(False)
 
-        for item in value_list:
-            if item not in request_list:
+        for item in value_items:
+            if item not in request_items:
                 return Match(False)
 
         return Match(True)

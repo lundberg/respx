@@ -13,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10-dev"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -30,9 +30,7 @@ jobs:
     - name: Test
       run: |
         pip install --upgrade nox
-        # Strip any "-dev" suffix
-        target=$(echo ${{ matrix.python-version }} | sed -e "s/-dev$//")
-        nox -s test-${target}
+        nox -s test-${{ matrix.python-version }}
     - name: Upload report
       uses: codecov/codecov-action@v1
       with:

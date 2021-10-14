@@ -279,6 +279,9 @@ respx.route(params=(("foo", "bar"), ("ham", "spam")))
 respx.route(params="foo=bar&ham=spam")
 ```
 
+!!! tip "ANY value"
+    Use `mock.ANY` as value to only match on parameter presence, e.g. `respx.route(params={"foo": ANY})`.
+
 ### URL
 Matches request *URL*.
 

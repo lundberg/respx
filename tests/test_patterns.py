@@ -1,4 +1,5 @@
 import re
+from unittest.mock import ANY
 
 import httpx
 import pytest
@@ -92,6 +93,10 @@ def test_headers_pattern(lookup, headers, request_headers, expected):
         "GET", "http://foo.bar/", headers=request_headers, json={"foo": "bar"}
     )
     assert bool(Headers(headers, lookup=lookup).match(request)) is expected
+
+
+def test_headers_pattern_hash():
+    assert Headers({"X-Foo": "bar"}) == Headers({"x-foo": "bar"})
 
 
 @pytest.mark.parametrize(
@@ -192,17 +197,30 @@ def test_path_pattern():
     [
         (Lookup.CONTAINS, "", "https://foo.bar/", True),
         (Lookup.CONTAINS, "x=1", "https://foo.bar/?x=1", True),
+        (Lookup.CONTAINS, "x=", "https://foo.bar/?x=1", True),  # query, not params
         (Lookup.CONTAINS, "y=2", "https://foo.bar/?x=1", False),
+        (Lookup.CONTAINS, [("x", "1")], "https://foo.bar/?x=1", True),
+        (Lookup.CONTAINS, {"x": "1"}, "https://foo.bar/?x=1", True),
+        (Lookup.CONTAINS, {"x": "2"}, "https://foo.bar/?x=1", False),
+        (Lookup.CONTAINS, {"x": ANY}, "https://foo.bar/?x=1&y=2", True),
+        (Lookup.CONTAINS, {"y": ANY}, "https://foo.bar/?x=1", False),
         (Lookup.CONTAINS, "x=1&y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "", "https://foo.bar/", True),
         (Lookup.EQUAL, "x=1", "https://foo.bar/?x=1", True),
         (Lookup.EQUAL, "y=2", "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, {"x": ANY}, "https://foo.bar/?x=1", True),
+        (Lookup.EQUAL, {"y": ANY}, "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "x=1&y=2", "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, "y=2&x=1", "https://foo.bar/?x=1&y=2", True),
     ],
 )
 def test_params_pattern(lookup, params, url, expected):
     request = httpx.Request("GET", url)
     assert bool(Params(params, lookup=lookup).match(request)) is expected
+
+
+def test_params_pattern_hash():
+    assert Params("x=1&y=2") == Params("y=2&x=1")
 
 
 @pytest.mark.parametrize(

@@ -244,7 +244,7 @@ class MultiItemsMixin:
 
     def _multi_items(
         self, value: Any, *, parse_any: bool = False
-    ) -> Tuple[Tuple[str, Any], ...]:
+    ) -> Tuple[Tuple[str, Tuple[Any, ...]], ...]:
         return tuple(
             (
                 key,

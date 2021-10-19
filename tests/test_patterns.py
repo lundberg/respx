@@ -204,6 +204,8 @@ def test_path_pattern():
         (Lookup.CONTAINS, {"x": "2"}, "https://foo.bar/?x=1", False),
         (Lookup.CONTAINS, {"x": ANY}, "https://foo.bar/?x=1&y=2", True),
         (Lookup.CONTAINS, {"y": ANY}, "https://foo.bar/?x=1", False),
+        (Lookup.CONTAINS, [("x", ANY), ("x", "2")], "https://foo.bar/?x=1&x=2", True),
+        (Lookup.CONTAINS, [("x", ANY), ("x", "2")], "https://foo.bar/?x=2&x=3", False),
         (Lookup.CONTAINS, "x=1&y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "", "https://foo.bar/", True),
         (Lookup.EQUAL, "x=1", "https://foo.bar/?x=1", True),
@@ -212,6 +214,11 @@ def test_path_pattern():
         (Lookup.EQUAL, {"y": ANY}, "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "x=1&y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "y=2&x=1", "https://foo.bar/?x=1&y=2", True),
+        (Lookup.EQUAL, "y=3&x=2&x=1", "https://foo.bar/?x=1&x=2&y=3", False),  # ordered
+        (Lookup.EQUAL, "y=3&x=1&x=2", "https://foo.bar/?x=1&x=2&y=3", True),  # ordered
+        (Lookup.CONTAINS, "x=2&x=1", "https://foo.bar/?x=1&x=2&y=3", False),  # ordered
+        (Lookup.CONTAINS, "x=1&x=2", "https://foo.bar/?x=1&x=2&x=3", False),  # ordered
+        (Lookup.CONTAINS, "x=1&x=2", "https://foo.bar/?x=1&x=2&y=3", True),  # ordered
     ],
 )
 def test_params_pattern(lookup, params, url, expected):

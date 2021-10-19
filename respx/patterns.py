@@ -246,10 +246,14 @@ class MultiItemsMixin:
         self, value: Any, *, parse_any: bool = False
     ) -> Tuple[Tuple[str, Any], ...]:
         return tuple(
-            sorted(
-                (key, ANY if parse_any and value == str(ANY) else value)
-                for key, value in value.multi_items()
+            (
+                key,
+                tuple(
+                    ANY if parse_any and v == str(ANY) else v
+                    for v in value.get_list(key)
+                ),
             )
+            for key in sorted(value.keys())
         )
 
     def __hash__(self):
@@ -261,11 +265,11 @@ class MultiItemsMixin:
         return Match(value_items == request_items)
 
     def _contains(self, value: Any) -> Match:
+        if len(self.value.multi_items()) > len(value.multi_items()):
+            return Match(False)
+
         value_items = self._multi_items(self.value, parse_any=True)
         request_items = self._multi_items(value)
-
-        if len(value_items) > len(request_items):
-            return Match(False)
 
         for item in value_items:
             if item not in request_items:

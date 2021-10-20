@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from respx import Route, Router
-from respx.models import PassThrough, RouteList
+from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
@@ -14,10 +14,10 @@ async def test_empty_router():
     router = Router()
 
     request = httpx.Request("GET", "https://example.org/")
-    with pytest.raises(AssertionError, match="not mocked"):
+    with pytest.raises(AllMockedAssertionError):
         router.resolve(request)
 
-    with pytest.raises(AssertionError, match="not mocked"):
+    with pytest.raises(AllMockedAssertionError):
         await router.aresolve(request)
 
 

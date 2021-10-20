@@ -3,7 +3,7 @@ import warnings
 import httpx
 import pytest
 
-from respx.models import PassThrough
+from respx.models import AllCalledAssertionError, PassThrough
 from respx.router import Router
 from respx.transports import MockTransport
 
@@ -59,7 +59,7 @@ async def test_transport_assertions():
         transport = MockTransport(router=router)
         assert len(w) == 1
 
-    with pytest.raises(AssertionError, match="were not called"):
+    with pytest.raises(AllCalledAssertionError):
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get(url)
             assert response.status_code == 404

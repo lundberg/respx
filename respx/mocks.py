@@ -7,7 +7,7 @@ from unittest import mock
 import httpx
 from httpcore import AsyncIteratorByteStream, IteratorByteStream
 
-from .models import PassThrough
+from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
 
 if TYPE_CHECKING:
@@ -105,33 +105,33 @@ class Mocker(ABC):
     @classmethod
     def handler(cls, httpx_request):
         httpx_response = None
-        error = None
+        assertion_error = None
         for router in cls.routers:
             try:
                 httpx_response = router.handler(httpx_request)
-            except AssertionError as e:
-                error = e.args[0]
+            except AllMockedAssertionError as error:
+                assertion_error = error
                 continue
             else:
                 break
-        else:
-            assert httpx_response, error
+        if assertion_error and not httpx_response:
+            raise assertion_error
         return httpx_response
 
     @classmethod
     async def async_handler(cls, httpx_request):
         httpx_response = None
-        error = None
+        assertion_error = None
         for router in cls.routers:
             try:
                 httpx_response = await router.async_handler(httpx_request)
-            except AssertionError as e:
-                error = e.args[0]
+            except AllMockedAssertionError as error:
+                assertion_error = error
                 continue
             else:
                 break
-        else:
-            assert httpx_response, error
+        if assertion_error and not httpx_response:
+            raise assertion_error
         return httpx_response
 
     @classmethod

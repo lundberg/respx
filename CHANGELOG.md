@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2021-10-20
+
+### Fixed
+- Respect ordered param values. (#172)
+
+### Changed
+- Raise custom error types for assertion checks. (#174)
+
 ## [0.18.0] - 2021-10-14
 
 ### Fixed

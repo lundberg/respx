@@ -99,7 +99,7 @@ class Router:
             route.reset()
 
     def assert_all_called(self) -> None:
-        if not all((route.called for route in self.routes)):
+        if any(not route.called for route in self.routes):
             raise AllCalledAssertionError("RESPX: some routes were not called!")
 
     def __getitem__(self, name: str) -> Route:

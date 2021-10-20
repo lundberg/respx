@@ -279,6 +279,8 @@ respx.route(params=(("foo", "bar"), ("ham", "spam")))
 respx.route(params="foo=bar&ham=spam")
 ```
 
+!!! note "NOTE"
+    A request querystring with multiple parameters of the same name is treated as an ordered list when matching.
 !!! tip "ANY value"
     Use `mock.ANY` as value to only match on parameter presence, e.g. `respx.route(params={"foo": ANY})`.
 

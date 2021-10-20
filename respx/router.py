@@ -21,6 +21,8 @@ import httpx
 
 from .mocks import Mocker
 from .models import (
+    AllCalledAssertionError,
+    AllMockedAssertionError,
     CallList,
     PassThrough,
     ResolvedRoute,
@@ -97,9 +99,8 @@ class Router:
             route.reset()
 
     def assert_all_called(self) -> None:
-        assert all(
-            (route.called for route in self.routes)
-        ), "RESPX: some mocked requests were not called!"
+        if not all((route.called for route in self.routes)):
+            raise AllCalledAssertionError("RESPX: some routes were not called!")
 
     def __getitem__(self, name: str) -> Route:
         return self.routes[name]
@@ -238,7 +239,8 @@ class Router:
 
             if resolved.route is None:
                 # Assert we always get a route match, if check is enabled
-                assert not self._assert_all_mocked, f"RESPX: {request!r} not mocked!"
+                if self._assert_all_mocked:
+                    raise AllMockedAssertionError(f"RESPX: {request!r} not mocked!")
 
                 # Auto mock a successful empty response
                 resolved.response = httpx.Response(200)

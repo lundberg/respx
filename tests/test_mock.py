@@ -7,9 +7,8 @@ import pytest
 import respx
 from respx import ASGIHandler, WSGIHandler
 from respx.mocks import Mocker
+from respx.models import AllCalledAssertionError, AllMockedAssertionError
 from respx.router import MockRouter
-
-# from respx.transports import MockTransport
 
 
 @pytest.mark.asyncio
@@ -112,7 +111,7 @@ def test_local_sync_decorator(using):
         assert respx.calls.call_count == 0
         assert respx_mock.calls.call_count == 1
 
-        with pytest.raises(AssertionError, match="not mocked"):
+        with pytest.raises(AllMockedAssertionError):
             httpx.post("https://foo.bar/")
 
     assert respx.calls.call_count == 0
@@ -139,7 +138,7 @@ async def test_local_async_decorator(client, using):
         assert respx.calls.call_count == 0
         assert respx_mock.calls.call_count == 1
 
-        with pytest.raises(AssertionError, match="not mocked"):
+        with pytest.raises(AllMockedAssertionError):
             httpx.post("https://foo.bar/")
 
     assert respx.calls.call_count == 0
@@ -415,7 +414,7 @@ async def test_start_stop(client):
 @pytest.mark.parametrize(
     "assert_all_called,do_post,raises",
     [
-        (True, False, pytest.raises(AssertionError)),
+        (True, False, pytest.raises(AllCalledAssertionError)),
         (True, True, does_not_raise()),
         (False, True, does_not_raise()),
         (False, False, does_not_raise()),
@@ -438,7 +437,7 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "assert_all_mocked,raises",
-    [(True, pytest.raises(AssertionError)), (False, does_not_raise())],
+    [(True, pytest.raises(AllMockedAssertionError)), (False, does_not_raise())],
 )
 async def test_assert_all_mocked(client, assert_all_mocked, raises):
     with raises:
@@ -574,7 +573,7 @@ def test_sync_httpx_mocker():
                 client.get("https://pass-through/")
             assert pass_route.call_count == 1
 
-            with pytest.raises(AssertionError, match="not mocked"):
+            with pytest.raises(AllMockedAssertionError):
                 client.get("https://not-mocked/")
 
     with respx.mock(using="httpx"):  # extra registered router
@@ -615,7 +614,7 @@ async def test_async_httpx_mocker():
                 await client.get("https://pass-through/")
             assert pass_route.call_count == 1
 
-            with pytest.raises(AssertionError, match="not mocked"):
+            with pytest.raises(AllMockedAssertionError):
                 await client.get("https://not-mocked/")
 
     async with respx.mock(using="httpx"):  # extra registered router

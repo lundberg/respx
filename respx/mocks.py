@@ -295,6 +295,7 @@ class HTTPCoreMocker(AbstractRequestMocker):
             kwargs["url"],
             headers=kwargs.get("headers"),
             stream=kwargs.get("stream"),
+            extensions=kwargs.get("extensions"),
         )
 
     @classmethod

@@ -625,13 +625,14 @@ async def test_async_httpx_mocker():
 @pytest.mark.parametrize("using", ["httpcore", "httpx"])
 async def test_async_side_effect(client, using):
     async def effect(request, slug):
+        assert request.extensions.get("timeout", {}).get("read") == 44.0
         return httpx.Response(204, text=slug)
 
     async with respx.mock(using=using) as respx_mock:
         mock_route = respx_mock.get(
             "https://example.org/", path__regex=r"/(?P<slug>\w+)/"
         ).mock(side_effect=effect)
-        response = await client.get("https://example.org/hello/")
+        response = await client.get("https://example.org/hello/", timeout=44.0)
         assert response.status_code == 204
         assert response.text == "hello"
         assert mock_route.called

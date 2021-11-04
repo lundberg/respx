@@ -33,6 +33,12 @@ async def backend_test(backend):
     assert respx.calls.call_count == len(respx.calls)
     assert respx.calls.call_count == 0
 
+    with pytest.raises(AssertionError, match="Expected 'respx' to have been called"):
+        respx.calls.assert_called_once()
+
+    with pytest.raises(AssertionError, match="Expected '<Route name='get_foobar'"):
+        foobar1.calls.assert_called_once()
+
     async with httpx.AsyncClient() as client:
         get_response = await client.get(url)
         del_response = await client.delete(url)

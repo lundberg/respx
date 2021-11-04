@@ -347,6 +347,13 @@ def test_rollback():
     assert route.call_count == 1
     assert route.return_value.status_code == 418
 
+    router.snapshot()  # 3. directly rollback, should be identical
+    router.rollback()
+    assert len(router.routes) == 2
+    assert router.calls.call_count == 2
+    assert route.call_count == 1
+    assert route.return_value.status_code == 418
+
     router.patch("https://foo.bar/")
     assert len(router.routes) == 3
 

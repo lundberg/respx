@@ -48,6 +48,10 @@ class Call(NamedTuple):
 
 
 class CallList(list, mock.NonCallableMock):
+    def __init__(self, *args, name="respx", **kwargs):
+        super().__init__(*args, **kwargs)
+        mock.NonCallableMock.__init__(self, name=name)
+
     @property
     def called(self) -> bool:  # type: ignore
         return bool(self)
@@ -106,7 +110,7 @@ class Route:
         self._pass_through: bool = False
         self._name: Optional[str] = None
         self._snapshots: List[Tuple] = []
-        self.calls = CallList()
+        self.calls = CallList(name=self)
         self.snapshot()
 
     def __eq__(self, other: object) -> bool:
@@ -196,7 +200,7 @@ class Route:
                 self._return_value,
                 side_effect,
                 self._pass_through,
-                CallList(self.calls),
+                CallList(self.calls, name=self),
             ),
         )
 

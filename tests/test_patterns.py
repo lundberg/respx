@@ -338,21 +338,15 @@ def test_json_pattern(lookup, value, json, expected):
         ({"ham": [{"spam": "spam"}, {"egg": "yolk"}]}, "ham__1__egg", "yolk", True),
         ([{"name": "jonas"}], "0__name", "jonas", True),
         ({"pk": 123}, "pk", 123, True),
-        ({"foo": {"bar": "baz"}}, "foo__ham", "spam", KeyError),
-        ([{"name": "lundberg"}], "1__name", "lundberg", IndexError),
+        ({"foo": {"bar": "baz"}}, "foo__ham", "spam", False),
+        ([{"name": "lundberg"}], "1__name", "lundberg", False),
     ],
 )
 def test_json_pattern_path(json, path, value, expected):
     request = httpx.Request("POST", "https://foo.bar/", json=json)
     pattern = M(**{f"json__{path}": value})
-    if type(expected) is bool:
-        match = pattern.match(request)
-        assert bool(match) is expected
-    elif issubclass(expected, Exception):
-        with pytest.raises(expected):
-            pattern.match(request)
-    else:
-        raise AssertionError()  # pragma: nocover
+    match = pattern.match(request)
+    assert bool(match) is expected
 
 
 def test_invalid_pattern():

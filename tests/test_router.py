@@ -515,23 +515,24 @@ def test_routelist__replaces_same_name_other_pattern_other_name():
     assert list(routes) == [foobar2]
     assert routes["foobar"] is foobar1
 
+
 def test_configure():
     router = Router(assert_all_called=True, assert_all_mocked=True)
 
-    assert router._assert_all_mocked == True
+    assert router._assert_all_mocked
     router.configure(assert_all_mocked=False)
-    assert router._assert_all_mocked == False
-    router.rollback();
-    assert router._assert_all_mocked == True
+    assert not router._assert_all_mocked
+    router.rollback()
+    assert router._assert_all_mocked
 
-    assert router._assert_all_called == True
+    assert router._assert_all_called
     router.configure(assert_all_called=False)
-    assert router._assert_all_called == False
-    router.rollback();
-    assert router._assert_all_called == True
+    assert not router._assert_all_called
+    router.rollback()
+    assert router._assert_all_called
 
     old_bases = router._bases
     router.configure(base_url="https://foo.bar/api/")
     assert router._bases != old_bases
-    router.rollback();
+    router.rollback()
     assert router._bases == old_bases

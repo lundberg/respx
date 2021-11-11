@@ -68,7 +68,15 @@ class Router:
         # Snapshot current routes and calls
         routes = RouteList(self.routes)
         calls = CallList(self.calls)
-        self._snapshots.append((routes, calls, self._bases, self._assert_all_called, self._assert_all_mocked))
+        self._snapshots.append(
+            (
+                routes,
+                calls,
+                self._bases,
+                self._assert_all_called,
+                self._assert_all_mocked,
+            )
+        )
 
         # Snapshot each route state
         for route in routes:
@@ -82,7 +90,13 @@ class Router:
             return
 
         # Revert added routes and calls to last snapshot
-        routes, calls, bases, assert_all_called, assert_all_mocked = self._snapshots.pop()
+        (
+            routes,
+            calls,
+            bases,
+            assert_all_called,
+            assert_all_mocked,
+        ) = self._snapshots.pop()
         self.routes[:] = routes
         self.calls[:] = calls
         self._bases = bases
@@ -315,10 +329,12 @@ class Router:
         assert isinstance(resolved.response, httpx.Response)
         return resolved.response
 
-    def configure(self,
-                  assert_all_called: bool = None,
-                  assert_all_mocked: bool = None,
-                  base_url: Optional[str] = None):
+    def configure(
+        self,
+        assert_all_called: bool = None,
+        assert_all_mocked: bool = None,
+        base_url: Optional[str] = None,
+    ) -> None:
         self.snapshot()
 
         if base_url is not None:

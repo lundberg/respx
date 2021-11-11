@@ -156,7 +156,7 @@ class Router:
     ) -> Route:
         if lookups:
             # Validate that lookups doesn't contain method or url
-            pattern_keys = {p.split("__")[0] for p in lookups.keys()}
+            pattern_keys = {p.split("__", 1)[0] for p in lookups.keys()}
             if "method" in pattern_keys:
                 raise TypeError("Got multiple values for pattern 'method'")
             if url and "url" in pattern_keys:

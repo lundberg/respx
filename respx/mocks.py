@@ -4,8 +4,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
+import httpcore
 import httpx
-from httpcore import AsyncIteratorByteStream, IteratorByteStream
 
 from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
@@ -166,6 +166,10 @@ class HTTPXMocker(Mocker):
 class AbstractRequestMocker(Mocker):
     @classmethod
     def mock(cls, spec):
+        if spec.__name__ not in cls.target_methods:
+            # Prevent mocking mock
+            return spec
+
         argspec = inspect.getfullargspec(spec)
 
         def mock(self, *args, **kwargs):
@@ -256,9 +260,9 @@ class AbstractRequestMocker(Mocker):
 class HTTPCoreMocker(AbstractRequestMocker):
     name = "httpcore"
     targets = [
-        "httpcore._sync.connection.SyncHTTPConnection",
-        "httpcore._sync.connection_pool.SyncConnectionPool",
-        "httpcore._sync.http_proxy.SyncHTTPProxy",
+        "httpcore._sync.connection.HTTPConnection",
+        "httpcore._sync.connection_pool.ConnectionPool",
+        "httpcore._sync.http_proxy.HTTPProxy",
         "httpcore._async.connection.AsyncHTTPConnection",
         "httpcore._async.connection_pool.AsyncConnectionPool",
         "httpcore._async.http_proxy.AsyncHTTPProxy",
@@ -268,59 +272,61 @@ class HTTPCoreMocker(AbstractRequestMocker):
     @classmethod
     def prepare_sync_request(cls, httpx_request, **kwargs):
         """
-        Sync pre-read request body, and update transport request args.
+        Sync pre-read request body, and update transport request arg.
         """
         httpx_request, kwargs = super().prepare_sync_request(httpx_request, **kwargs)
-        kwargs["stream"] = httpx_request.stream
+        kwargs["request"].stream = httpx_request.stream
         return httpx_request, kwargs
 
     @classmethod
     async def prepare_async_request(cls, httpx_request, **kwargs):
         """
-        Async pre-read request body, and update transport request args.
+        Async pre-read request body, and update transport request arg.
         """
         httpx_request, kwargs = await super().prepare_async_request(
             httpx_request, **kwargs
         )
-        kwargs["stream"] = httpx_request.stream
+        kwargs["request"].stream = httpx_request.stream
         return httpx_request, kwargs
 
     @classmethod
     def to_httpx_request(cls, **kwargs):
         """
-        Create a `HTTPX` request from transport request args.
+        Create a `HTTPX` request from transport request arg.
         """
+        request = kwargs["request"]
+        raw_url = (
+            request.url.scheme,
+            request.url.host,
+            request.url.port,
+            request.url.target,
+        )
         return httpx.Request(
-            kwargs["method"],
-            kwargs["url"],
-            headers=kwargs.get("headers"),
-            stream=kwargs.get("stream"),
-            extensions=kwargs.get("extensions"),
+            request.method,
+            raw_url,
+            headers=request.headers,
+            stream=request.stream,
+            extensions=request.extensions,
         )
 
     @classmethod
     def from_sync_httpx_response(cls, httpx_response, target, **kwargs):
         """
-        Create a transport return tuple from `HTTPX` response.
+        Create a `httpcore` response from a `HTTPX` response.
         """
-        return (
-            httpx_response.status_code,
-            httpx_response.headers.raw,
-            IteratorByteStream(httpx_response.stream.__iter__()),
-            httpx_response.extensions,
+        return httpcore.Response(
+            status=httpx_response.status_code,
+            headers=httpx_response.headers.raw,
+            content=httpx_response.stream,
+            extensions=httpx_response.extensions,
         )
 
     @classmethod
     async def from_async_httpx_response(cls, httpx_response, target, **kwargs):
         """
-        Create a transport return tuple from `HTTPX` response.
+        Create a `httpcore` response from a `HTTPX` response.
         """
-        return (
-            httpx_response.status_code,
-            httpx_response.headers.raw,
-            AsyncIteratorByteStream(httpx_response.stream.__aiter__()),
-            httpx_response.extensions,
-        )
+        return cls.from_sync_httpx_response(httpx_response, target, **kwargs)
 
 
 DEFAULT_MOCKER: str = HTTPCoreMocker.name

@@ -456,7 +456,7 @@ async def test_assert_all_mocked(client, assert_all_mocked, raises):
 def test_add_remove_targets():
     from respx.mocks import HTTPCoreMocker
 
-    target = "httpcore._sync.connection.SyncHTTPConnection"
+    target = "httpcore._sync.connection.HTTPConnection"
     assert HTTPCoreMocker.targets.count(target) == 1
     HTTPCoreMocker.add_targets(target)
     assert HTTPCoreMocker.targets.count(target) == 1
@@ -709,20 +709,19 @@ async def test_httpcore_request(url, port):
     async with MockRouter(using="httpcore") as router:
         router.get(url) % dict(text="foobar")
 
-        with httpcore.SyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = http.handle_request(
-                method=b"GET", url=(b"https", b"foo.bar", port, b"/")
-            )
+        request = httpcore.Request(
+            b"GET",
+            httpcore.URL(scheme=b"https", host=b"foo.bar", port=port, target=b"/"),
+        )
 
-            body = b"".join([chunk for chunk in stream])
+        with httpcore.ConnectionPool() as http:
+            response = http.handle_request(request)
+            body = response.read()
             assert body == b"foobar"
 
         async with httpcore.AsyncConnectionPool() as http:
-            (status_code, headers, stream, ext) = await http.handle_async_request(
-                method=b"GET", url=(b"https", b"foo.bar", port, b"/")
-            )
-
-            body = b"".join([chunk async for chunk in stream])
+            response = await http.handle_async_request(request)
+            body = await response.aread()
             assert body == b"foobar"
 
 

@@ -394,6 +394,14 @@ def test_rollback():
     assert route.return_value is None
 
 
+def test_multiple_pattern_values_type_error():
+    router = Router()
+    with pytest.raises(TypeError, match="Got multiple values for pattern 'method'"):
+        router.post(method__in=("PUT", "PATCH"))
+    with pytest.raises(TypeError, match="Got multiple values for pattern 'url'"):
+        router.get("https://foo.bar", url__regex=r"https://example.org$")
+
+
 def test_routelist__add():
     routes = RouteList()
 

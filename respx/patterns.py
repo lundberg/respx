@@ -122,7 +122,10 @@ class Pattern(ABC):
         return value
 
     def match(self, request: httpx.Request) -> Match:
-        value = self.parse(request)
+        try:
+            value = self.parse(request)
+        except Exception:
+            return Match(False)
 
         # Match and strip base
         if self.base:

@@ -154,6 +154,14 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
+        if lookups:
+            # Validate that lookups doesn't contain method or url
+            pattern_keys = {p.split("__", 1)[0] for p in lookups.keys()}
+            if "method" in pattern_keys:
+                raise TypeError("Got multiple values for pattern 'method'")
+            elif url and "url" in pattern_keys:
+                raise TypeError("Got multiple values for pattern 'url'")
+
         return self.route(method=method, url=url, name=name, **lookups)
 
     def get(
@@ -163,7 +171,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="GET", url=url, name=name, **lookups)
+        return self.request(method="GET", url=url, name=name, **lookups)
 
     def post(
         self,
@@ -172,7 +180,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="POST", url=url, name=name, **lookups)
+        return self.request(method="POST", url=url, name=name, **lookups)
 
     def put(
         self,
@@ -181,7 +189,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="PUT", url=url, name=name, **lookups)
+        return self.request(method="PUT", url=url, name=name, **lookups)
 
     def patch(
         self,
@@ -190,7 +198,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="PATCH", url=url, name=name, **lookups)
+        return self.request(method="PATCH", url=url, name=name, **lookups)
 
     def delete(
         self,
@@ -199,7 +207,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="DELETE", url=url, name=name, **lookups)
+        return self.request(method="DELETE", url=url, name=name, **lookups)
 
     def head(
         self,
@@ -208,7 +216,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="HEAD", url=url, name=name, **lookups)
+        return self.request(method="HEAD", url=url, name=name, **lookups)
 
     def options(
         self,
@@ -217,7 +225,7 @@ class Router:
         name: Optional[str] = None,
         **lookups: Any,
     ) -> Route:
-        return self.route(method="OPTIONS", url=url, name=name, **lookups)
+        return self.request(method="OPTIONS", url=url, name=name, **lookups)
 
     def record(
         self,

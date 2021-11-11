@@ -5,7 +5,6 @@ from abc import ABC
 from enum import Enum
 from functools import reduce
 from http.cookies import SimpleCookie
-from json.decoder import JSONDecodeError
 from types import MappingProxyType
 from typing import (
     Any,
@@ -184,11 +183,13 @@ class _And(Pattern):
 
     def match(self, request: httpx.Request) -> Match:
         a, b = self.value
-        match1 = a.match(request)
-        match2 = b.match(request)
-        if match1 and match2:
-            return Match(True, **{**match1.context, **match2.context})
-        return Match(False)
+        a_match = a.match(request)
+        if not a_match:
+            return a_match
+        b_match = b.match(request)
+        if not b_match:
+            return b_match
+        return Match(True, **{**a_match.context, **b_match.context})
 
 
 class _Or(Pattern):
@@ -465,10 +466,7 @@ class JSON(ContentMixin, PathPattern):
 
     def parse(self, request: httpx.Request) -> str:
         content = super().parse(request)
-        try:
-            json = jsonlib.loads(content.decode("utf-8"))
-        except JSONDecodeError:
-            return ""
+        json = jsonlib.loads(content.decode("utf-8"))
 
         if self.path:
             value = json

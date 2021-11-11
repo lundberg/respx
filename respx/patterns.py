@@ -182,10 +182,10 @@ class _And(Pattern):
         a, b = self.value
         a_match = a.match(request)
         if not a_match:
-            return Match(False)
+            return a_match
         b_match = b.match(request)
         if not b_match:
-            return Match(False)
+            return b_match
         return Match(True, **{**a_match.context, **b_match.context})
 
 

@@ -339,6 +339,30 @@ class MockRouter(Router):
         )
         self._using = using
 
+    @overload
+    def __call__(
+        self,
+        func: None = None,
+        *,
+        assert_all_called: Optional[bool] = None,
+        assert_all_mocked: Optional[bool] = None,
+        base_url: Optional[str] = None,
+        using: Optional[Union[str, Default]] = DEFAULT,
+    ) -> "MockRouter":
+        ...  # pragma: nocover
+
+    @overload
+    def __call__(
+        self,
+        func: Callable = ...,
+        *,
+        assert_all_called: Optional[bool] = None,
+        assert_all_mocked: Optional[bool] = None,
+        base_url: Optional[str] = None,
+        using: Optional[Union[str, Default]] = DEFAULT,
+    ) -> Callable:
+        ...  # pragma: nocover
+
     def __call__(
         self,
         func: Optional[Callable] = None,

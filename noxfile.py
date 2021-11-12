@@ -41,7 +41,7 @@ def lint(session):
     session.run("isort", "--project=respx", *source_files)
     session.run("black", "--target-version=py36", *source_files)
 
-    check(session)
+    session.notify("check")
 
 
 @nox.session

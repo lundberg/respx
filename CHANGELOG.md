@@ -4,10 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2021-11-15
+
+### Fixed
+- Support HTTPX 0.21.0. (#189)
+- Use Session.notify when chaining nox sessions, thanks @flaeppe. (#188)
+- Add overloads to MockRouter.__call__, thanks @flaeppe. (#187)
+- Enhance AND pattern evaluation to fail fast. (#185)
+- Fix CallList assertion error message. (#178)
+
+### Changed
+- Prevent method and url as lookups in HTTP method helpers, thanks @flaeppe. (#183)
+- Fail pattern match when JSON path not found. (#184)
+
 ## [0.18.2] - 2021-10-22
 
 ### Fixed
-- Include extensions when instantiating request in HTTPCoreMocker (#176)
+- Include extensions when instantiating request in HTTPCoreMocker. (#176)
 
 ## [0.18.1] - 2021-10-20
 

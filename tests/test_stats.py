@@ -92,9 +92,9 @@ async def backend_test(backend):
 def test_asyncio():
     import asyncio
 
-    from httpcore._backends.asyncio import AsyncioBackend
+    from httpcore.backends.asyncio import AsyncIOBackend
 
-    backend = AsyncioBackend()
+    backend = AsyncIOBackend()  # TODO: Why instantiate a backend?
     loop = asyncio.new_event_loop()
     try:
         loop.run_until_complete(backend_test(backend))
@@ -104,7 +104,7 @@ def test_asyncio():
 
 def test_trio():  # pragma: nocover
     import trio
-    from httpcore._backends.trio import TrioBackend
+    from httpcore.backends.trio import TrioBackend
 
-    backend = TrioBackend()
+    backend = TrioBackend()  # TODO: Why instantiate a backend?
     trio.run(backend_test, backend)

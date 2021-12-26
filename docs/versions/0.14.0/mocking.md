@@ -1,5 +1,5 @@
 !!! attention "Warning"
-    This is the documentaion of the older version `0.14.0`. See [latest](../../../) for current release.
+    This is the documentation of the older version `0.14.0`. See [latest](../../../) for current release.
 
 # Mock HTTPX - Version 0.14.0
 

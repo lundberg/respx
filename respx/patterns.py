@@ -607,7 +607,7 @@ def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
             # Pattern is "absolute", skip merging
             bases = None
         else:
-            # Traverse pattern and set releated base
+            # Traverse pattern and set related base
             for _pattern in patterns:
                 base = bases.pop(_pattern.key, None)
                 # Skip "exact" base + don't overwrite existing base

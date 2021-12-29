@@ -8,7 +8,7 @@ exec(Path("respx", "__version__.py").read_text())  # Load __version__ into local
 setup(
     name="respx",
     version=locals()["__version__"],
-    license="BSD",
+    license="BSD-3-Clause",
     author="Jonas Lundberg",
     author_email="jonas@5monkeys.se",
     url="https://lundberg.github.io/respx/",
@@ -19,7 +19,7 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",

@@ -296,7 +296,7 @@ class Router:
                 # Await async side effect and wrap any exception
                 if inspect.isawaitable(prospect):
                     try:
-                        prospect = await prospect  # type: ignore
+                        prospect = await prospect
                     except Exception as error:
                         raise SideEffectError(route, origin=error) from error
 

@@ -95,6 +95,7 @@ def test_pass_through():
         ("http://foo.bar/api/baz/", {"url": "/baz/"}, False),
         ("https://ham.spam/api/baz/", {"url": "/baz/"}, False),
         ("https://foo.bar/baz/", {"url": "/baz/"}, False),
+        ("https://foo.bar/api/hej:svejs", {"url": "/hej:svejs"}, True),
     ],
 )
 def test_base_url(url, lookups, expected):

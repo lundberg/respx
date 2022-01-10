@@ -66,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Require `HTTPX` 0.18.0 and implement the new transport API. (PR #142)
 - Removed ASGI and WSGI transports from httpcore patch list. (PR #131)
-- Don't pre-read mocked async resposne streams. (PR #136)
+- Don't pre-read mocked async response streams. (PR #136)
 
 ### Fixed
 - Fixed syntax highlighting in docs, thanks @florimondmanca. (PR #134)

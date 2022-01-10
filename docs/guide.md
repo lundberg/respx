@@ -206,7 +206,7 @@ respx.route(method__in=["PUT", "PATCH"])
 
 #### Combining Patterns
 
-For even more flexability, you can define combined patterns using the [M()](api.md#m) *object*, together with bitwise [operators](api.md#operators) (`&`, `|,` `~`), creating a reusable pattern.
+For even more flexibility, you can define combined patterns using the [M()](api.md#m) *object*, together with bitwise [operators](api.md#operators) (`&`, `|,` `~`), creating a reusable pattern.
 
 ``` python
 hosts_pattern = M(host="example.org") | M(host="example.com")
@@ -609,7 +609,7 @@ import respx
 @respx.mock
 def test_remote_response():
     respx.route(host="localhost").pass_through()
-    response = httpx.get("http://localhost:8000/")  # respose from server
+    response = httpx.get("http://localhost:8000/")  # response from server
 ```
 
 > See [.pass_through()](api.md#pass_through) reference for more details.
@@ -659,9 +659,9 @@ respx.calls.assert_not_called()
 respx.calls.assert_called_once()
 ```
 
-### Retreiving mocked calls
+### Retrieving mocked calls
 
-A matched and mocked `Call` can be retrived from call history, by either unpacking...
+A matched and mocked `Call` can be retrieved from call history, by either unpacking...
 
 ``` python
 request, response = respx.calls.last

@@ -381,7 +381,7 @@ def test_rollback():
     assert router.calls.call_count == 0
     assert route.return_value is None
 
-    router.rollback()  # Empty inital state
+    router.rollback()  # Empty initial state
 
     assert len(router.routes) == 0
     assert route.return_value is None

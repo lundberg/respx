@@ -379,7 +379,7 @@ class MockRouter(Router):
         for global state, i.e. shared patterns added outside of scope.
         """
         if func is None:
-            # Parantheses used, branch out to new nested instance.
+            # Parentheses used, branch out to new nested instance.
             # - Only stage when using local ctx `with respx.mock(...) as respx_mock:`
             # - First stage when using local decorator `@respx.mock(...)`
             #   FYI, global ctx `with respx.mock:` hits __enter__ directly
@@ -418,7 +418,7 @@ class MockRouter(Router):
             async_decorator = update_wrapper(async_decorator, func)
             sync_decorator = update_wrapper(sync_decorator, func)
 
-        # Dispatch async/sync decorator, depening on decorated function.
+        # Dispatch async/sync decorator, depending on decorated function.
         # - Only stage when using global decorator `@respx.mock`
         # - Second stage when using local decorator `@respx.mock(...)`
         return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator

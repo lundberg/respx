@@ -1,5 +1,5 @@
 !!! attention "Warning"
-    This is the documentaion of the older version `0.14.0`. See [latest](../../../) for current release.
+    This is the documentation of the older version `0.14.0`. See [latest](../../../) for current release.
 
 # Developer Interface - Version 0.14.0
 
@@ -282,7 +282,7 @@ def test_something():
 
 ## Built-in Assertions
 
-RESPX has the following build-in assertion checks:
+RESPX has the following built-in assertion checks:
 
 > * **assert_all_mocked**  
 >   Asserts that all captured `HTTPX` requests are mocked. Defaults to `True`.
@@ -318,8 +318,8 @@ with respx.mock(assert_all_mocked=False) as respx_mock:
 The `respx` API includes a `.calls` object, containing captured (`request`, `response`) named tuples and MagicMock's *bells and whistles*, i.e. `call_count`, `assert_called` etc.
 
 
-### Retreiving mocked calls
-A matched and mocked `Call` can be retrived from call history, by either unpacking...
+### Retrieving mocked calls
+A matched and mocked `Call` can be retrieved from call history, by either unpacking...
 
 ``` python
 request, response = respx.calls.last

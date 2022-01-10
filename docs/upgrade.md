@@ -56,7 +56,7 @@ respx.post("https://some.url/").mock(
     ],
 )
 ```
-> **Note:** Repeating a route in `0.15.0+` replaces any exising route with same pattern.
+> **Note:** Repeating a route in `0.15.0+` replaces any existing route with same pattern.
 
 ## Aliasing
 Aliases changed to *named routes*:

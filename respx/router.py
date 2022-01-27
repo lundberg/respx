@@ -44,16 +44,50 @@ class Router:
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
+        routes: Optional[RouteList] = None,
     ) -> None:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._bases = parse_url_patterns(base_url, exact=False)
 
-        self.routes = RouteList()
+        self.routes = routes or RouteList()
         self.calls = CallList()
 
         self._snapshots: List[Tuple] = []
         self.snapshot()
+
+    def clone(
+        self,
+        *,
+        assert_all_called: Optional[bool] = None,
+        assert_all_mocked: Optional[bool] = None,
+        base_url: Optional[str] = None,
+        **kwargs: Any,
+    ) -> "Router":
+        settings: Dict[str, Any] = {
+            "base_url": base_url,
+            "assert_all_called": (
+                assert_all_called
+                if assert_all_called is not None
+                else self._assert_all_called
+            ),
+            "assert_all_mocked": (
+                assert_all_mocked
+                if assert_all_mocked is not None
+                else self._assert_all_mocked
+            ),
+            **{key: value for key, value in kwargs.items() if value is not None},
+        }
+        # if assert_all_called is not None:
+            # settings["assert_all_called"] = assert_all_called
+        # if assert_all_mocked is not None:
+            # settings["assert_all_mocked"] = assert_all_mocked
+
+        router = self.__class__(routes=self.routes, **settings)  # TODO: Clone routes
+        if not base_url:
+            router._bases = self._bases
+
+        return router
 
     def clear(self) -> None:
         """
@@ -332,12 +366,14 @@ class MockRouter(Router):
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
+        routes: Optional[RouteList] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> None:
         super().__init__(
             assert_all_called=assert_all_called,
             assert_all_mocked=assert_all_mocked,
             base_url=base_url,
+            routes=routes,
         )
         self.Mocker: Optional[Type[Mocker]] = None
         self._using = using
@@ -373,7 +409,8 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
-        using: Optional[Union[str, Default]] = DEFAULT,
+        # using: Optional[Union[str, Default]] = DEFAULT,
+        using: Optional[Union[str, Default]] = None,
     ) -> Union["MockRouter", Callable]:
         """
         Decorator or Context Manager.
@@ -386,16 +423,13 @@ class MockRouter(Router):
             # - Only stage when using local ctx `with respx.mock(...) as respx_mock:`
             # - First stage when using local decorator `@respx.mock(...)`
             #   FYI, global ctx `with respx.mock:` hits __enter__ directly
-            settings: Dict[str, Any] = {
-                "base_url": base_url,
-                "using": using,
-            }
-            if assert_all_called is not None:
-                settings["assert_all_called"] = assert_all_called
-            if assert_all_mocked is not None:
-                settings["assert_all_mocked"] = assert_all_mocked
-            respx_mock = self.__class__(**settings)
-            return respx_mock
+
+            return self.clone(
+                assert_all_called=assert_all_called,
+                assert_all_mocked=assert_all_mocked,
+                base_url=base_url,
+                using=using,
+            )
 
         # Determine if decorated function needs a `respx_mock` instance
         argspec = inspect.getfullargspec(func)

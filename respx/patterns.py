@@ -11,6 +11,7 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
+    Iterable,
     List,
     Optional,
     Pattern as RegexPattern,
@@ -101,10 +102,18 @@ class Pattern(ABC):
         return f"<{self.__class__.__name__} {self.lookup.value} {repr(self.value)}>"
 
     def __hash__(self):
-        return hash((self.__class__, self.lookup, self.value))
+        return hash((self.__class__, self.lookup, self.base, self.value))
 
     def __eq__(self, other: object) -> bool:
         return hash(self) == hash(other)
+
+    def clone(self) -> "Pattern":
+        value = self.value
+        if isinstance(self.value, Pattern):
+            value = value.clone()
+        pattern = self.__class__(value, lookup=self.lookup)
+        pattern.base = self.base
+        return pattern
 
     def clean(self, value: Any) -> Any:
         """
@@ -168,6 +177,11 @@ class PathPattern(Pattern):
         self.path = path
         super().__init__(value, lookup)
 
+    def clone(self) -> "Pattern":
+        pattern = super().clone()
+        pattern.path = self.path
+        return pattern
+
 
 class _And(Pattern):
     value: Tuple[Pattern, Pattern]
@@ -225,6 +239,22 @@ class _Invert(Pattern):
         return ~self.value.match(request)
 
 
+class Base(Pattern):
+    value: Pattern
+
+    def __repr__(self):  # pragma: nocover
+        return repr(self.value)
+
+    def __iter__(self):
+        yield from self.value
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def match(self, request: httpx.Request) -> Match:
+        return self.value.match(request)
+
+
 class Method(Pattern):
     key = "method"
     lookups = (Lookup.EQUAL, Lookup.IN)
@@ -261,7 +291,9 @@ class MultiItemsMixin:
         )
 
     def __hash__(self):
-        return hash((self.__class__, self.lookup, self._multi_items(self.value)))
+        return hash(
+            (self.__class__, self.lookup, self.base, self._multi_items(self.value))
+        )
 
     def _eq(self, value: Any) -> Match:
         value_items = self._multi_items(self.value, parse_any=True)
@@ -300,7 +332,7 @@ class Cookies(Pattern):
     value: Set[Tuple[str, str]]
 
     def __hash__(self):
-        return hash((self.__class__, self.lookup, tuple(sorted(self.value))))
+        return hash((self.__class__, self.lookup, self.base, tuple(sorted(self.value))))
 
     def clean(self, value: CookieTypes) -> Set[Tuple[str, str]]:
         if isinstance(value, dict):
@@ -550,7 +582,7 @@ def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
 
 
 def combine(
-    patterns: Sequence[Pattern], op: Callable = operator.and_
+    patterns: Iterable[Pattern], op: Callable = operator.and_
 ) -> Optional[Pattern]:
     patterns = tuple(filter(None, patterns))
     if not patterns:
@@ -619,7 +651,7 @@ def merge_patterns(pattern: Optional[Pattern], **bases: Pattern) -> Optional[Pat
 
     if bases:
         # Combine left over base patterns with pattern
-        base_pattern = combine(list(bases.values()))
+        base_pattern = Base(combine(bases.values()))
         if pattern and base_pattern:
             pattern = base_pattern & pattern
         else:

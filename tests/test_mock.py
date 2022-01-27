@@ -300,8 +300,8 @@ async def test_configured_decorator(client):
 
 @pytest.mark.asyncio
 async def test_configured_router_reuse(client):
-    router = respx.mock()
-    route = router.get("https://foo/bar/") % 404
+    router = respx.mock(base_url="https://foo", assert_all_called=False, assert_all_mocked=False)
+    route = router.get("/bar/", name="bar") % 404
 
     assert len(router.routes) == 1
     assert router.calls.call_count == 0
@@ -325,6 +325,17 @@ async def test_configured_router_reuse(client):
         assert response.status_code == 404
         assert router.calls.call_count == 1
         assert respx.calls.call_count == 0
+
+    async with router(base_url="https://ham") as sub_router:
+        async with httpx.AsyncClient(base_url="https://ham") as ham_client:
+            assert sub_router.calls.call_count == 0
+            response = await ham_client.get("https://ham/bar/")
+            assert route.called is False
+            assert sub_router["bar"].called is True
+            assert response.status_code == 404
+            assert sub_router.calls.call_count == 1
+            assert router.calls.call_count == 0
+            assert respx.calls.call_count == 0
 
     assert len(router.routes) == 1
     assert route.called is False
@@ -406,8 +417,11 @@ async def test_start_stop(client):
         respx.clear()
         assert len(respx.routes) == 0
 
-    finally:  # pragma: nocover
-        respx.stop()  # Cleanup global state on error, to not affect other tests
+    finally:
+        # Cleanup global state on error, to not affect other tests
+        respx.stop()
+        respx.clear()
+        respx.reset()
 
 
 @pytest.mark.asyncio

@@ -426,3 +426,13 @@ def test_unique_pattern_key():
 
         class Foobar(Pattern):
             key = "url"
+
+
+def test_cloning_pattern():
+    pattern = M(url="https://example.org/path/")
+    clone = pattern.clone()
+    assert id(pattern) != id(clone)
+    assert pattern == clone
+    patterns = list(pattern)
+    assert len(patterns) == 3
+    assert len(patterns) == len(list(clone))

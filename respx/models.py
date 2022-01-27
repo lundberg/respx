@@ -489,6 +489,10 @@ class RouteList:
                 raise ex
             return default
 
+    def clone(self) -> "RouteList":
+        pass
+
+
 
 class AllMockedAssertionError(AssertionError):
     pass

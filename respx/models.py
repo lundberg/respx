@@ -35,7 +35,7 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
     response = httpx.Response(
         response.status_code,
         headers=response.headers,
-        stream=response.stream,
+        stream=response.stream,  # type: ignore[has-type]
         request=request,
         extensions=dict(response.extensions),
     )
@@ -90,7 +90,9 @@ class MockResponse(httpx.Response):
                 f"got {content!r}. Please use json=... or side effects."
             )
 
-        super().__init__(status_code or 200, content=content, **kwargs)
+        if content is not None:
+            kwargs["content"] = content
+        super().__init__(status_code or 200, **kwargs)
 
         if content_type:
             self.headers["Content-Type"] = content_type
@@ -375,10 +377,10 @@ class Route:
         Returns None for a non-matching route, mocked response for a match,
         or input request for pass-through.
         """
-        context = {}
+        context: Dict[str, Any] = {}
 
         if self._pattern:
-            match = self.pattern.match(request)
+            match = self._pattern.match(request)
             if not match:
                 return None
             context = match.context
@@ -436,7 +438,7 @@ class RouteList:
 
     def add(self, route: Route, name: Optional[str] = None) -> Route:
         # Find route with same name
-        existing_route = self._names.pop(name, None)
+        existing_route = self._names.pop(name or "", None)
 
         if route in self._routes:
             if existing_route and existing_route != route:

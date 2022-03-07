@@ -102,7 +102,7 @@ class Router:
         if any(not route.called for route in self.routes):
             raise AllCalledAssertionError("RESPX: some routes were not called!")
 
-    def __getitem__(self, name: str) -> Route:
+    def __getitem__(self, name: str) -> Optional[Route]:
         return self.routes[name]
 
     @overload
@@ -283,7 +283,7 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if isinstance(resolved.response.stream, httpx.ByteStream):
+        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):  # type: ignore[has-type]
             resolved.response.read()  # Pre-read stream
 
         return resolved
@@ -305,7 +305,7 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if isinstance(resolved.response.stream, httpx.ByteStream):
+        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):  # type: ignore[has-type]
             await resolved.response.aread()  # Pre-read stream
 
         return resolved
@@ -429,9 +429,9 @@ class MockRouter(Router):
 
     def __exit__(
         self,
-        exc_type: Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
+        exc_type: Optional[Type[BaseException]] = None,
+        exc_value: Optional[BaseException] = None,
+        traceback: Optional[TracebackType] = None,
     ) -> None:
         self.stop(quiet=bool(exc_type is not None))
 
@@ -461,7 +461,7 @@ class MockRouter(Router):
         Register transport, snapshot router and start patching.
         """
         self.snapshot()
-        self.Mocker = Mocker.registry.get(self.using)
+        self.Mocker = Mocker.registry.get(self.using or "")
         if self.Mocker:
             self.Mocker.register(self)
             self.Mocker.start()

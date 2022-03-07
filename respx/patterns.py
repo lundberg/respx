@@ -500,7 +500,7 @@ class Data(ContentMixin, Pattern):
         return data
 
 
-def M(*patterns: Pattern, **lookups: Any) -> Pattern:
+def M(*patterns: Pattern, **lookups: Any) -> Optional[Pattern]:
     extras = None
 
     for pattern__lookup, value in lookups.items():
@@ -546,7 +546,7 @@ def M(*patterns: Pattern, **lookups: Any) -> Pattern:
 
 
 def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
-    return {"http": 80, "https": 443}.get(scheme)
+    return {"http": 80, "https": 443}.get(scheme or "")
 
 
 def combine(
@@ -597,7 +597,7 @@ def parse_url_patterns(
     return bases
 
 
-def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
+def merge_patterns(pattern: Optional[Pattern], **bases: Pattern) -> Optional[Pattern]:
     if not bases:
         return pattern
 
@@ -607,7 +607,7 @@ def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
 
         if "host" in (_pattern.key for _pattern in patterns):
             # Pattern is "absolute", skip merging
-            bases = None
+            bases = {}
         else:
             # Traverse pattern and set related base
             for _pattern in patterns:
@@ -620,7 +620,7 @@ def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
     if bases:
         # Combine left over base patterns with pattern
         base_pattern = combine(list(bases.values()))
-        if pattern:
+        if pattern and base_pattern:
             pattern = base_pattern & pattern
         else:
             pattern = base_pattern

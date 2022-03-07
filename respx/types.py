@@ -51,6 +51,5 @@ SideEffectTypes = Union[
     CallableSideEffect,
     Exception,
     Type[Exception],
-    Sequence[SideEffectListTypes],
     Iterator[SideEffectListTypes],
 ]

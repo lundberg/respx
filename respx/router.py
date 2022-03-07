@@ -326,8 +326,6 @@ class Router:
 
 
 class MockRouter(Router):
-    Mocker: Optional[Type[Mocker]]
-
     def __init__(
         self,
         *,
@@ -341,6 +339,7 @@ class MockRouter(Router):
             assert_all_mocked=assert_all_mocked,
             base_url=base_url,
         )
+        self.Mocker: Optional[Type[Mocker]] = None
         self._using = using
 
     @overload

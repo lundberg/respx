@@ -1,16 +1,15 @@
 import inspect
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterator,
     List,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,
-    cast,
 )
 from unittest import mock
 from warnings import warn
@@ -24,6 +23,7 @@ from .types import (
     HeaderTypes,
     ResolvedResponseTypes,
     RouteResultTypes,
+    SideEffectListTypes,
     SideEffectTypes,
 )
 
@@ -35,7 +35,7 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
     response = httpx.Response(
         response.status_code,
         headers=response.headers,
-        stream=response.stream,
+        stream=response.stream,  # type: ignore[has-type]
         request=request,
         extensions=dict(response.extensions),
     )
@@ -90,7 +90,9 @@ class MockResponse(httpx.Response):
                 f"got {content!r}. Please use json=... or side effects."
             )
 
-        super().__init__(status_code or 200, content=content, **kwargs)
+        if content is not None:
+            kwargs["content"] = content
+        super().__init__(status_code or 200, **kwargs)
 
         if content_type:
             self.headers["Content-Type"] = content_type
@@ -176,11 +178,14 @@ class Route:
         return self._side_effect
 
     @side_effect.setter
-    def side_effect(self, side_effect: Optional[SideEffectTypes]) -> None:
+    def side_effect(
+        self,
+        side_effect: Optional[Union[SideEffectTypes, Sequence[SideEffectListTypes]]],
+    ) -> None:
         self.pass_through(False)
         if not side_effect:
             self._side_effect = None
-        elif isinstance(side_effect, (tuple, list, Iterator)):
+        elif isinstance(side_effect, (Iterator, Sequence)):
             self._side_effect = iter(side_effect)
         else:
             self._side_effect = side_effect
@@ -277,14 +282,13 @@ class Route:
 
     def _next_side_effect(
         self,
-    ) -> Union[Callable, Exception, Type[Exception], httpx.Response]:
-        effect: Union[Callable, Exception, Type[Exception], httpx.Response]
+    ) -> Union[CallableSideEffect, Exception, Type[Exception], httpx.Response]:
+        assert self._side_effect is not None
+        effect: Union[CallableSideEffect, Exception, Type[Exception], httpx.Response]
         if isinstance(self._side_effect, Iterator):
             effect = next(self._side_effect)
         else:
-            effect = cast(
-                Union[Callable, Exception, Type[Exception]], self._side_effect
-            )
+            effect = self._side_effect
 
         return effect
 
@@ -328,19 +332,18 @@ class Route:
             raise SideEffectError(self, origin=effect)
 
         # Handle Exception `type` side effect
-        Error: Type[Exception] = cast(Type[Exception], effect)
-        if isinstance(effect, type) and issubclass(Error, Exception):
+        elif isinstance(effect, type) and issubclass(effect, Exception):
             raise SideEffectError(
                 self,
                 origin=(
-                    Error("Mock Error", request=request)
-                    if issubclass(Error, httpx.RequestError)
-                    else Error()
+                    effect("Mock Error", request=request)
+                    if issubclass(effect, httpx.RequestError)
+                    else effect()
                 ),
             )
 
         # Handle `Callable` side effect
-        if callable(effect):
+        elif callable(effect):
             result = self._call_side_effect(effect, request, **kwargs)
             return result
 
@@ -375,10 +378,10 @@ class Route:
         Returns None for a non-matching route, mocked response for a match,
         or input request for pass-through.
         """
-        context = {}
+        context: Dict[str, Any] = {}
 
         if self._pattern:
-            match = self.pattern.match(request)
+            match = self._pattern.match(request)
             if not match:
                 return None
             context = match.context
@@ -436,7 +439,7 @@ class RouteList:
 
     def add(self, route: Route, name: Optional[str] = None) -> Route:
         # Find route with same name
-        existing_route = self._names.pop(name, None)
+        existing_route = self._names.pop(name or "", None)
 
         if route in self._routes:
             if existing_route and existing_route != route:

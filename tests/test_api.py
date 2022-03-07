@@ -303,7 +303,7 @@ async def test_callable_content(client):
 
         def content_callback(request, slug):
             content = jsonlib.loads(request.content)
-            return respx.MockResponse(text=f"hello {slug}{content['x']}")
+            return respx.MockResponse(content=f"hello {slug}{content['x']}")
 
         request = respx_mock.post(url_pattern)
         request.side_effect = content_callback

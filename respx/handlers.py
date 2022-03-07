@@ -8,7 +8,10 @@ class TransportHandler:
         self.transport = transport
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
-        if not isinstance(request.stream, httpx.SyncByteStream):  # pragma: nocover
+        if not isinstance(
+            request.stream,  # type: ignore[has-type]
+            httpx.SyncByteStream,
+        ):  # pragma: nocover
             raise RuntimeError("Attempted to route an async request to a sync app.")
 
         return self.transport.handle_request(request)
@@ -19,7 +22,10 @@ class AsyncTransportHandler:
         self.transport = transport
 
     async def __call__(self, request: httpx.Request) -> httpx.Response:
-        if not isinstance(request.stream, httpx.AsyncByteStream):  # pragma: nocover
+        if not isinstance(
+            request.stream,  # type: ignore[has-type]
+            httpx.AsyncByteStream,
+        ):  # pragma: nocover
             raise RuntimeError("Attempted to route a sync request to an async app.")
 
         return await self.transport.handle_async_request(request)

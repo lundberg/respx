@@ -403,7 +403,7 @@ class MockRouter(Router):
         needs_mock_reference = "respx_mock" in argspec.args
 
         # Async Decorator
-        async def async_decorator(*args, **kwargs):
+        async def _async_decorator(*args, **kwargs):
             assert func is not None
             if needs_mock_reference:
                 kwargs["respx_mock"] = self
@@ -411,16 +411,18 @@ class MockRouter(Router):
                 return await func(*args, **kwargs)
 
         # Sync Decorator
-        def sync_decorator(*args, **kwargs):
+        def _sync_decorator(*args, **kwargs):
             assert func is not None
             if "respx_mock" in argspec.args:
                 kwargs["respx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 
+        async_decorator = _async_decorator
+        sync_decorator = _sync_decorator
         if not needs_mock_reference:
-            async_decorator = update_wrapper(async_decorator, func)
-            sync_decorator = update_wrapper(sync_decorator, func)
+            async_decorator = update_wrapper(_async_decorator, func)
+            sync_decorator = update_wrapper(_sync_decorator, func)
 
         # Dispatch async/sync decorator, depending on decorated function.
         # - Only stage when using global decorator `@respx.mock`

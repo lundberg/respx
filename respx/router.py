@@ -283,7 +283,9 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):  # type: ignore[has-type]
+        if resolved.response and isinstance(
+            resolved.response.stream, httpx.ByteStream  # type: ignore[has-type]
+        ):
             resolved.response.read()  # Pre-read stream
 
         return resolved
@@ -305,7 +307,9 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):  # type: ignore[has-type]
+        if resolved.response and isinstance(
+            resolved.response.stream, httpx.ByteStream  # type: ignore[has-type]
+        ):
             await resolved.response.aread()  # Pre-read stream
 
         return resolved

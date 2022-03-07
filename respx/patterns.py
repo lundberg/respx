@@ -388,8 +388,9 @@ class Path(Pattern):
         return request.url.path
 
     def strip_base(self, value: str) -> str:
-        value = value[len(self.base.value) :]
-        value = "/" + value if not value.startswith("/") else value
+        if self.base:
+            value = value[len(self.base.value) :]
+            value = "/" + value if not value.startswith("/") else value
         return value
 
 

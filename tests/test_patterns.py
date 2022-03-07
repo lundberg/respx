@@ -191,6 +191,11 @@ def test_path_pattern():
     request = httpx.Request("GET", "https://foo.bar/baz/")
     assert Path(["/egg/", "/baz/"], lookup=Lookup.IN).match(request)
 
+    path = Path("/bar/")
+    assert path.strip_base("/foo/bar/") == "/foo/bar/"
+    path.base = Path("/foo/")
+    assert path.strip_base("/foo/bar/") == "/bar/"
+
 
 @pytest.mark.parametrize(
     "lookup,params,url,expected",

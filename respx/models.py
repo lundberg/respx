@@ -128,7 +128,7 @@ class Route:
         self.side_effect = side_effect
         return side_effect
 
-    def __mod__(self, response: Union[int, Dict[str, Any]]) -> "Route":
+    def __mod__(self, response: Union[int, Dict[str, Any], httpx.Response]) -> "Route":
         if isinstance(response, int):
             self.return_value = httpx.Response(status_code=response)
 

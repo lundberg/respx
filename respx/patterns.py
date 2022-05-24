@@ -504,9 +504,6 @@ def M(*patterns: Pattern, **lookups: Any) -> Optional[Pattern]:
     extras = None
 
     for pattern__lookup, value in lookups.items():
-        if not value:
-            continue
-
         # Handle url pattern
         if pattern__lookup == "url":
             extras = parse_url_patterns(value)
@@ -534,6 +531,10 @@ def M(*patterns: Pattern, **lookups: Any) -> Optional[Pattern]:
             # Make regular pattern
             lookup = Lookup(lookup_name) if lookup_name else None
             pattern = P(value, lookup=lookup)
+
+        # Skip patterns with no value, exept when using equal lookup
+        if not pattern.value and pattern.lookup is not Lookup.EQUAL:
+            continue
 
         patterns += (pattern,)
 

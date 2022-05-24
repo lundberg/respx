@@ -67,6 +67,19 @@ def test_match_context():
 
 
 @pytest.mark.parametrize(
+    "kwargs,url,expected",
+    [
+        ({"params__eq": {}}, "https://foo.bar/", True),
+        ({"params__eq": {}}, "https://foo.bar/?x=y", False),
+        ({"params__contains": {}}, "https://foo.bar/?x=y", True),
+    ],
+)
+def test_m_pattern(kwargs, url, expected):
+    request = httpx.Request("GET", url)
+    assert bool(M(host="foo.bar", **kwargs).match(request)) is expected
+
+
+@pytest.mark.parametrize(
     "lookup,value,expected",
     [
         (Lookup.EQUAL, "GET", True),
@@ -217,6 +230,8 @@ def test_path_pattern():
         (Lookup.EQUAL, "y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, {"x": ANY}, "https://foo.bar/?x=1", True),
         (Lookup.EQUAL, {"y": ANY}, "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, {}, "https://foo.bar/?x=1", False),
+        (Lookup.EQUAL, {}, "https://foo.bar/", True),
         (Lookup.EQUAL, "x=1&y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "y=2&x=1", "https://foo.bar/?x=1&y=2", True),
         (Lookup.EQUAL, "y=3&x=2&x=1", "https://foo.bar/?x=1&x=2&y=3", False),  # ordered

@@ -580,6 +580,24 @@ def test_sync_httpx_mocker():
         test()
 
 
+def test_sync_respx_mock_with_another_fixture():
+    fixture_string = 'fixture string'
+
+    @pytest.fixture
+    def another_fixture():
+        return fixture_string
+
+    @respx.mock_deco(using="httpx")
+    def test(respx_mock, another_fixture, *args, **kwargs):
+        # checking that only expected arguments are in function
+        assert type(respx_mock) == MockRouter
+        assert another_fixture == fixture_string
+        assert not args
+        assert not kwargs
+
+    test()
+
+
 @pytest.mark.asyncio
 async def test_async_httpx_mocker():
     class TestTransport(httpx.AsyncBaseTransport):

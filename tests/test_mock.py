@@ -587,7 +587,7 @@ def test_sync_respx_mock_with_another_fixture():
     def another_fixture():
         return fixture_string
 
-    @respx.mock_deco(using="httpx")
+    @respx.mock(using="httpx")
     def test(respx_mock, another_fixture, *args, **kwargs):
         # checking that only expected arguments are in function
         assert type(respx_mock) == MockRouter

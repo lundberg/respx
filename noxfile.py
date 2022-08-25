@@ -22,7 +22,7 @@ def test(session):
     session.run("pytest", "-v", *options)
 
 
-@nox.session
+@nox.session(python="3.6")
 def check(session):
     session.install("--upgrade", "flake8-bugbear", "mypy", *lint_requirements)
     session.install("-e", ".")

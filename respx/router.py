@@ -1,6 +1,6 @@
 import inspect
 from contextlib import contextmanager
-from functools import update_wrapper
+from functools import partial, update_wrapper, wraps
 from types import TracebackType
 from typing import (
     Any,
@@ -398,35 +398,36 @@ class MockRouter(Router):
             return respx_mock
 
         # Determine if decorated function needs a `respx_mock` instance
+        is_async = inspect.iscoroutinefunction(func)
         argspec = inspect.getfullargspec(func)
         needs_mock_reference = "respx_mock" in argspec.args
+
+        if needs_mock_reference:
+            func = partial(func, respx_mock=self)
 
         # Async Decorator
         async def _async_decorator(*args, **kwargs):
             assert func is not None
-            if needs_mock_reference:
-                kwargs["respx_mock"] = self
             async with self:
                 return await func(*args, **kwargs)
 
         # Sync Decorator
         def _sync_decorator(*args, **kwargs):
             assert func is not None
-            if "respx_mock" in argspec.args:
-                kwargs["respx_mock"] = self
             with self:
                 return func(*args, **kwargs)
 
-        async_decorator = _async_decorator
-        sync_decorator = _sync_decorator
-        if not needs_mock_reference:
+        if needs_mock_reference:
+            async_decorator = wraps(func)(_async_decorator)
+            sync_decorator = wraps(func)(_sync_decorator)
+        else:
             async_decorator = update_wrapper(_async_decorator, func)
             sync_decorator = update_wrapper(_sync_decorator, func)
 
         # Dispatch async/sync decorator, depending on decorated function.
         # - Only stage when using global decorator `@respx.mock`
         # - Second stage when using local decorator `@respx.mock(...)`
-        return async_decorator if inspect.iscoroutinefunction(func) else sync_decorator
+        return async_decorator if is_async else sync_decorator
 
     def __enter__(self) -> "MockRouter":
         self.start()

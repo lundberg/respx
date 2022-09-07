@@ -299,6 +299,14 @@ async def test_configured_decorator(client):
 
 
 @pytest.mark.asyncio
+@respx.mock(base_url="https://foo.bar")
+async def test_configured_decorator_with_fixture(respx_mock, client):
+    respx_mock.get("/")
+    response = await client.get("https://foo.bar/")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_configured_router_reuse(client):
     router = respx.mock()
     route = router.get("https://foo/bar/") % 404

@@ -4,6 +4,9 @@ def test_respx_mock_fixture(testdir):
         import httpx
         import pytest
 
+        @pytest.fixture
+        def some_fixture():
+            yield "foobar"
 
         def test_plain_fixture(respx_mock):
             route = respx_mock.get("https://foo.bar/") % 204
@@ -18,7 +21,20 @@ def test_respx_mock_fixture(testdir):
             assert response.status_code == 204
             response = httpx.get("https://example.org/")
             assert response.status_code == 200
+
+
+        def test_with_extra_fixture(respx_mock, some_fixture):
+            import respx
+            assert isinstance(respx_mock, respx.Router)
+            assert some_fixture == "foobar"
+
+
+        @pytest.mark.respx(assert_all_mocked=False)
+        def test_marked_with_extra_fixture(respx_mock, some_fixture):
+            import respx
+            assert isinstance(respx_mock, respx.Router)
+            assert some_fixture == "foobar"
         """
     )
     result = testdir.runpytest("-p", "respx")
-    result.assert_outcomes(passed=2)
+    result.assert_outcomes(passed=4)

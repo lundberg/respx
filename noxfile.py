@@ -30,7 +30,7 @@ def check(session):
     session.run("black", "--check", "--diff", "--target-version=py36", *source_files)
     session.run("isort", "--check", "--diff", "--project=respx", *source_files)
     session.run("flake8", *source_files)
-    session.run("mypy", "respx")
+    session.run("mypy")
 
 
 @nox.session

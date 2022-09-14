@@ -102,7 +102,7 @@ class Router:
         if any(not route.called for route in self.routes):
             raise AllCalledAssertionError("RESPX: some routes were not called!")
 
-    def __getitem__(self, name: str) -> Optional[Route]:
+    def __getitem__(self, name: str) -> Route:
         return self.routes[name]
 
     @overload

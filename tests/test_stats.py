@@ -18,7 +18,7 @@ async def test_named_route():
 
 
 @respx.mock
-async def backend_test(backend):
+async def backend_test():
     url = "https://foo.bar/1/"
     respx.get(re.compile("https://some.thing"))
     respx.delete("https://some.thing")
@@ -93,19 +93,14 @@ async def backend_test(backend):
 def test_asyncio():
     import asyncio
 
-    from httpcore.backends.asyncio import AsyncIOBackend
-
-    backend = AsyncIOBackend()  # TODO: Why instantiate a backend?
     loop = asyncio.new_event_loop()
     try:
-        loop.run_until_complete(backend_test(backend))
+        loop.run_until_complete(backend_test())
     finally:
         loop.close()
 
 
 def test_trio():  # pragma: nocover
     import trio
-    from httpcore.backends.trio import TrioBackend
 
-    backend = TrioBackend()  # TODO: Why instantiate a backend?
-    trio.run(backend_test, backend)
+    trio.run(backend_test)

@@ -174,7 +174,9 @@ class Route:
         self._return_value = return_value
 
     @property
-    def side_effect(self) -> Optional[SideEffectTypes]:
+    def side_effect(
+        self,
+    ) -> Optional[Union[SideEffectTypes, Sequence[SideEffectListTypes]]]:
         return self._side_effect
 
     @side_effect.setter
@@ -230,7 +232,9 @@ class Route:
         self,
         return_value: Optional[httpx.Response] = None,
         *,
-        side_effect: Optional[SideEffectTypes] = None,
+        side_effect: Optional[
+            Union[SideEffectTypes, Sequence[SideEffectListTypes]]
+        ] = None,
     ) -> "Route":
         self.return_value = return_value
         self.side_effect = side_effect

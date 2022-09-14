@@ -48,21 +48,21 @@ class Call(NamedTuple):
 
 
 class CallList(list, mock.NonCallableMock):
-    def __init__(self, *args, name="respx", **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args: Sequence[Call], name: Any = "respx") -> None:
+        super().__init__(*args)
         mock.NonCallableMock.__init__(self, name=name)
 
     @property
-    def called(self) -> bool:  # type: ignore
+    def called(self) -> bool:  # type: ignore[override]
         return bool(self)
 
     @property
-    def call_count(self) -> int:  # type: ignore
+    def call_count(self) -> int:  # type: ignore[override]
         return len(self)
 
     @property
-    def last(self) -> Optional[Call]:
-        return self[-1] if self else None
+    def last(self) -> Call:
+        return self[-1]
 
     def record(
         self, request: httpx.Request, response: Optional[httpx.Response]

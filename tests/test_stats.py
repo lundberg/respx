@@ -29,7 +29,8 @@ async def backend_test(backend):
     assert foobar1.called is False
     assert foobar1.call_count == len(foobar1.calls)
     assert foobar1.call_count == 0
-    assert foobar1.calls.last is None
+    with pytest.raises(IndexError):
+        foobar1.calls.last
     assert respx.calls.call_count == len(respx.calls)
     assert respx.calls.call_count == 0
 

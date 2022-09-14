@@ -420,7 +420,7 @@ class RouteList:
     def __contains__(self, name: str) -> bool:
         return name in self._names
 
-    def __getitem__(self, key: Union[int, str]) -> Optional[Route]:
+    def __getitem__(self, key: Union[int, str]) -> Route:
         if isinstance(key, int):
             return self._routes[key]
         else:

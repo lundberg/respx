@@ -523,3 +523,9 @@ def test_routelist__replaces_same_name_other_pattern_other_name():
     routes.add(foobar2, name="foobar")
     assert list(routes) == [foobar2]
     assert routes["foobar"] is foobar1
+
+
+def test_routelist__unable_to_slice_assign():
+    routes = RouteList()
+    with pytest.raises(TypeError, match="slice assign"):
+        routes[0:1] = routes

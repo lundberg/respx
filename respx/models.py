@@ -430,6 +430,8 @@ class RouteList:
         """
         Re-set all routes to given routes.
         """
+        if (i.start, i.stop, i.step) != (None, None, None):
+            raise TypeError("Can't slice assign routes")
         self._routes = list(routes._routes)
         self._names = dict(routes._names)
 

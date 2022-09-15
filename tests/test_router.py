@@ -387,12 +387,12 @@ def test_rollback():
 
     assert len(router.routes) == 1
     assert router.calls.call_count == 0
-    assert route.return_value is None
+    assert route.return_value == None  # noqa: E711
 
     router.rollback()  # Empty initial state
 
     assert len(router.routes) == 0
-    assert route.return_value is None
+    assert route.return_value == None  # noqa: E711
 
     # Idempotent
     route.rollback()

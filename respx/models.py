@@ -44,7 +44,13 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
 
 class Call(NamedTuple):
     request: httpx.Request
-    response: Optional[httpx.Response]
+    optional_response: Optional[httpx.Response]
+
+    @property
+    def response(self) -> httpx.Response:
+        if self.optional_response is None:
+            raise ValueError(f"{self!r} has no response")
+        return self.optional_response
 
 
 class CallList(list, mock.NonCallableMock):
@@ -67,7 +73,7 @@ class CallList(list, mock.NonCallableMock):
     def record(
         self, request: httpx.Request, response: Optional[httpx.Response]
     ) -> Call:
-        call = Call(request=request, response=response)
+        call = Call(request=request, optional_response=response)
         self.append(call)
         return call
 

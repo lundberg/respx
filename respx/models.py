@@ -161,7 +161,7 @@ class Route:
         raise NotImplementedError("Can't set name on route.")
 
     @property
-    def pattern(self) -> Optional[Pattern]:
+    def pattern(self) -> Pattern:
         return self._pattern
 
     @pattern.setter

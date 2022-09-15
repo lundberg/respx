@@ -175,7 +175,7 @@ def test_mod_response():
     assert resolved.route is route3
 
     with pytest.raises(TypeError, match="Route can only"):
-        router.route() % []
+        router.route() % []  # type: ignore[operator]
 
 
 @pytest.mark.asyncio
@@ -205,7 +205,7 @@ def test_side_effect_no_match():
     request = httpx.Request("GET", "https://foo.bar/baz/")
     response = router.handler(request)
     assert response.status_code == 204
-    assert response.request.respx_was_here is True
+    assert response.request.respx_was_here is True  # type: ignore[attr-defined]
 
 
 def test_side_effect_with_route_kwarg():

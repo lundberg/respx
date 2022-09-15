@@ -346,7 +346,7 @@ async def test_router_return_type_misuse():
     route = router.get("https://hot.dog/")
 
     with pytest.raises(TypeError):
-        route.return_value = "not-a-httpx-response"
+        route.return_value = "not-a-httpx-response"  # type: ignore[assignment]
 
 
 @pytest.mark.asyncio
@@ -545,7 +545,7 @@ async def test_router_using__none():
 
 def test_router_using__invalid():
     with pytest.raises(ValueError, match="using"):
-        respx.MockRouter(using=123).using
+        respx.MockRouter(using=123).using  # type: ignore[arg-type]
 
 
 def test_mocker_subclass():

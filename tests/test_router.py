@@ -29,11 +29,13 @@ async def test_empty_router__auto_mocked():
     resolved = router.resolve(request)
 
     assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 200
 
     resolved = await router.aresolve(request)
 
     assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 200
 
 
@@ -62,6 +64,7 @@ def test_resolve(args, kwargs, expected):
     resolved = router.resolve(request)
 
     assert bool(resolved.route is route) is expected
+    assert isinstance(resolved.response, httpx.Response)
     if expected:
         assert bool(resolved.response.status_code == 201) is expected
     else:
@@ -82,6 +85,7 @@ def test_pass_through():
     route.pass_through(False)
     resolved = router.resolve(request)
 
+    assert resolved.route is not None
     assert resolved.route is route
     assert not resolved.route.is_pass_through
     assert resolved.response is not None
@@ -106,6 +110,7 @@ def test_base_url(url, lookups, expected):
     resolved = router.resolve(request)
 
     assert bool(resolved.route is route) is expected
+    assert isinstance(resolved.response, httpx.Response)
     if expected:
         assert bool(resolved.response.status_code == 201) is expected
     else:
@@ -151,17 +156,20 @@ def test_mod_response():
 
     request = httpx.Request("GET", "https://foo.bar/baz/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 404
     assert resolved.route is route1b
     assert route1a is route1b
 
     request = httpx.Request("GET", "https://foo.bar/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 201
     assert resolved.route is route2
 
     request = httpx.Request("POST", "https://fox.zoo/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 401
     assert resolved.response.json() == {"error": "x"}
     assert resolved.route is route3

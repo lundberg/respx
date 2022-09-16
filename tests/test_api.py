@@ -296,6 +296,7 @@ async def test_raising_content(client):
 
         assert route.call_count == 2
         assert route.calls.last.request is not None
+        assert route.calls.last.has_response is False
         with pytest.raises(ValueError, match="has no response"):
             assert route.calls.last.response
 

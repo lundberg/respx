@@ -37,7 +37,7 @@ def test_remote_pass_through(using, client_lib, call_count):  # pragma: nocover
         assert response.json()["json"] == {"foo": "bar"}
 
         assert respx_mock.calls.last.request.url == url
-        assert respx_mock.calls.last.response == None  # noqa: E711
+        assert respx_mock.calls.last.has_response is False
 
         assert route.call_count == call_count
         assert respx_mock.calls.call_count == call_count

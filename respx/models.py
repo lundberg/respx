@@ -52,6 +52,10 @@ class Call(NamedTuple):
             raise ValueError(f"{self!r} has no response")
         return self.optional_response
 
+    @property
+    def has_response(self) -> bool:
+        return self.optional_response is not None
+
 
 class CallList(list, mock.NonCallableMock):
     def __init__(self, *args: Sequence[Call], name: Any = "respx") -> None:

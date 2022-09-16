@@ -88,13 +88,26 @@ class Pattern(ABC):
     def __iter__(self):
         yield self
 
+    def __bool__(self):
+        return True
+
     def __and__(self, other: "Pattern") -> "Pattern":
+        if not bool(other):
+            return self
+        elif not bool(self):
+            return other
         return _And((self, other))
 
     def __or__(self, other: "Pattern") -> "Pattern":
+        if not bool(other):
+            return self
+        elif not bool(self):
+            return other
         return _Or((self, other))
 
     def __invert__(self):
+        if not bool(self):
+            return self
         return _Invert(self)
 
     def __repr__(self):  # pragma: nocover
@@ -157,6 +170,22 @@ class Pattern(ABC):
 
     def _in(self, value: Any) -> Match:
         return Match(value in self.value)
+
+
+class Noop(Pattern):
+    def __init__(self) -> None:
+        super().__init__(None)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}>"
+
+    def __bool__(self) -> bool:
+        # Treat this pattern as non-existent, e.g. when filtering or conditioning
+        return False
+
+    def match(self, request: httpx.Request) -> Match:
+        # If this pattern is part of a combined pattern, always be truthy, i.e. noop
+        return Match(True)
 
 
 class PathPattern(Pattern):
@@ -500,7 +529,7 @@ class Data(ContentMixin, Pattern):
         return data
 
 
-def M(*patterns: Pattern, **lookups: Any) -> Optional[Pattern]:
+def M(*patterns: Pattern, **lookups: Any) -> Pattern:
     extras = None
 
     for pattern__lookup, value in lookups.items():
@@ -550,12 +579,10 @@ def get_scheme_port(scheme: Optional[str]) -> Optional[int]:
     return {"http": 80, "https": 443}.get(scheme or "")
 
 
-def combine(
-    patterns: Sequence[Pattern], op: Callable = operator.and_
-) -> Optional[Pattern]:
+def combine(patterns: Sequence[Pattern], op: Callable = operator.and_) -> Pattern:
     patterns = tuple(filter(None, patterns))
     if not patterns:
-        return None
+        return Noop()
     return reduce(op, patterns)
 
 
@@ -598,14 +625,14 @@ def parse_url_patterns(
     return bases
 
 
-def merge_patterns(pattern: Optional[Pattern], **bases: Pattern) -> Optional[Pattern]:
+def merge_patterns(pattern: Pattern, **bases: Pattern) -> Pattern:
     if not bases:
         return pattern
 
-    if pattern:
-        # Flatten pattern
-        patterns = list(iter(pattern))
+    # Flatten pattern
+    patterns: List[Pattern] = list(filter(None, iter(pattern)))
 
+    if patterns:
         if "host" in (_pattern.key for _pattern in patterns):
             # Pattern is "absolute", skip merging
             bases = {}

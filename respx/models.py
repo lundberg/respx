@@ -44,30 +44,40 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
 
 class Call(NamedTuple):
     request: httpx.Request
-    response: Optional[httpx.Response]
+    optional_response: Optional[httpx.Response]
+
+    @property
+    def response(self) -> httpx.Response:
+        if self.optional_response is None:
+            raise ValueError(f"{self!r} has no response")
+        return self.optional_response
+
+    @property
+    def has_response(self) -> bool:
+        return self.optional_response is not None
 
 
 class CallList(list, mock.NonCallableMock):
-    def __init__(self, *args, name="respx", **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args: Sequence[Call], name: Any = "respx") -> None:
+        super().__init__(*args)
         mock.NonCallableMock.__init__(self, name=name)
 
     @property
-    def called(self) -> bool:  # type: ignore
+    def called(self) -> bool:  # type: ignore[override]
         return bool(self)
 
     @property
-    def call_count(self) -> int:  # type: ignore
+    def call_count(self) -> int:  # type: ignore[override]
         return len(self)
 
     @property
-    def last(self) -> Optional[Call]:
-        return self[-1] if self else None
+    def last(self) -> Call:
+        return self[-1]
 
     def record(
         self, request: httpx.Request, response: Optional[httpx.Response]
     ) -> Call:
-        call = Call(request=request, response=response)
+        call = Call(request=request, optional_response=response)
         self.append(call)
         return call
 
@@ -155,7 +165,7 @@ class Route:
         raise NotImplementedError("Can't set name on route.")
 
     @property
-    def pattern(self) -> Optional[Pattern]:
+    def pattern(self) -> Pattern:
         return self._pattern
 
     @pattern.setter
@@ -174,7 +184,9 @@ class Route:
         self._return_value = return_value
 
     @property
-    def side_effect(self) -> Optional[SideEffectTypes]:
+    def side_effect(
+        self,
+    ) -> Optional[Union[SideEffectTypes, Sequence[SideEffectListTypes]]]:
         return self._side_effect
 
     @side_effect.setter
@@ -230,7 +242,9 @@ class Route:
         self,
         return_value: Optional[httpx.Response] = None,
         *,
-        side_effect: Optional[SideEffectTypes] = None,
+        side_effect: Optional[
+            Union[SideEffectTypes, Sequence[SideEffectListTypes]]
+        ] = None,
     ) -> "Route":
         self.return_value = return_value
         self.side_effect = side_effect
@@ -430,6 +444,8 @@ class RouteList:
         """
         Re-set all routes to given routes.
         """
+        if (i.start, i.stop, i.step) != (None, None, None):
+            raise TypeError("Can't slice assign routes")
         self._routes = list(routes._routes)
         self._names = dict(routes._names)
 

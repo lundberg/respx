@@ -15,6 +15,7 @@ from respx.patterns import (
     Lookup,
     M,
     Method,
+    Noop,
     Params,
     Path,
     Pattern,
@@ -64,6 +65,18 @@ def test_match_context():
     match = pattern.match(request)
     assert bool(match)
     assert match.context == {"host": "foo.bar", "slug": "baz"}
+
+
+def test_noop_pattern():
+    assert bool(Noop()) is False
+    assert bool(Noop().match(httpx.Request("GET", "https://example.org"))) is True
+    assert list(filter(None, [Noop()])) == []
+    assert repr(Noop()) == "<Noop>"
+    assert isinstance(~Noop(), Noop)
+    assert Method("GET") & Noop() == Method("GET")
+    assert Noop() & Method("GET") == Method("GET")
+    assert Method("GET") | Noop() == Method("GET")
+    assert Noop() | Method("GET") == Method("GET")
 
 
 @pytest.mark.parametrize(

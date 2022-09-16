@@ -18,7 +18,7 @@ async def test_named_route():
 
 
 @respx.mock
-async def backend_test(backend):
+async def backend_test():
     url = "https://foo.bar/1/"
     respx.get(re.compile("https://some.thing"))
     respx.delete("https://some.thing")
@@ -26,10 +26,11 @@ async def backend_test(backend):
     foobar1 = respx.get(url, name="get_foobar") % dict(status_code=202, text="get")
     foobar2 = respx.delete(url, name="del_foobar") % dict(text="del")
 
-    assert foobar1.called is False
+    assert foobar1.called == False  # noqa: E712
     assert foobar1.call_count == len(foobar1.calls)
     assert foobar1.call_count == 0
-    assert foobar1.calls.last is None
+    with pytest.raises(IndexError):
+        foobar1.calls.last
     assert respx.calls.call_count == len(respx.calls)
     assert respx.calls.call_count == 0
 
@@ -43,8 +44,8 @@ async def backend_test(backend):
         get_response = await client.get(url)
         del_response = await client.delete(url)
 
-    assert foobar1.called is True
-    assert foobar2.called is True
+    assert foobar1.called == True  # noqa: E712
+    assert foobar2.called == True  # noqa: E712
     assert foobar1.call_count == 1
     assert foobar2.call_count == 1
     assert foobar1.calls.call_count == 1
@@ -92,19 +93,14 @@ async def backend_test(backend):
 def test_asyncio():
     import asyncio
 
-    from httpcore.backends.asyncio import AsyncIOBackend
-
-    backend = AsyncIOBackend()  # TODO: Why instantiate a backend?
     loop = asyncio.new_event_loop()
     try:
-        loop.run_until_complete(backend_test(backend))
+        loop.run_until_complete(backend_test())
     finally:
         loop.close()
 
 
 def test_trio():  # pragma: nocover
     import trio
-    from httpcore.backends.trio import TrioBackend
 
-    backend = TrioBackend()  # TODO: Why instantiate a backend?
-    trio.run(backend_test, backend)
+    trio.run(backend_test)

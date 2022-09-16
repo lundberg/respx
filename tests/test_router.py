@@ -29,11 +29,13 @@ async def test_empty_router__auto_mocked():
     resolved = router.resolve(request)
 
     assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 200
 
     resolved = await router.aresolve(request)
 
     assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 200
 
 
@@ -62,6 +64,7 @@ def test_resolve(args, kwargs, expected):
     resolved = router.resolve(request)
 
     assert bool(resolved.route is route) is expected
+    assert isinstance(resolved.response, httpx.Response)
     if expected:
         assert bool(resolved.response.status_code == 201) is expected
     else:
@@ -82,6 +85,7 @@ def test_pass_through():
     route.pass_through(False)
     resolved = router.resolve(request)
 
+    assert resolved.route is not None
     assert resolved.route is route
     assert not resolved.route.is_pass_through
     assert resolved.response is not None
@@ -106,6 +110,7 @@ def test_base_url(url, lookups, expected):
     resolved = router.resolve(request)
 
     assert bool(resolved.route is route) is expected
+    assert isinstance(resolved.response, httpx.Response)
     if expected:
         assert bool(resolved.response.status_code == 201) is expected
     else:
@@ -151,23 +156,26 @@ def test_mod_response():
 
     request = httpx.Request("GET", "https://foo.bar/baz/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 404
     assert resolved.route is route1b
     assert route1a is route1b
 
     request = httpx.Request("GET", "https://foo.bar/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 201
     assert resolved.route is route2
 
     request = httpx.Request("POST", "https://fox.zoo/")
     resolved = router.resolve(request)
+    assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 401
     assert resolved.response.json() == {"error": "x"}
     assert resolved.route is route3
 
     with pytest.raises(TypeError, match="Route can only"):
-        router.route() % []
+        router.route() % []  # type: ignore[operator]
 
 
 @pytest.mark.asyncio
@@ -197,7 +205,7 @@ def test_side_effect_no_match():
     request = httpx.Request("GET", "https://foo.bar/baz/")
     response = router.handler(request)
     assert response.status_code == 204
-    assert response.request.respx_was_here is True
+    assert response.request.respx_was_here is True  # type: ignore[attr-defined]
 
 
 def test_side_effect_with_route_kwarg():
@@ -379,12 +387,12 @@ def test_rollback():
 
     assert len(router.routes) == 1
     assert router.calls.call_count == 0
-    assert route.return_value is None
+    assert route.return_value == None  # noqa: E711
 
     router.rollback()  # Empty initial state
 
     assert len(router.routes) == 0
-    assert route.return_value is None
+    assert route.return_value == None  # noqa: E711
 
     # Idempotent
     route.rollback()
@@ -523,3 +531,9 @@ def test_routelist__replaces_same_name_other_pattern_other_name():
     routes.add(foobar2, name="foobar")
     assert list(routes) == [foobar2]
     assert routes["foobar"] is foobar1
+
+
+def test_routelist__unable_to_slice_assign():
+    routes = RouteList()
+    with pytest.raises(TypeError, match="slice assign"):
+        routes[0:1] = routes

@@ -317,25 +317,25 @@ async def test_configured_router_reuse(client):
     with router:
         route.return_value = httpx.Response(202)
         response = await client.get("https://foo/bar/")
-        assert route.called is True
+        assert route.called == True  # noqa: E712
         assert response.status_code == 202
         assert router.calls.call_count == 1
         assert respx.calls.call_count == 0
 
     assert len(router.routes) == 1
-    assert route.called is False
+    assert route.called == False  # noqa: E712
     assert router.calls.call_count == 0
 
     async with router:
         assert router.calls.call_count == 0
         response = await client.get("https://foo/bar/")
-        assert route.called is True
+        assert route.called == True  # noqa: E712
         assert response.status_code == 404
         assert router.calls.call_count == 1
         assert respx.calls.call_count == 0
 
     assert len(router.routes) == 1
-    assert route.called is False
+    assert route.called == False  # noqa: E712
     assert router.calls.call_count == 0
     assert respx.calls.call_count == 0
 
@@ -346,7 +346,7 @@ async def test_router_return_type_misuse():
     route = router.get("https://hot.dog/")
 
     with pytest.raises(TypeError):
-        route.return_value = "not-a-httpx-response"
+        route.return_value = "not-a-httpx-response"  # type: ignore[assignment]
 
 
 @pytest.mark.asyncio
@@ -396,7 +396,7 @@ async def test_start_stop(client):
     try:
         respx.start()
         response = await client.get(url)
-        assert request.called is True
+        assert request.called == True  # noqa: E712
         assert response.status_code == 202
         assert response.text == ""
         assert respx.calls.call_count == 1
@@ -404,12 +404,12 @@ async def test_start_stop(client):
         respx.stop(clear=False, reset=False)
         assert len(respx.routes) == 1
         assert respx.calls.call_count == 1
-        assert request.called is True
+        assert request.called == True  # noqa: E712
 
         respx.reset()
         assert len(respx.routes) == 1
         assert respx.calls.call_count == 0
-        assert request.called is False
+        assert request.called == False  # noqa: E712
 
         respx.clear()
         assert len(respx.routes) == 0
@@ -545,7 +545,7 @@ async def test_router_using__none():
 
 def test_router_using__invalid():
     with pytest.raises(ValueError, match="using"):
-        respx.MockRouter(using=123).using
+        respx.MockRouter(using=123).using  # type: ignore[arg-type]
 
 
 def test_mocker_subclass():

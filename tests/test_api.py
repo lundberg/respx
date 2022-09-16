@@ -99,7 +99,7 @@ async def test_url_match(client, url, pattern):
 async def test_invalid_url_pattern():
     async with MockRouter() as respx_mock:
         with pytest.raises(TypeError):
-            respx_mock.get(["invalid"])
+            respx_mock.get(["invalid"])  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -277,7 +277,10 @@ async def test_raising_content(client):
     async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url)
-        request.side_effect = httpx.ConnectTimeout("X-P", request=None)
+        request.side_effect = httpx.ConnectTimeout(
+            "X-P",
+            request=None,  # type: ignore[arg-type]
+        )
         with pytest.raises(httpx.ConnectTimeout):
             await client.get(url)
 
@@ -293,7 +296,9 @@ async def test_raising_content(client):
 
         assert route.call_count == 2
         assert route.calls.last.request is not None
-        assert route.calls.last.response is None
+        assert route.calls.last.has_response is False
+        with pytest.raises(ValueError, match="has no response"):
+            assert route.calls.last.response
 
 
 @pytest.mark.asyncio
@@ -356,7 +361,9 @@ async def test_request_callback(client):
         assert response.text == "hello lundberg"
 
         with pytest.raises(TypeError):
-            respx_mock.get("https://ham.spam/").mock(side_effect=lambda req: "invalid")
+            respx_mock.get("https://ham.spam/").mock(
+                side_effect=lambda req: "invalid"  # type: ignore[arg-type,return-value]
+            )
             await client.get("https://ham.spam/")
 
         with pytest.raises(httpx.NetworkError):
@@ -526,10 +533,10 @@ def test_add():
         assert respx.routes["foobar"].called
 
         with pytest.raises(TypeError):
-            respx.add(route, status_code=418)  # pragma: nocover
+            respx.add(route, status_code=418)  # type: ignore[call-arg]
 
         with pytest.raises(ValueError):
-            respx.add("GET")  # pragma: nocover
+            respx.add("GET")  # type: ignore[arg-type]
 
         with pytest.raises(NotImplementedError):
             route.name = "spam"
@@ -554,7 +561,7 @@ def test_respond():
             route.respond(content={})
 
         with pytest.raises(TypeError, match="content can only be"):
-            route.respond(content=Exception())
+            route.respond(content=Exception())  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio

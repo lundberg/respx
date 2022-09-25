@@ -9,7 +9,6 @@ from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
-@pytest.mark.asyncio
 async def test_empty_router():
     router = Router()
 
@@ -21,7 +20,6 @@ async def test_empty_router():
         await router.aresolve(request)
 
 
-@pytest.mark.asyncio
 async def test_empty_router__auto_mocked():
     router = Router(assert_all_mocked=False)
 
@@ -178,7 +176,6 @@ def test_mod_response():
         router.route() % []  # type: ignore[operator]
 
 
-@pytest.mark.asyncio
 async def test_async_side_effect():
     router = Router()
 

@@ -250,4 +250,3 @@ class MyTestCase(asynctest.TestCase):
                 assert request.called
                 assert response.text == "foobar"
 ```
-

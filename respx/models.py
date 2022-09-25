@@ -35,7 +35,7 @@ def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Re
     response = httpx.Response(
         response.status_code,
         headers=response.headers,
-        stream=response.stream,  # type: ignore[has-type]
+        stream=response.stream,
         request=request,
         extensions=dict(response.extensions),
     )

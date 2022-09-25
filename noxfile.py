@@ -9,7 +9,7 @@ lint_requirements = ("flake8", "black", "isort")
 docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
 
 
-@nox.session(python=["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"])
+@nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11"])
 def test(session):
     deps = ["pytest", "pytest-asyncio", "pytest-cov", "trio", "starlette", "flask"]
     session.install("--upgrade", *deps)
@@ -22,12 +22,12 @@ def test(session):
     session.run("pytest", "-v", *options)
 
 
-@nox.session(python="3.6")
+@nox.session(python="3.7")
 def check(session):
     session.install("--upgrade", "flake8-bugbear", "mypy", *lint_requirements)
     session.install("-e", ".")
 
-    session.run("black", "--check", "--diff", "--target-version=py36", *source_files)
+    session.run("black", "--check", "--diff", "--target-version=py37", *source_files)
     session.run("isort", "--check", "--diff", "--project=respx", *source_files)
     session.run("flake8", *source_files)
     session.run("mypy")
@@ -39,7 +39,7 @@ def lint(session):
 
     session.run("autoflake", "--in-place", "--recursive", *source_files)
     session.run("isort", "--project=respx", *source_files)
-    session.run("black", "--target-version=py36", *source_files)
+    session.run("black", "--target-version=py37", *source_files)
 
     session.notify("check")
 

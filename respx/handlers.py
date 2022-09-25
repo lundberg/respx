@@ -9,7 +9,7 @@ class TransportHandler:
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if not isinstance(
-            request.stream,  # type: ignore[has-type]
+            request.stream,
             httpx.SyncByteStream,
         ):  # pragma: nocover
             raise RuntimeError("Attempted to route an async request to a sync app.")
@@ -23,7 +23,7 @@ class AsyncTransportHandler:
 
     async def __call__(self, request: httpx.Request) -> httpx.Response:
         if not isinstance(
-            request.stream,  # type: ignore[has-type]
+            request.stream,
             httpx.AsyncByteStream,
         ):  # pragma: nocover
             raise RuntimeError("Attempted to route a sync request to an async app.")

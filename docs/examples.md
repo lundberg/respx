@@ -97,7 +97,6 @@ import respx
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_async_decorator():
     async with httpx.AsyncClient() as client:
         route = respx.get("https://example.org/")
@@ -106,7 +105,6 @@ async def test_async_decorator():
         assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_async_ctx_manager():
     async with respx.mock:
         async with httpx.AsyncClient() as client:

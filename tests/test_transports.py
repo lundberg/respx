@@ -27,7 +27,6 @@ def test_sync_transport_handler():
             client.post(url)
 
 
-@pytest.mark.asyncio
 async def test_async_transport_handler():
     url = "https://foo.bar/"
 
@@ -47,7 +46,6 @@ async def test_async_transport_handler():
             await client.post(url)
 
 
-@pytest.mark.asyncio
 async def test_transport_assertions():
     url = "https://foo.bar/"
 

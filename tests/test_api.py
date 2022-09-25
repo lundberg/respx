@@ -14,7 +14,6 @@ from respx.patterns import M
 from respx.router import MockRouter
 
 
-@pytest.mark.asyncio
 async def test_http_methods(client):
     async with respx.mock:
         url = "https://foo.bar"
@@ -73,7 +72,6 @@ async def test_http_methods(client):
         assert respx.calls.call_count == 8 * 2
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url,pattern",
     [
@@ -95,14 +93,12 @@ async def test_url_match(client, url, pattern):
         assert response.text == "baz"
 
 
-@pytest.mark.asyncio
 async def test_invalid_url_pattern():
     async with MockRouter() as respx_mock:
         with pytest.raises(TypeError):
             respx_mock.get(["invalid"])  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
 async def test_repeated_pattern(client):
     async with MockRouter() as respx_mock:
         url = "https://foo/bar/baz/"
@@ -127,7 +123,6 @@ async def test_repeated_pattern(client):
         assert statuses == [201, 409]
 
 
-@pytest.mark.asyncio
 async def test_status_code(client):
     async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
@@ -138,7 +133,6 @@ async def test_status_code(client):
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "headers,content_type,expected",
     [
@@ -166,7 +160,6 @@ async def test_headers(client, headers, content_type, expected):
         assert response.headers == httpx.Headers(expected)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "content,expected",
     [
@@ -184,7 +177,6 @@ async def test_text_encoding(client, content, expected):
         assert response.text == expected
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "key,value,expected_content_type",
     [
@@ -214,7 +206,6 @@ async def test_content_variants(client, key, value, expected_content_type):
         assert sync_response.content is not None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "content,headers,expected_headers",
     [
@@ -272,15 +263,11 @@ def test_json_post_body():
         assert get_route.called
 
 
-@pytest.mark.asyncio
 async def test_raising_content(client):
     async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
         request = respx_mock.get(url)
-        request.side_effect = httpx.ConnectTimeout(
-            "X-P",
-            request=None,  # type: ignore[arg-type]
-        )
+        request.side_effect = httpx.ConnectTimeout("X-P", request=None)
         with pytest.raises(httpx.ConnectTimeout):
             await client.get(url)
 
@@ -301,7 +288,6 @@ async def test_raising_content(client):
             assert route.calls.last.response
 
 
-@pytest.mark.asyncio
 async def test_callable_content(client):
     async with MockRouter() as respx_mock:
         url_pattern = re.compile(r"https://foo.bar/(?P<slug>\w+)/")
@@ -327,7 +313,6 @@ async def test_callable_content(client):
         assert request.calls[-1][0].content == b'{"x": "!"}'
 
 
-@pytest.mark.asyncio
 async def test_request_callback(client):
     def callback(request, name):
         if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
@@ -375,7 +360,6 @@ async def test_request_callback(client):
             await client.get("https://egg.plant/")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "using,route,expected",
     [
@@ -415,7 +399,6 @@ async def test_pass_through(client, using, route, expected):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_parallel_requests(client):
     def content(request, page):
         return httpx.Response(200, text=page)
@@ -433,7 +416,6 @@ async def test_parallel_requests(client):
     assert respx.calls.call_count == 2
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "method_str, client_method_attr",
     [
@@ -476,7 +458,6 @@ def test_pop():
 
 
 @respx.mock
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url,params,call_url,call_params",
     [
@@ -503,7 +484,6 @@ async def test_params_match(client, url, params, call_url, call_params):
     assert response.text == "spam spam"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "base,url",
     [
@@ -564,7 +544,6 @@ def test_respond():
             route.respond(content=Exception())  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "kwargs",
     [

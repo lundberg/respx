@@ -11,7 +11,6 @@ from respx.models import AllCalledAssertionError, AllMockedAssertionError
 from respx.router import MockRouter
 
 
-@pytest.mark.asyncio
 @respx.mock
 async def test_decorating_test(client):
     assert respx.calls.call_count == 0
@@ -26,7 +25,6 @@ async def test_decorating_test(client):
     respx.routes["home"].calls.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_mock_request_fixture(client, my_mock):
     assert respx.calls.call_count == 0
     assert my_mock.calls.call_count == 0
@@ -39,7 +37,6 @@ async def test_mock_request_fixture(client, my_mock):
     assert my_mock.calls.call_count == 1
 
 
-@pytest.mark.asyncio
 async def test_mock_single_session_fixture(client, mocked_foo):
     current_foo_call_count = mocked_foo.calls.call_count
     response = await client.get("https://foo.api/api/bar/")
@@ -49,7 +46,6 @@ async def test_mock_single_session_fixture(client, mocked_foo):
     assert mocked_foo.calls.call_count == current_foo_call_count + 1
 
 
-@pytest.mark.asyncio
 async def test_mock_multiple_session_fixtures(client, mocked_foo, mocked_ham):
     current_foo_call_count = mocked_foo.calls.call_count
     current_ham_call_count = mocked_ham.calls.call_count
@@ -83,7 +79,6 @@ def test_global_sync_decorator():
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 async def test_global_async_decorator(client):
     @respx.mock
     async def test():
@@ -119,7 +114,6 @@ def test_local_sync_decorator(using):
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("using", ["httpcore", "httpx"])
 async def test_local_async_decorator(client, using):
     @respx.mock(using=using)
@@ -175,7 +169,6 @@ def test_local_decorator_without_reference():
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 async def test_global_contextmanager(client):
     with respx.mock:
         assert respx.calls.call_count == 0
@@ -196,7 +189,6 @@ async def test_global_contextmanager(client):
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 async def test_local_contextmanager(client):
     with respx.mock() as respx_mock:
         assert respx_mock.calls.call_count == 0
@@ -219,7 +211,6 @@ async def test_local_contextmanager(client):
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 async def test_nested_local_contextmanager(client):
     with respx.mock() as respx_mock_1:
         get_request = respx_mock_1.get("https://foo/bar/") % 202
@@ -246,7 +237,6 @@ async def test_nested_local_contextmanager(client):
     assert len(respx.routes) == 0
 
 
-@pytest.mark.asyncio
 async def test_nested_global_contextmanager(client):
     with respx.mock:
         get_request = respx.get("https://foo/bar/") % 202
@@ -271,7 +261,6 @@ async def test_nested_global_contextmanager(client):
     assert len(respx.routes) == 0
 
 
-@pytest.mark.asyncio
 async def test_configured_decorator(client):
     @respx.mock(assert_all_called=False, assert_all_mocked=False)
     async def test(respx_mock):
@@ -298,7 +287,6 @@ async def test_configured_decorator(client):
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 @respx.mock(base_url="https://foo.bar")
 async def test_configured_decorator_with_fixture(respx_mock, client):
     respx_mock.get("/")
@@ -306,7 +294,6 @@ async def test_configured_decorator_with_fixture(respx_mock, client):
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_configured_router_reuse(client):
     router = respx.mock()
     route = router.get("https://foo/bar/") % 404
@@ -340,7 +327,6 @@ async def test_configured_router_reuse(client):
     assert respx.calls.call_count == 0
 
 
-@pytest.mark.asyncio
 async def test_router_return_type_misuse():
     router = respx.mock(assert_all_called=False)
     route = router.get("https://hot.dog/")
@@ -349,7 +335,6 @@ async def test_router_return_type_misuse():
         route.return_value = "not-a-httpx-response"  # type: ignore[assignment]
 
 
-@pytest.mark.asyncio
 @respx.mock(base_url="https://ham.spam/")
 async def test_nested_base_url(respx_mock):
     request = respx_mock.patch("/egg/") % dict(content="yolk")
@@ -388,7 +373,6 @@ def test_leakage(mocked_foo, mocked_ham):
     assert len(Mocker.registry["httpcore"].routers) == 2
 
 
-@pytest.mark.asyncio
 async def test_start_stop(client):
     url = "https://start.stop/"
     request = respx.get(url) % 202
@@ -418,7 +402,6 @@ async def test_start_stop(client):
         respx.stop()  # Cleanup global state on error, to not affect other tests
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "assert_all_called,do_post,raises",
     [
@@ -442,7 +425,6 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
             assert request2.called is do_post
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "assert_all_mocked,raises",
     [(True, pytest.raises(AllMockedAssertionError)), (False, does_not_raise())],
@@ -487,7 +469,6 @@ def test_add_remove_targets():
         assert len(HTTPCoreMocker.targets) == pre_add_count
 
 
-@pytest.mark.asyncio
 async def test_proxies():
     with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
@@ -504,7 +485,6 @@ async def test_proxies():
         assert response.json() == {"foo": "bar"}
 
 
-@pytest.mark.asyncio
 async def test_uds():
     async with respx.mock:
         uds = httpx.AsyncHTTPTransport(uds="/tmp/foobar.sock")
@@ -515,7 +495,6 @@ async def test_uds():
             assert response.status_code == 202
 
 
-@pytest.mark.asyncio
 async def test_mock_using_none():
     @respx.mock(using=None)
     async def test(respx_mock):
@@ -528,7 +507,6 @@ async def test_mock_using_none():
     await test()
 
 
-@pytest.mark.asyncio
 async def test_router_using__none():
     router = respx.MockRouter(using=None)
     router.get("https://example.org/") % 204
@@ -588,7 +566,6 @@ def test_sync_httpx_mocker():
         test()
 
 
-@pytest.mark.asyncio
 async def test_async_httpx_mocker():
     class TestTransport(httpx.AsyncBaseTransport):
         async def handle_async_request(self, *args, **kwargs):
@@ -629,7 +606,6 @@ async def test_async_httpx_mocker():
         await test()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("using", ["httpcore", "httpx"])
 async def test_async_side_effect(client, using):
     async def effect(request, slug):
@@ -646,7 +622,6 @@ async def test_async_side_effect(client, using):
         assert mock_route.called
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("using", ["httpcore", "httpx"])
 async def test_async_side_effect__exception(client, using):
     async def effect(request):
@@ -659,7 +634,6 @@ async def test_async_side_effect__exception(client, using):
         assert mock_route.called
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("using", ["httpcore", "httpx"])
 async def test_async_app_route(client, using):
     from starlette.applications import Starlette
@@ -705,7 +679,6 @@ def test_sync_app_route(using):
         assert response.json() == {"ham": "spam"}
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url,port",
     [
@@ -733,7 +706,6 @@ async def test_httpcore_request(url, port):
             assert body == b"foobar"
 
 
-@pytest.mark.asyncio
 async def test_route_rollback():
     respx_mock = respx.mock()
 

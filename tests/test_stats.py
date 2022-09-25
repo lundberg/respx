@@ -7,7 +7,6 @@ import respx
 from respx.router import MockRouter
 
 
-@pytest.mark.asyncio
 async def test_named_route():
     async with MockRouter(assert_all_called=False) as respx_mock:
         request = respx_mock.get("https://foo.bar/", name="foobar")

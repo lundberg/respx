@@ -36,7 +36,7 @@ def test_bitwise_and():
 
 
 @pytest.mark.parametrize(
-    "method,url,expected",
+    ("method", "url", "expected"),
     [
         ("GET", "https://foo.bar/", True),
         ("GET", "https://foo.bar/baz/", False),
@@ -80,7 +80,7 @@ def test_noop_pattern():
 
 
 @pytest.mark.parametrize(
-    "kwargs,url,expected",
+    ("kwargs", "url", "expected"),
     [
         ({"params__eq": {}}, "https://foo.bar/", True),
         ({"params__eq": {}}, "https://foo.bar/?x=y", False),
@@ -93,7 +93,7 @@ def test_m_pattern(kwargs, url, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,value,expected",
+    ("lookup", "value", "expected"),
     [
         (Lookup.EQUAL, "GET", True),
         (Lookup.EQUAL, "get", True),
@@ -108,7 +108,7 @@ def test_method_pattern(lookup, value, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,headers,request_headers,expected",
+    ("lookup", "headers", "request_headers", "expected"),
     [
         (Lookup.CONTAINS, {"X-Foo": "bar"}, {"x-foo": "bar"}, True),
         (Lookup.CONTAINS, {"content-type": "text/plain"}, "", False),
@@ -126,7 +126,7 @@ def test_headers_pattern_hash():
 
 
 @pytest.mark.parametrize(
-    "lookup,cookies,request_cookies,expected",
+    ("lookup", "cookies", "request_cookies", "expected"),
     [
         (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam", "foo": "bar"}, True),
         (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam"}, False),
@@ -149,7 +149,7 @@ def test_cookies_pattern__hash():
 
 
 @pytest.mark.parametrize(
-    "lookup,scheme,expected",
+    ("lookup", "scheme", "expected"),
     [
         (Lookup.EQUAL, "https", True),
         (Lookup.EQUAL, "HTTPS", True),
@@ -163,7 +163,7 @@ def test_scheme_pattern(lookup, scheme, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,host,expected",
+    ("lookup", "host", "expected"),
     [
         (Lookup.EQUAL, "foo.bar", True),
         (Lookup.EQUAL, "ham.spam", False),
@@ -176,7 +176,7 @@ def test_host_pattern(lookup, host, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,port,url,expected",
+    ("lookup", "port", "url", "expected"),
     [
         (Lookup.EQUAL, 443, "https://foo.bar/", True),
         (Lookup.EQUAL, 80, "https://foo.bar/", False),
@@ -224,7 +224,7 @@ def test_path_pattern():
 
 
 @pytest.mark.parametrize(
-    "lookup,params,url,expected",
+    ("lookup", "params", "url", "expected"),
     [
         (Lookup.CONTAINS, "", "https://foo.bar/", True),
         (Lookup.CONTAINS, "x=1", "https://foo.bar/?x=1", True),
@@ -264,7 +264,7 @@ def test_params_pattern_hash():
 
 
 @pytest.mark.parametrize(
-    "lookup,value,context,url,expected",
+    ("lookup", "value", "context", "url", "expected"),
     [
         (Lookup.REGEX, r"https?://a.b/(?P<c>\w+)/", {"c": "c"}, "http://a.b/c/", True),
         (Lookup.REGEX, re.compile(r"^https://a.b/.+$"), {}, "https://a.b/c/", True),
@@ -297,7 +297,7 @@ def test_url_pattern_hash():
 
 
 @pytest.mark.parametrize(
-    "lookup,content,expected",
+    ("lookup", "content", "expected"),
     [
         (Lookup.EQUAL, b"foobar", True),
         (Lookup.EQUAL, "foobar", True),
@@ -310,7 +310,7 @@ def test_content_pattern(lookup, content, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,data,expected",
+    ("lookup", "data", "expected"),
     [
         (Lookup.EQUAL, {"foo": "bar", "ham": "spam"}, True),
     ],
@@ -322,7 +322,7 @@ def test_data_pattern(lookup, data, expected):
 
 
 @pytest.mark.parametrize(
-    "lookup,value,json,expected",
+    ("lookup", "value", "json", "expected"),
     [
         (
             Lookup.EQUAL,
@@ -349,12 +349,6 @@ def test_data_pattern(lookup, data, expected):
             False,
         ),
         (Lookup.EQUAL, "json-string", "json-string", True),
-        (
-            Lookup.EQUAL,
-            {"foo": "bar", "ham": "spam"},
-            {"ham": "spam", "foo": "bar"},
-            True,
-        ),
     ],
 )
 def test_json_pattern(lookup, value, json, expected):
@@ -364,7 +358,7 @@ def test_json_pattern(lookup, value, json, expected):
 
 
 @pytest.mark.parametrize(
-    "json,path,value,expected",
+    ("json", "path", "value", "expected"),
     [
         ({"foo": {"bar": "baz"}}, "foo__bar", "baz", True),
         ({"x": {"z": 2, "y": 1}}, "x", {"y": 1, "z": 2}, True),

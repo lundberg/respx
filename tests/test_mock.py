@@ -403,7 +403,7 @@ async def test_start_stop(client):
 
 
 @pytest.mark.parametrize(
-    "assert_all_called,do_post,raises",
+    ("assert_all_called", "do_post", "raises"),
     [
         (True, False, pytest.raises(AllCalledAssertionError)),
         (True, True, does_not_raise()),
@@ -426,7 +426,7 @@ async def test_assert_all_called(client, assert_all_called, do_post, raises):
 
 
 @pytest.mark.parametrize(
-    "assert_all_mocked,raises",
+    ("assert_all_mocked", "raises"),
     [(True, pytest.raises(AllMockedAssertionError)), (False, does_not_raise())],
 )
 async def test_assert_all_mocked(client, assert_all_mocked, raises):
@@ -680,7 +680,7 @@ def test_sync_app_route(using):
 
 
 @pytest.mark.parametrize(
-    "url,port",
+    ("url", "port"),
     [
         ("https://foo.bar/", None),
         ("https://foo.bar:443/", 443),

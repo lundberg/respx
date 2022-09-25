@@ -10,7 +10,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.mark.parametrize(
-    "using,client_lib,call_count",
+    ("using", "client_lib", "call_count"),
     [
         ("httpcore", "httpx", 2),  # TODO: AsyncConnectionPool + AsyncHTTPConnection
         ("httpx", "httpx", 1),

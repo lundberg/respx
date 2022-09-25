@@ -73,7 +73,7 @@ async def test_http_methods(client):
 
 
 @pytest.mark.parametrize(
-    "url,pattern",
+    ("url", "pattern"),
     [
         ("https://foo.bar", "https://foo.bar"),
         ("https://foo.bar/baz/", None),
@@ -134,7 +134,7 @@ async def test_status_code(client):
 
 
 @pytest.mark.parametrize(
-    "headers,content_type,expected",
+    ("headers", "content_type", "expected"),
     [
         ({"X-Foo": "bar"}, None, {"X-Foo": "bar"}),
         (
@@ -161,7 +161,7 @@ async def test_headers(client, headers, content_type, expected):
 
 
 @pytest.mark.parametrize(
-    "content,expected",
+    ("content", "expected"),
     [
         (b"eldr\xc3\xa4v", "eldräv"),
         ("äpple", "äpple"),
@@ -178,7 +178,7 @@ async def test_text_encoding(client, content, expected):
 
 
 @pytest.mark.parametrize(
-    "key,value,expected_content_type",
+    ("key", "value", "expected_content_type"),
     [
         ("content", b"foobar", None),
         ("content", "foobar", None),
@@ -186,7 +186,6 @@ async def test_text_encoding(client, content, expected):
         ("json", {"foo": "bar"}, "application/json"),
         ("text", "foobar", "text/plain; charset=utf-8"),
         ("html", "<strong>foobar</strong>", "text/html; charset=utf-8"),
-        ("json", {"foo": "bar"}, "application/json"),
     ],
 )
 async def test_content_variants(client, key, value, expected_content_type):
@@ -207,7 +206,7 @@ async def test_content_variants(client, key, value, expected_content_type):
 
 
 @pytest.mark.parametrize(
-    "content,headers,expected_headers",
+    ("content", "headers", "expected_headers"),
     [
         (
             {"foo": "bar"},
@@ -345,23 +344,24 @@ async def test_request_callback(client):
         )
         assert response.text == "hello lundberg"
 
+        respx_mock.get("https://ham.spam/").mock(
+            side_effect=lambda req: "invalid"  # type: ignore[arg-type,return-value]
+        )
+
+        def _callback(request):
+            raise httpcore.NetworkError()
+
+        respx_mock.get("https://egg.plant").mock(side_effect=_callback)
+
         with pytest.raises(TypeError):
-            respx_mock.get("https://ham.spam/").mock(
-                side_effect=lambda req: "invalid"  # type: ignore[arg-type,return-value]
-            )
             await client.get("https://ham.spam/")
 
         with pytest.raises(httpx.NetworkError):
-
-            def _callback(request):
-                raise httpcore.NetworkError()
-
-            respx_mock.get("https://egg.plant").mock(side_effect=_callback)
             await client.get("https://egg.plant/")
 
 
 @pytest.mark.parametrize(
-    "using,route,expected",
+    ("using", "route", "expected"),
     [
         ("httpcore", Route(url="https://example.org/").pass_through(), True),
         ("httpx", Route(url="https://example.org/").pass_through(), True),
@@ -417,7 +417,7 @@ async def test_parallel_requests(client):
 
 
 @pytest.mark.parametrize(
-    "method_str, client_method_attr",
+    ("method_str", "client_method_attr"),
     [
         ("DELETE", "delete"),
         ("delete", "delete"),
@@ -459,7 +459,7 @@ def test_pop():
 
 @respx.mock
 @pytest.mark.parametrize(
-    "url,params,call_url,call_params",
+    ("url", "params", "call_url", "call_params"),
     [
         ("https://foo/", "foo=bar", "https://foo/", "foo=bar"),
         ("https://foo/", b"foo=bar", "https://foo/", b"foo=bar"),
@@ -485,7 +485,7 @@ async def test_params_match(client, url, params, call_url, call_params):
 
 
 @pytest.mark.parametrize(
-    "base,url",
+    ("base", "url"),
     [
         (None, "https://foo.bar/baz/"),
         ("", "https://foo.bar/baz/"),
@@ -515,7 +515,7 @@ def test_add():
         with pytest.raises(TypeError):
             respx.add(route, status_code=418)  # type: ignore[call-arg]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid route"):
             respx.add("GET")  # type: ignore[arg-type]
 
         with pytest.raises(NotImplementedError):

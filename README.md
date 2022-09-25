@@ -7,19 +7,28 @@
 
 ---
 
-[![tests](https://img.shields.io/github/workflow/status/lundberg/respx/test?label=tests&logo=github&logoColor=white&style=for-the-badge)](https://github.com/lundberg/respx/actions/workflows/test.yml) [![codecov](https://img.shields.io/codecov/c/github/lundberg/respx?logo=codecov&logoColor=white&style=for-the-badge)](https://codecov.io/gh/lundberg/respx) [![PyPi Version](https://img.shields.io/pypi/v/respx?logo=pypi&logoColor=white&style=for-the-badge)](https://pypi.org/project/respx/) [![Python Versions](https://img.shields.io/pypi/pyversions/respx?logo=python&logoColor=white&style=for-the-badge)](https://pypi.org/project/respx/)
+[![tests](https://img.shields.io/github/workflow/status/lundberg/respx/test?label=tests&logo=github&logoColor=white&style=for-the-badge)](https://github.com/lundberg/respx/actions/workflows/test.yml)
+[![codecov](https://img.shields.io/codecov/c/github/lundberg/respx?logo=codecov&logoColor=white&style=for-the-badge)](https://codecov.io/gh/lundberg/respx)
+[![PyPi Version](https://img.shields.io/pypi/v/respx?logo=pypi&logoColor=white&style=for-the-badge)](https://pypi.org/project/respx/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/respx?logo=python&logoColor=white&style=for-the-badge)](https://pypi.org/project/respx/)
 
 ## Documentation
 
-Full documentation is available at [lundberg.github.io/respx](https://lundberg.github.io/respx/)
+Full documentation is available at
+[lundberg.github.io/respx](https://lundberg.github.io/respx/)
 
 ## QuickStart
 
-RESPX is a simple, *yet powerful*, utility for mocking out the [HTTPX](https://www.python-httpx.org/), *and [HTTP Core](https://www.encode.io/httpcore/)*, libraries.
+RESPX is a simple, _yet powerful_, utility for mocking out the
+[HTTPX](https://www.python-httpx.org/), _and
+[HTTP Core](https://www.encode.io/httpcore/)_, libraries.
 
-Start by [patching](https://lundberg.github.io/respx/guide/#mock-httpx) `HTTPX`, using `respx.mock`, then add request [routes](https://lundberg.github.io/respx/guide/#routing-requests) to mock [responses](https://lundberg.github.io/respx/guide/#mocking-responses).
+Start by [patching](https://lundberg.github.io/respx/guide/#mock-httpx) `HTTPX`, using
+`respx.mock`, then add request
+[routes](https://lundberg.github.io/respx/guide/#routing-requests) to mock
+[responses](https://lundberg.github.io/respx/guide/#mocking-responses).
 
-``` python
+```python
 import httpx
 import respx
 
@@ -34,14 +43,16 @@ def test_example():
     assert response.status_code == 204
 ```
 
-> Read the [User Guide](https://lundberg.github.io/respx/guide/) for a complete walk-through.
-
+> Read the [User Guide](https://lundberg.github.io/respx/guide/) for a complete
+> walk-through.
 
 ### pytest + httpx
 
-For a neater `pytest` experience, RESPX includes a `respx_mock` *fixture* for easy `HTTPX` mocking, along with an optional `respx` *marker* to fine-tune the mock [settings](https://lundberg.github.io/respx/api/#configuration).
+For a neater `pytest` experience, RESPX includes a `respx_mock` _fixture_ for easy
+`HTTPX` mocking, along with an optional `respx` _marker_ to fine-tune the mock
+[settings](https://lundberg.github.io/respx/api/#configuration).
 
-``` python
+```python
 import httpx
 import pytest
 
@@ -59,14 +70,14 @@ def test_with_marker(respx_mock):
     assert response.status_code == 204
 ```
 
-
 ## Installation
 
 Install with pip:
 
-``` console
+```console
 $ pip install respx
 ```
 
-Requires Python 3.7+ and HTTPX 0.21+.
-See [Changelog](https://github.com/lundberg/respx/blob/master/CHANGELOG.md) for older HTTPX compatibility.
+Requires Python 3.7+ and HTTPX 0.21+. See
+[Changelog](https://github.com/lundberg/respx/blob/master/CHANGELOG.md) for older HTTPX
+compatibility.

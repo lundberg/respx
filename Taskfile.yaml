@@ -1,0 +1,64 @@
+version: "3"
+
+tasks:
+  default:
+    cmds: [task: all]
+
+  all:
+    desc: Run test suite, mypy & linting
+    label: all -- [nox options]
+    silent: true
+    deps: [tools]
+    cmds:
+      - .venv/bin/nox -k "test + mypy" {{.CLI_ARGS | default "-R"}}
+      - task: lint
+
+  test:
+    desc: Run single test suite
+    label: test -- [pytest options]
+    silent: true
+    deps: [tools]
+    cmds: [".venv/bin/nox -R -s test-3.10 -- {{.CLI_ARGS}}"]
+
+  mypy:
+    desc: Statically type check python files
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/nox -R -s mypy]
+
+  lint:
+    desc: Lint project files
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/pre-commit run --all-files]
+
+  docs:
+    desc: Start docs server, in watch mode
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/nox -R -s docs -- serve]
+
+  reset:
+    desc: Delete environment and artifacts
+    silent: true
+    cmds:
+      - echo Deleting environment and artifacts ...
+      - rm -rf \
+          .venv .nox .mypy_cache .pytest_cache respx.egg-info .coverage coverage.xml
+
+  tools:
+    internal: true
+    silent: true
+    run: once
+    deps: [venv]
+    cmds: [.venv/bin/python -m pip install nox pre-commit]
+    status:
+      - test -f .venv/bin/nox
+      - test -f .venv/bin/pre-commit
+
+  venv:
+    internal: true
+    silent: true
+    run: once
+    cmds: [python -m venv --copies --upgrade-deps .venv > /dev/null]
+    status: [test -d .venv]

@@ -57,7 +57,7 @@ async def test_transport_assertions():
         transport = MockTransport(router=router)
         assert len(w) == 1
 
-    with pytest.raises(AllCalledAssertionError):
+    with pytest.raises(AllCalledAssertionError, match="not called"):  # noqa [PT012]
         async with httpx.AsyncClient(transport=transport) as client:
             response = await client.get(url)
             assert response.status_code == 404

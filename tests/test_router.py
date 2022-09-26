@@ -38,7 +38,7 @@ async def test_empty_router__auto_mocked():
 
 
 @pytest.mark.parametrize(
-    "args,kwargs,expected",
+    ("args", "kwargs", "expected"),
     [
         ((Method("GET"), Host("foo.bar")), dict(), True),
         (tuple(), dict(method="GET", host="foo.bar"), True),
@@ -90,7 +90,7 @@ def test_pass_through():
 
 
 @pytest.mark.parametrize(
-    "url,lookups,expected",
+    ("url", "lookups", "expected"),
     [
         ("https://foo.bar/api/baz/", {"url": "/baz/"}, True),
         ("https://foo.bar/api/baz/", {"path__regex": r"^/(?P<slug>\w+)/$"}, True),
@@ -116,7 +116,7 @@ def test_base_url(url, lookups, expected):
 
 
 @pytest.mark.parametrize(
-    "lookups,url,expected",
+    ("lookups", "url", "expected"),
     [
         ({"url": "//foo.bar/baz/"}, "https://foo.bar/baz/", True),
         ({"url": "all"}, "https://foo.bar/baz/", True),
@@ -266,8 +266,8 @@ def test_side_effect_list():
     assert response.status_code == 201
     assert response.request == request
 
+    request = httpx.Request("GET", "https://foo.bar")
     with pytest.raises(StopIteration):
-        request = httpx.Request("GET", "https://foo.bar")
         router.handler(request)
 
     route.side_effect = None

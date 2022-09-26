@@ -1,12 +1,10 @@
 name: test
 
 on:
-  pull_request:
-    branches:
-      - master
   push:
     branches:
       - master
+  pull_request:
 
 env:
   FORCE_COLOR: 1
@@ -15,51 +13,52 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: lint
     strategy:
-      max-parallel: 5
+      max-parallel: 4
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Pip cache
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip
-        restore-keys: |
-          ${{ runner.os }}-pip
+    - run: pip install nox
     - name: Test
-      run: |
-        pip install --upgrade nox
-        nox -s test-${{ matrix.python-version }}
-    - name: Upload report
-      uses: codecov/codecov-action@v1
+      run: nox -N -s test-${{ matrix.python-version }} -- -v
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v3
       with:
-        token: ${{secrets.CODECOV_TOKEN}}
         name: Python ${{ matrix.python-version }}
+        files: ./coverage.xml
+        fail_ci_if_error: true
 
   lint:
     name: Check Linting
+    uses: less-action/reusables/.github/workflows/pre-commit.yaml@v6
+    with:
+      python-version: "3.10"
+
+  check-types:
+    name: Check Typing
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.7
-    - name: Pip cache
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip
-        restore-keys: |
-          ${{ runner.os }}-pip
-    - name: Lint
-      run: |
-        pip install --upgrade nox
-        nox -k "check + docs"
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.7"
+      - run: pip install nox
+      - name: Run mypy
+        run: nox -N -s mypy
+
+  check-docs:
+    name: Check Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: pip install nox
+      - name: Run mypy
+        run: nox -N -s docs

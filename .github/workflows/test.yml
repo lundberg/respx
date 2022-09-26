@@ -14,7 +14,7 @@ jobs:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 2
+      max-parallel: 4
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
@@ -29,6 +29,7 @@ jobs:
     - name: Upload coverage report
       uses: codecov/codecov-action@v3
       with:
+        name: Python ${{ matrix.python-version }}
         files: ./coverage.xml
         fail_ci_if_error: true
 

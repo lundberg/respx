@@ -11,24 +11,14 @@ jobs:
   build:
     name: Build & Publish
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.7
-    - name: Pip cache
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip
-        restore-keys: |
-          ${{ runner.os }}-pip
+        python-version: "3.10"
+    - run: pip install nox
     - name: Build
-      run: |
-        pip install --upgrade nox
-        nox -s docs
+      run: nox -N -s docs
     - name: Publish
       if: github.repository_owner == 'lundberg'
       run: |

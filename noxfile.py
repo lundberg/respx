@@ -2,11 +2,7 @@ import nox
 
 nox.options.stop_on_first_error = True
 nox.options.reuse_existing_virtualenvs = True
-nox.options.keywords = "test + check"
-
-source_files = ("respx", "tests", "setup.py", "noxfile.py")
-lint_requirements = ("flake8", "black", "isort")
-docs_requirements = ("mkdocs", "mkdocs-material", "mkautodoc>=0.1.0")
+nox.options.keywords = "test + mypy"
 
 
 @nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11"])
@@ -15,47 +11,23 @@ def test(session):
     session.install("--upgrade", *deps)
     session.install("-e", ".")
 
-    options = session.posargs
-    if "-k" in options or "-x" in options:
-        options.append("--no-cov")
+    if any(option in session.posargs for option in ("-k", "-x")):
+        session.posargs.append("--no-cov")
 
-    session.run("pytest", "-v", *options)
+    session.run("pytest", *session.posargs)
 
 
 @nox.session(python="3.7")
-def check(session):
-    session.install("--upgrade", "flake8-bugbear", "mypy", *lint_requirements)
+def mypy(session):
+    session.install("--upgrade", "mypy")
     session.install("-e", ".")
-
-    session.run("black", "--check", "--diff", "--target-version=py37", *source_files)
-    session.run("isort", "--check", "--diff", "--project=respx", *source_files)
-    session.run("flake8", *source_files)
     session.run("mypy")
 
 
-@nox.session
-def lint(session):
-    session.install("--upgrade", "autoflake", *lint_requirements)
-
-    session.run("autoflake", "--in-place", "--recursive", *source_files)
-    session.run("isort", "--project=respx", *source_files)
-    session.run("black", "--target-version=py37", *source_files)
-
-    session.notify("check")
-
-
-@nox.session
+@nox.session(python="3.10")
 def docs(session):
-    session.install("--upgrade", *docs_requirements)
+    deps = ["mkdocs", "mkdocs-material", "mkautodoc>=0.1.0"]
+    session.install("--upgrade", *deps)
     session.install("-e", ".")
-
     args = session.posargs if session.posargs else ["build"]
     session.run("mkdocs", *args)
-
-
-@nox.session(reuse_venv=True)
-def watch(session):
-    session.install("--upgrade", *docs_requirements)
-    session.install("-e", ".")
-
-    session.run("mkdocs", "serve")

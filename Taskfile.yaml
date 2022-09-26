@@ -1,0 +1,51 @@
+version: "3"
+
+tasks:
+  default:
+    silent: true
+    deps: [tools]
+    cmds:
+      - .venv/bin/nox -k "test + mypy"
+      - task: lint
+
+  test:
+    desc: Run single test suite
+    label: test -- [options]
+    silent: true
+    deps: [tools]
+    cmds: [".venv/bin/nox -R -s test-3.10 -- {{.CLI_ARGS}}"]
+
+  mypy:
+    desc: Statically type check python files
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/nox -R -s mypy]
+
+  lint:
+    desc: Lint project files
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/pre-commit run --all-files]
+
+  docs:
+    desc: Start docs server, in watch mode
+    silent: true
+    deps: [tools]
+    cmds: [.venv/bin/nox -R -s docs -- serve]
+
+  tools:
+    internal: true
+    silent: true
+    run: once
+    deps: [venv]
+    cmds: [.venv/bin/python -m pip install nox pre-commit]
+    status:
+      - test -f .venv/bin/nox
+      - test -f .venv/bin/pre-commit
+
+  venv:
+    internal: true
+    silent: true
+    run: once
+    cmds: [python -m venv --copies --upgrade-deps .venv > /dev/null]
+    status: [test -d .venv]

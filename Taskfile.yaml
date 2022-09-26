@@ -2,15 +2,20 @@ version: "3"
 
 tasks:
   default:
+    cmds: [task: all]
+
+  all:
+    desc: Run test suite, mypy & linting
+    label: all -- [nox options]
     silent: true
     deps: [tools]
     cmds:
-      - .venv/bin/nox -k "test + mypy"
+      - .venv/bin/nox -k "test + mypy" {{.CLI_ARGS | default "-R"}}
       - task: lint
 
   test:
     desc: Run single test suite
-    label: test -- [options]
+    label: test -- [pytest options]
     silent: true
     deps: [tools]
     cmds: [".venv/bin/nox -R -s test-3.10 -- {{.CLI_ARGS}}"]
@@ -32,6 +37,14 @@ tasks:
     silent: true
     deps: [tools]
     cmds: [.venv/bin/nox -R -s docs -- serve]
+
+  reset:
+    desc: Delete environment and artifacts
+    silent: true
+    cmds:
+      - echo Deleting environment and artifacts ...
+      - rm -rf \
+          .venv .nox .mypy_cache .pytest_cache respx.egg-info .coverage coverage.xml
 
   tools:
     internal: true

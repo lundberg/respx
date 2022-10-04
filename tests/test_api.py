@@ -345,7 +345,7 @@ async def test_request_callback(client):
         assert response.text == "hello lundberg"
 
         respx_mock.get("https://ham.spam/").mock(
-            side_effect=lambda req: "invalid"  # type: ignore[arg-type,return-value]
+            side_effect=lambda req: "invalid"  # type: ignore[arg-type]
         )
 
         def _callback(request):

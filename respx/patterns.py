@@ -25,7 +25,13 @@ from urllib.parse import urljoin
 
 import httpx
 
-from .types import CookieTypes, HeaderTypes, QueryParamTypes, URLPatternTypes
+from .types import (
+    URL as RawURL,
+    CookieTypes,
+    HeaderTypes,
+    QueryParamTypes,
+    URLPatternTypes,
+)
 
 
 class Lookup(Enum):
@@ -448,7 +454,7 @@ class URL(Pattern):
     def clean(self, value: URLPatternTypes) -> Union[str, RegexPattern[str]]:
         url: Union[str, RegexPattern[str]]
         if self.lookup is Lookup.EQUAL and isinstance(value, (str, tuple, httpx.URL)):
-            _url = httpx.URL(value)
+            _url = parse_url(value)
             _url = self._ensure_path(_url)
             url = str(_url)
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
@@ -586,6 +592,28 @@ def combine(patterns: Sequence[Pattern], op: Callable = operator.and_) -> Patter
     return reduce(op, patterns)
 
 
+def parse_url(value: Union[httpx.URL, str, RawURL]) -> httpx.URL:
+    url: Union[httpx.URL, str]
+
+    if isinstance(value, tuple):
+        # Handle "raw" httpcore urls. Borrowed from HTTPX prior to #2241
+        raw_scheme, raw_host, port, raw_path = value
+        scheme = raw_scheme.decode("ascii")
+        host = raw_host.decode("ascii")
+        if host and ":" in host and host[0] != "[":
+            # it's an IPv6 address, so it should be enclosed in "[" and "]"
+            # ref: https://tools.ietf.org/html/rfc2732#section-2
+            # ref: https://tools.ietf.org/html/rfc3986#section-3.2.2
+            host = f"[{host}]"
+        port_str = "" if port is None else f":{port}"
+        path = raw_path.decode("ascii")
+        url = f"{scheme}://{host}{port_str}{path}"
+    else:
+        url = value
+
+    return httpx.URL(url)
+
+
 def parse_url_patterns(
     url: Optional[URLPatternTypes], exact: bool = True
 ) -> Dict[str, Pattern]:
@@ -596,7 +624,7 @@ def parse_url_patterns(
     if isinstance(url, RegexPattern):
         return {"url": URL(url, lookup=Lookup.REGEX)}
 
-    url = httpx.URL(url)
+    url = parse_url(url)
     scheme_port = get_scheme_port(url.scheme)
 
     if url.scheme and url.scheme != "all":

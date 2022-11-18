@@ -228,7 +228,8 @@ def test_path_pattern():
     [
         (Lookup.CONTAINS, "", "https://foo.bar/", True),
         (Lookup.CONTAINS, "x=1", "https://foo.bar/?x=1", True),
-        (Lookup.CONTAINS, "x=", "https://foo.bar/?x=1", True),  # query, not params
+        (Lookup.CONTAINS, "x=", "https://foo.bar/?x=1", False),  # False by httpx #2354
+        (Lookup.CONTAINS, "x=", "https://foo.bar/?x=", True),
         (Lookup.CONTAINS, "y=2", "https://foo.bar/?x=1", False),
         (Lookup.CONTAINS, [("x", "1")], "https://foo.bar/?x=1", True),
         (Lookup.CONTAINS, {"x": "1"}, "https://foo.bar/?x=1", True),
@@ -239,6 +240,8 @@ def test_path_pattern():
         (Lookup.CONTAINS, [("x", ANY), ("x", "2")], "https://foo.bar/?x=2&x=3", False),
         (Lookup.CONTAINS, "x=1&y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, "", "https://foo.bar/", True),
+        (Lookup.EQUAL, "x", "https://foo.bar/?x", True),
+        (Lookup.EQUAL, "x=", "https://foo.bar/?x=", True),
         (Lookup.EQUAL, "x=1", "https://foo.bar/?x=1", True),
         (Lookup.EQUAL, "y=2", "https://foo.bar/?x=1", False),
         (Lookup.EQUAL, {"x": ANY}, "https://foo.bar/?x=1", True),
@@ -275,6 +278,13 @@ def test_params_pattern_hash():
         (Lookup.EQUAL, "https://a.b/?x=y", {}, "https://a.b?x=y", True),
         (Lookup.STARTS_WITH, "https://a.b/b", {}, "https://a.b/baz/", True),
         (Lookup.STARTS_WITH, "http://a.b/baz/", {}, "https://a.b/baz/", False),
+        (
+            Lookup.EQUAL,
+            (b"https", b"fake:ipv6", None, b""),
+            {},
+            "https://[fake:ipv6]",
+            True,
+        ),
     ],
 )
 def test_url_pattern(lookup, value, context, url, expected):

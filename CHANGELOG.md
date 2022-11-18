@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.1] - 2022-11-18
+
+### Fixed
+
+- Support HTTPX 0.23.1, thanks @g-as for input (#223)
+
+## Added
+
+- Officially support Python 3.11 (#223)
+- Run pre-commit hooks in CI workflow (#219)
+
+### Changed
+
+- Bump autoflake, thanks @antonagestam (#220)
+
+### Removed
+
+- Drop support for Python 3.6 (#218)
+
 ## [0.20.0] - 2022-09-16
 
 ### Changed

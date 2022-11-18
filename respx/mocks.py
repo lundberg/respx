@@ -7,6 +7,8 @@ from unittest import mock
 import httpcore
 import httpx
 
+from respx.patterns import parse_url
+
 from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
 
@@ -303,7 +305,7 @@ class HTTPCoreMocker(AbstractRequestMocker):
         )
         return httpx.Request(
             request.method,
-            raw_url,
+            parse_url(raw_url),
             headers=request.headers,
             stream=request.stream,
             extensions=request.extensions,

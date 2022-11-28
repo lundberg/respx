@@ -7,7 +7,7 @@ import pytest
 import respx
 from respx import ASGIHandler, WSGIHandler
 from respx.mocks import Mocker
-from respx.models import AllCalledAssertionError, AllMockedAssertionError
+from respx.models import AllMockedAssertionError
 from respx.router import MockRouter
 
 
@@ -405,7 +405,11 @@ async def test_start_stop(client):
 @pytest.mark.parametrize(
     ("assert_all_called", "do_post", "raises"),
     [
-        (True, False, pytest.raises(AllCalledAssertionError)),
+        (
+            True,
+            False,
+            pytest.raises(AssertionError, match="some routes were not called"),
+        ),
         (True, True, does_not_raise()),
         (False, True, does_not_raise()),
         (False, False, does_not_raise()),

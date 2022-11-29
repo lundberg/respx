@@ -510,10 +510,6 @@ class AllMockedAssertionError(AssertionError):
     pass
 
 
-class AllCalledAssertionError(AssertionError):
-    pass
-
-
 class SideEffectError(Exception):
     def __init__(self, route: Route, origin: Exception) -> None:
         self.route = route

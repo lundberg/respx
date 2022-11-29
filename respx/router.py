@@ -21,7 +21,6 @@ import httpx
 
 from .mocks import Mocker
 from .models import (
-    AllCalledAssertionError,
     AllMockedAssertionError,
     CallList,
     PassThrough,
@@ -99,8 +98,8 @@ class Router:
             route.reset()
 
     def assert_all_called(self) -> None:
-        if any(not route.called for route in self.routes):
-            raise AllCalledAssertionError("RESPX: some routes were not called!")
+        not_called_routes = [route for route in self.routes if not route.called]
+        assert not_called_routes == [], "RESPX: some routes were not called!"
 
     def __getitem__(self, name: str) -> Route:
         return self.routes[name]

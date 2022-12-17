@@ -10,7 +10,7 @@ RESPX
 
 Mock [HTTPX](https://www.python-httpx.org/) with awesome request patterns and response side effects.
 
-[![tests](https://img.shields.io/github/workflow/status/lundberg/respx/test?label=tests&logo=github&logoColor=white&style=flat-square)](https://github.com/lundberg/respx/actions/workflows/test.yml) [![codecov](https://img.shields.io/codecov/c/github/lundberg/respx?logo=codecov&logoColor=white&style=flat-square)](https://codecov.io/gh/lundberg/respx) [![PyPi Version](https://img.shields.io/pypi/v/respx?logo=pypi&logoColor=white&style=flat-square)](https://pypi.org/project/respx/) [![Python Versions](https://img.shields.io/pypi/pyversions/respx?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/respx/)
+[![tests](https://img.shields.io/github/actions/workflow/status/lundberg/respx/test.yml?branch=master&label=tests&logo=github&logoColor=white&style=flat-square)](https://github.com/lundberg/respx/actions/workflows/test.yml) [![codecov](https://img.shields.io/codecov/c/github/lundberg/respx?logo=codecov&logoColor=white&style=flat-square)](https://codecov.io/gh/lundberg/respx) [![PyPi Version](https://img.shields.io/pypi/v/respx?logo=pypi&logoColor=white&style=flat-square)](https://pypi.org/project/respx/) [![Python Versions](https://img.shields.io/pypi/pyversions/respx?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/respx/)
 
 
 ## QuickStart

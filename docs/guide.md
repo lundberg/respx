@@ -672,7 +672,13 @@ request, response = respx.calls[-2]  # by call order
 
 ``` python
 last_request = respx.calls.last.request
-assert respx.calls.last.response.status_code == 200
+assert json.loads(last_request.content) == {
+    'name': 'Brian Johnson',
+    'email': 'bri.jo@example.com',
+}
+
+last_response = respx.calls.last.response
+assert response.status_code == 200
 ```
 
 ### Local route calls

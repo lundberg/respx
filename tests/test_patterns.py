@@ -280,9 +280,9 @@ def test_params_pattern_hash():
         (Lookup.STARTS_WITH, "http://a.b/baz/", {}, "https://a.b/baz/", False),
         (
             Lookup.EQUAL,
-            (b"https", b"fake:ipv6", None, b""),
+            (b"https", b"FE80::1", None, b""),
             {},
-            "https://[fake:ipv6]",
+            "https://[FE80::1]",
             True,
         ),
     ],

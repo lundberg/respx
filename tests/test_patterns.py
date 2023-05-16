@@ -450,7 +450,7 @@ def test_merge_patterns():
     pattern = Method("GET") & Path("/spam/")
     base = Path("/ham/", Lookup.STARTS_WITH)
     merged_pattern = merge_patterns(pattern, path=base)
-    assert any([p.base == base for p in iter(merged_pattern)])
+    assert any(tuple(p.base == base for p in iter(merged_pattern)))
 
 
 def test_unique_pattern_key():

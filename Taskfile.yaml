@@ -14,11 +14,11 @@ tasks:
       - task: lint
 
   test:
-    desc: Run single test suite
+    desc: Run test suite against latest python
     label: test -- [pytest options]
     silent: true
     deps: [tools]
-    cmds: [".venv/bin/nox -R -s test-3.10 -- {{.CLI_ARGS}}"]
+    cmds: [".venv/bin/nox -R -s test-3.11 -- {{.CLI_ARGS}}"]
 
   mypy:
     desc: Statically type check python files

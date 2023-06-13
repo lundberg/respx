@@ -301,10 +301,11 @@ respx.get("all://*.example.org/foo/")
 ### Content
 Matches request raw *content*, using [eq](#eq) as default lookup.
 > Key: `content`  
-> Lookups: [eq](#eq)
+> Lookups: [eq](#eq), [contains](#contains)
 ``` python
 respx.post("https://example.org/", content="foobar")
 respx.post("https://example.org/", content=b"foobar")
+respx.post("https://example.org/", content__contains="bar")
 ```
 
 ### Data

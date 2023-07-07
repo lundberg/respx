@@ -280,9 +280,9 @@ def test_params_pattern_hash():
         (Lookup.STARTS_WITH, "http://a.b/baz/", {}, "https://a.b/baz/", False),
         (
             Lookup.EQUAL,
-            (b"https", b"fake:ipv6", None, b""),
+            (b"https", b"FE80::1", None, b""),
             {},
-            "https://[fake:ipv6]",
+            "https://[FE80::1]",
             True,
         ),
     ],
@@ -450,7 +450,7 @@ def test_merge_patterns():
     pattern = Method("GET") & Path("/spam/")
     base = Path("/ham/", Lookup.STARTS_WITH)
     merged_pattern = merge_patterns(pattern, path=base)
-    assert any([p.base == base for p in iter(merged_pattern)])
+    assert any(tuple(p.base == base for p in iter(merged_pattern)))
 
 
 def test_unique_pattern_key():

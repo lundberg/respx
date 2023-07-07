@@ -2,8 +2,8 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
+    Coroutine,
     List,
     Optional,
     Type,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
 
 RequestHandler = Callable[[httpx.Request], httpx.Response]
-AsyncRequestHandler = Callable[[httpx.Request], Awaitable[httpx.Response]]
+AsyncRequestHandler = Callable[[httpx.Request], Coroutine[None, None, httpx.Response]]
 
 
 class MockTransport(httpx.MockTransport):

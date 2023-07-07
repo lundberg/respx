@@ -102,12 +102,13 @@ class MockResponse(httpx.Response):
 
         if content is not None:
             kwargs["content"] = content
+        if http_version:
+            kwargs["extensions"] = kwargs.get("extensions", {})
+            kwargs["extensions"]["http_version"] = http_version.encode("ascii")
         super().__init__(status_code or 200, **kwargs)
 
         if content_type:
             self.headers["Content-Type"] = content_type
-        if http_version:
-            self.extensions["http_version"] = http_version.encode("ascii")
 
 
 class Route:

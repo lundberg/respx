@@ -675,7 +675,7 @@ last_request = respx.calls.last.request
 assert json.loads(last_request.content) == {"foo": "bar"}
 
 last_response = respx.calls.last.response
-assert response.status_code == 200
+assert last_response.status_code == 200
 ```
 
 ### Local route calls

@@ -672,10 +672,7 @@ request, response = respx.calls[-2]  # by call order
 
 ``` python
 last_request = respx.calls.last.request
-assert json.loads(last_request.content) == {
-    'name': 'Brian Johnson',
-    'email': 'bri.jo@example.com',
-}
+assert json.loads(last_request.content) == {"foo": "bar"}
 
 last_response = respx.calls.last.response
 assert response.status_code == 200

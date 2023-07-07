@@ -311,6 +311,9 @@ def test_url_pattern_hash():
     [
         (Lookup.EQUAL, b"foobar", True),
         (Lookup.EQUAL, "foobar", True),
+        (Lookup.CONTAINS, b"bar", True),
+        (Lookup.CONTAINS, "bar", True),
+        (Lookup.CONTAINS, "baz", False),
     ],
 )
 def test_content_pattern(lookup, content, expected):

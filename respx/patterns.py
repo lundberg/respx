@@ -483,7 +483,7 @@ class ContentMixin:
 
 
 class Content(ContentMixin, Pattern):
-    lookups = (Lookup.EQUAL,)
+    lookups = (Lookup.EQUAL, Lookup.CONTAINS)
     key = "content"
     value: bytes
 
@@ -491,6 +491,9 @@ class Content(ContentMixin, Pattern):
         if isinstance(value, str):
             return value.encode()
         return value
+
+    def _contains(self, value: Union[bytes, str]) -> Match:
+        return Match(self.value in value)
 
 
 class JSON(ContentMixin, PathPattern):

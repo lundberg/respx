@@ -5,13 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.2] - 2023-07-21
+
+### Fixed
+
+- Better assertion output for `assert_all_called`, thanks @sileht (#224)
+- Support for quoted path pattern matching, thanks @alexdrydew for input (#240)
+
+### Added
+
+- Enable content\_\_contains pattern, thanks @rjprins (#236)
+- Added initial `CONTRIBUTING.md`, thanks @morenoh149 (#238)
+
+### Changed
+
+- Docs about retrieving mocked calls, thanks @tomhamiltonstubber (#230)
+- Docs about `Router.assert_all_called()`, thanks @BeyondEvil for input (#241)
+
 ## [0.20.1] - 2022-11-18
 
 ### Fixed
 
 - Support HTTPX 0.23.1, thanks @g-as for input (#223)
 
-## Added
+### Added
 
 - Officially support Python 3.11 (#223)
 - Run pre-commit hooks in CI workflow (#219)

@@ -413,7 +413,16 @@ class Path(Pattern):
         self, value: Union[str, RegexPattern[str]]
     ) -> Union[str, RegexPattern[str]]:
         if self.lookup in (Lookup.EQUAL, Lookup.STARTS_WITH) and isinstance(value, str):
-            path = urljoin("/", value)  # Ensure leading slash
+            # Percent encode path, i.e. revert parsed path by httpx.URL.
+            # Borrowed from HTTPX's "private" quote and percent_encode utilities.
+            path = "".join(
+                char
+                if char
+                in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/"
+                else "".join(f"%{byte:02x}" for byte in char.encode("utf-8")).upper()
+                for char in value
+            )
+            path = urljoin("/", path)  # Ensure leading slash
             value = httpx.URL(path).path
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
             value = re.compile(value)

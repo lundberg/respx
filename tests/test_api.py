@@ -82,6 +82,7 @@ async def test_http_methods(client):
         ("https://foo.bar/baz/", re.compile(r"^https://foo.bar/\w+/$")),
         ("https://foo.bar/baz/", (b"https", b"foo.bar", None, b"/baz/")),
         ("https://foo.bar:443/baz/", (b"https", b"foo.bar", 443, b"/baz/")),
+        ("https://foo.bar/%08", "https://foo.bar/%08"),
     ],
 )
 async def test_url_match(client, url, pattern):

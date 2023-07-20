@@ -1,4 +1,4 @@
-# Contributing to REXPX
+# Contributing to RESPX
 
 As an open source project, RESPX welcomes contributions of many forms.
 

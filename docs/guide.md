@@ -623,7 +623,6 @@ If you don't *need* to patch `HTTPX`, use `httpx.MockTransport` with a REPX rout
 ``` python
 import httpx
 import respx
-from respx.transports import MockTransport
 
 
 router = respx.Router()
@@ -635,10 +634,20 @@ def test_client():
     with httpx.Client(transport=mock_transport) as client:
         response = client.post("https://example.org/")
         assert response.status_code == 404
+
+
+def test_client():
+    mock_transport = httpx.MockTransport(router.async_handler)
+    with httpx.AsyncClient(transport=mock_transport) as client:
+        ...
 ```
 
+
 !!! note "NOTE"
-    Use `httpx.MockTransport(router.async_handler)` when using an `httpx.AsyncClient`.
+    To assert all routes is called, you'll need to trigger 
+    `<router>.assert_all_called()` manually, e.g. in a test case or after yielding the 
+    router in a *pytest* fixture, since there's no auto post assertion done like 
+    when using [respx.mock](#assert-all-called).
 
 !!! Hint
     You can use `RESPX` not only to mock out `HTTPX`, but actually mock any library using `HTTP Core` transports.

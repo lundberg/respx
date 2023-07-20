@@ -1,0 +1,9 @@
+name: lint
+
+on:
+  pull_request:
+
+jobs:
+  lint:
+    name: Check Linting
+    uses: less-action/reusables/.github/workflows/pre-commit.yaml@v8

@@ -1,0 +1,20 @@
+name: check-docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/check-docs.yml'
+
+jobs:
+  check-docs:
+    name: Check Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: pip install nox
+      - name: Run mypy
+        run: nox -N -s docs

@@ -309,7 +309,7 @@ respx.post("https://example.org/", content__contains="bar")
 ```
 
 ### Data
-Matches request *form data*, using [eq](#eq) as default lookup.
+Matches request *form data*, excluding files, using [eq](#eq) as default lookup.
 > Key: `data`  
 > Lookups: [eq](#eq), [contains](#contains)
 ``` python

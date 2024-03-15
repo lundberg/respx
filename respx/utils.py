@@ -1,6 +1,6 @@
 import email
 from email.message import Message
-from typing import Any, List, Tuple, cast
+from typing import List, Tuple, cast
 from urllib.parse import parse_qsl
 
 import httpx
@@ -19,7 +19,7 @@ class MultiItems(dict):
 
 def _parse_multipart_form_data(
     content: bytes, *, content_type: str, encoding: str
-) -> Tuple[MultiItems, List[Any]]:
+) -> Tuple[MultiItems, MultiItems]:
     form_data = b"\r\n".join(
         (
             b"MIME-Version: 1.0",
@@ -28,19 +28,20 @@ def _parse_multipart_form_data(
         )
     )
     data = MultiItems()
-    files: List[Any] = []
+    files = MultiItems()
     for payload in email.message_from_bytes(form_data).get_payload():
         payload = cast(Message, payload)
+        name = payload.get_param("name", header="Content-Disposition")
         filename = payload.get_filename()
-        if payload.get_content_maintype() == "text" and filename is None:
+        content_type = payload.get_content_type()
+        value = payload.get_payload(decode=True)
+        assert isinstance(value, bytes)
+        if content_type.startswith("text/") and filename is None:
             # Text field
-            key = payload.get_param("name", header="Content-Disposition")
-            value = payload.get_payload(decode=True)
-            assert isinstance(value, bytes)
-            data[key] = value.decode(payload.get_content_charset() or "utf-8")
+            data[name] = value.decode(payload.get_content_charset() or "utf-8")
         else:
-            # TODO: Implement parsing file fields
-            continue  # pragma: no cover
+            # File field
+            files[name] = filename, value
 
     return data, files
 
@@ -52,7 +53,7 @@ def _parse_urlencoded_data(content: bytes, *, encoding: str) -> MultiItems:
     )
 
 
-def decode_data(request: httpx.Request) -> Tuple[MultiItems, List]:
+def decode_data(request: httpx.Request) -> Tuple[MultiItems, MultiItems]:
     content = request.read()
     content_type = request.headers.get("Content-Type", "")
 
@@ -67,6 +68,6 @@ def decode_data(request: httpx.Request) -> Tuple[MultiItems, List]:
             content,
             encoding=request.headers.encoding,
         )
-        files = []
+        files = MultiItems()
 
     return data, files

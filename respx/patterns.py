@@ -25,6 +25,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from respx.utils import MultiItems, decode_data
+
 from .types import (
     URL as RawURL,
     CookieTypes,
@@ -536,14 +538,16 @@ class JSON(ContentMixin, PathPattern):
         return jsonlib.dumps(value, sort_keys=True)
 
 
-class Data(ContentMixin, Pattern):
-    lookups = (Lookup.EQUAL,)
+class Data(MultiItemsMixin, Pattern):
+    lookups = (Lookup.EQUAL, Lookup.CONTAINS)
     key = "data"
-    value: bytes
+    value: MultiItems
 
-    def clean(self, value: Dict) -> bytes:
-        request = httpx.Request("POST", "/", data=value)
-        data = request.read()
+    def clean(self, value: Dict) -> MultiItems:
+        return MultiItems(value)
+
+    def parse(self, request: httpx.Request) -> Any:
+        data, _ = decode_data(request)
         return data
 
 

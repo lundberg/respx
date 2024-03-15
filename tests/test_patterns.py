@@ -323,14 +323,69 @@ def test_content_pattern(lookup, content, expected):
 
 
 @pytest.mark.parametrize(
-    ("lookup", "data", "expected"),
+    ("lookup", "data", "request_data", "expected"),
     [
-        (Lookup.EQUAL, {"foo": "bar", "ham": "spam"}, True),
+        (
+            Lookup.EQUAL,
+            {"foo": "bar", "ham": "spam"},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"foo": "bar", "ham": "spam"},
+            {"ham": "spam", "foo": "bar"},
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"uni": "äpple", "mixed": "Geh&#xE4;usegröße"},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"blank_value": ""},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"x": "a"},
+            {"x": "b"},
+            False,
+        ),
+        (
+            Lookup.EQUAL,
+            {"foo": "bar"},
+            {"foo": "bar", "ham": "spam"},
+            False,
+        ),
+        (
+            Lookup.CONTAINS,
+            {"foo": "bar"},
+            {"foo": "bar", "ham": "spam"},
+            True,
+        ),
     ],
 )
-def test_data_pattern(lookup, data, expected):
-    request = httpx.Request("POST", "https://foo.bar/", data=data)
-    match = Data(data, lookup=lookup).match(request)
+def test_data_pattern(lookup, data, request_data, expected):
+    request_with_data = httpx.Request(
+        "POST",
+        "https://foo.bar/",
+        data=request_data or data,
+    )
+    request_with_data_and_files = httpx.Request(
+        "POST",
+        "https://foo.bar/",
+        data=request_data or data,
+        files={"upload-file": ("report.xls", b"<...>", "application/vnd.ms-excel")},
+    )
+
+    match = Data(data, lookup=lookup).match(request_with_data)
+    assert bool(match) is expected
+
+    match = Data(data, lookup=lookup).match(request_with_data_and_files)
     assert bool(match) is expected
 
 

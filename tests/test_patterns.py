@@ -10,6 +10,7 @@ from respx.patterns import (
     Content,
     Cookies,
     Data,
+    Files,
     Headers,
     Host,
     Lookup,
@@ -386,6 +387,112 @@ def test_data_pattern(lookup, data, request_data, expected):
     assert bool(match) is expected
 
     match = Data(data, lookup=lookup).match(request_with_data_and_files)
+    assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    ("lookup", "files", "request_files", "expected"),
+    [
+        (
+            Lookup.EQUAL,
+            [("file_1", b"foo..."), ("file_2", b"bar...")],
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"file_1": b"foo...", "file_2": b"bar..."},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"file_1": ANY},
+            {"file_1": b"foobar..."},
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"file_1": ("filename_1.txt", ANY)},
+            {"file_1": ("filename_1.txt", b"...")},
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"upload": b"foo..."},
+            {"upload": b"bar..."},  # Wrong file data
+            False,
+        ),
+        (
+            Lookup.EQUAL,
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"ham..."),  # Wrong file data
+            },
+            False,
+        ),
+        (
+            Lookup.CONTAINS,
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+            },
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            True,
+        ),
+        (
+            Lookup.CONTAINS,
+            {
+                "file_1": ("filename_1.txt", ANY),
+            },
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            True,
+        ),
+        (
+            Lookup.CONTAINS,
+            [("file_1", ANY)],
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            True,
+        ),
+        (
+            Lookup.CONTAINS,
+            [("file_1", b"ham...")],
+            {
+                "file_1": ("filename_1.txt", b"foo..."),
+                "file_2": ("filename_2.txt", b"bar..."),
+            },
+            False,
+        ),
+    ],
+)
+def test_files_pattern(lookup, files, request_files, expected):
+    request = httpx.Request(
+        "POST",
+        "https://foo.bar/",
+        files=request_files or files,
+    )
+    match = Files(files, lookup=lookup).match(request)
     assert bool(match) is expected
 
 

@@ -133,14 +133,16 @@ Setter for the [side effect](guide.md#mock-with-a-side-effect) to trigger.
 
 Shortcut for creating and mocking a `HTTPX` [Response](#response).
 
-> <code>route.<strong>respond</strong>(*status_code=200, headers=None, content=None, text=None, html=None, json=None, stream=None*)</strong></code>
+> <code>route.<strong>respond</strong>(*status_code=200, headers=None, cookies=None, content=None, text=None, html=None, json=None, stream=None, content_type=None*)</strong></code>
 >
 > **Parameters:**
 >
 > * **status_code** - *(optional) int - default: `200`*  
 >   Response status code to mock.
-> * **headers** - *(optional) dict*  
+> * **headers** - *(optional) dict | sequence of pairs*  
 >   Response headers to mock.
+> * **cookies** - *(optional) dict | sequence of pairs | sequence of `SetCookie`*  
+>   Response cookies to mock as `Set-Cookie` headers. See [SetCookie](#setcookie).
 > * **content** - *(optional) bytes | str | iterable bytes*  
 >   Response raw content to mock.
 > * **text** - *(optional) str*  
@@ -151,6 +153,8 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 >   Response *JSON* content to mock, with automatic content-type header added.
 > * **stream** - *(optional) Iterable[bytes]*  
 >   Response *stream* to mock.
+> * **content_type** - *(optional) str*  
+>   Response `Content-Type` header to mock.
 >
 > **Returns:** `Route`
 
@@ -190,6 +194,28 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 >   JSON content, with automatic content-type header added.
 > * **stream** - *(optional) Iterable[bytes]*  
 >   Content *stream*.
+
+!!! tip "Cookies"
+    Use [respx.SetCookie(...)](#setcookie) to produce `Set-Cookie` headers.
+
+---
+
+## SetCookie
+
+A utility to render a `Set-Cookie` header value. See route [respond](#respond) shortcut for alternative use.
+
+> <code>respx.<strong>SetCookie</strong>(*name, value, path=None, domain=None, expires=None, max_age=None, http_only=False, same_site=None, secure=False, partitioned=False*)</strong></code>
+
+### .header
+
+Returns a `("Set-Cookie", <cookie header value>)` name/value header pair.
+
+``` python
+import respx
+respx.post("https://example.org/").mock(
+    return_value=httpx.Response(200, headers=[SetCookie("foo", "bar").header])
+)
+```
 
 ---
 

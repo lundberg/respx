@@ -564,6 +564,46 @@ def test_respond():
             route.respond(content=Exception())  # type: ignore[arg-type]
 
 
+def test_respond_with_cookies():
+    with respx.mock:
+        route = respx.get("https://foo.bar/").respond(
+            json={}, headers={"X-Foo": "bar"}, cookies={"foo": "bar", "ham": "spam"}
+        )
+        response = httpx.get("https://foo.bar/")
+        assert len(response.headers) == 5
+        assert response.headers["X-Foo"] == "bar", "mocked header is missing"
+        assert len(response.cookies) == 2
+        assert response.cookies["foo"] == "bar"
+        assert response.cookies["ham"] == "spam"
+
+        route.respond(cookies=[("egg", "yolk")])
+        response = httpx.get("https://foo.bar/")
+        assert len(response.cookies) == 1
+        assert response.cookies["egg"] == "yolk"
+
+        route.respond(
+            cookies=[respx.SetCookie("foo", "bar", path="/", same_site="Lax")]
+        )
+        response = httpx.get("https://foo.bar/")
+        assert len(response.cookies) == 1
+        assert response.cookies["foo"] == "bar"
+
+
+def test_mock_response_with_cookies():
+    request = httpx.Request("GET", "https://example.com/")
+    response = httpx.Response(
+        200,
+        headers=[
+            respx.SetCookie("foo", value="bar").header,
+            respx.SetCookie("ham", value="spam").header,
+        ],
+        request=request,
+    )
+    assert len(response.cookies) == 2
+    assert response.cookies["foo"] == "bar"
+    assert response.cookies["ham"] == "spam"
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

@@ -2,6 +2,7 @@ from .__version__ import __version__
 from .handlers import ASGIHandler, WSGIHandler
 from .models import MockResponse, Route
 from .router import MockRouter, Router
+from .utils import SetCookie
 
 from .api import (  # isort:skip
     mock,
@@ -24,6 +25,7 @@ from .api import (  # isort:skip
     options,
 )
 
+
 __all__ = [
     "__version__",
     "MockResponse",
@@ -32,6 +34,7 @@ __all__ = [
     "WSGIHandler",
     "Router",
     "Route",
+    "SetCookie",
     "mock",
     "routes",
     "calls",

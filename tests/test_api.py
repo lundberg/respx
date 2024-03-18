@@ -263,6 +263,15 @@ def test_json_post_body():
         assert get_route.called
 
 
+def test_data_post_body():
+    with respx.mock:
+        url = "https://foo.bar/"
+        route = respx.post(url, data={"foo": "bar"}) % 201
+        response = httpx.post(url, data={"foo": "bar"}, files={"file": b"..."})
+        assert response.status_code == 201
+        assert route.called
+
+
 async def test_raising_content(client):
     async with MockRouter() as respx_mock:
         url = "https://foo.bar/"

@@ -1,5 +1,6 @@
 import json as jsonlib
 import operator
+import pathlib
 import re
 from abc import ABC
 from enum import Enum
@@ -12,6 +13,7 @@ from typing import (
     ClassVar,
     Dict,
     List,
+    Mapping,
     Optional,
     Pattern as RegexPattern,
     Sequence,
@@ -30,8 +32,10 @@ from respx.utils import MultiItems, decode_data
 from .types import (
     URL as RawURL,
     CookieTypes,
+    FileTypes,
     HeaderTypes,
     QueryParamTypes,
+    RequestFiles,
     URLPatternTypes,
 )
 
@@ -549,6 +553,38 @@ class Data(MultiItemsMixin, Pattern):
     def parse(self, request: httpx.Request) -> Any:
         data, _ = decode_data(request)
         return data
+
+
+class Files(MultiItemsMixin, Pattern):
+    lookups = (Lookup.CONTAINS, Lookup.EQUAL)
+    key = "files"
+    value: MultiItems
+
+    def _normalize_file_value(self, value: FileTypes) -> Tuple[Any, ...]:
+        # Mimic httpx `FileField` to normalize `files` kwarg to shortest tuple style
+        if isinstance(value, tuple):
+            filename, fileobj = value[:2]
+        else:
+            try:
+                filename = pathlib.Path(str(getattr(value, "name"))).name  # noqa: B009
+            except AttributeError:
+                filename = ANY
+            fileobj = value
+
+        return filename, fileobj
+
+    def clean(self, value: RequestFiles) -> MultiItems:
+        if isinstance(value, Mapping):
+            value = list(value.items())
+
+        files = MultiItems(
+            (name, self._normalize_file_value(file_value)) for name, file_value in value
+        )
+        return files
+
+    def parse(self, request: httpx.Request) -> Any:
+        _, files = decode_data(request)
+        return files
 
 
 def M(*patterns: Pattern, **lookups: Any) -> Pattern:

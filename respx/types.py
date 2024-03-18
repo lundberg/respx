@@ -1,4 +1,5 @@
 from typing import (
+    IO,
     Any,
     AsyncIterable,
     Awaitable,
@@ -7,6 +8,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Pattern,
     Sequence,
@@ -53,3 +55,17 @@ SideEffectTypes = Union[
     Type[Exception],
     Iterator[SideEffectListTypes],
 ]
+
+# Borrowed from HTTPX's "private" types.
+FileContent = Union[IO[bytes], bytes, str]
+FileTypes = Union[
+    # file (or bytes)
+    FileContent,
+    # (filename, file (or bytes))
+    Tuple[Optional[str], FileContent],
+    # (filename, file (or bytes), content_type)
+    Tuple[Optional[str], FileContent, Optional[str]],
+    # (filename, file (or bytes), content_type, headers)
+    Tuple[Optional[str], FileContent, Optional[str], Mapping[str, str]],
+]
+RequestFiles = Union[Mapping[str, FileTypes], Sequence[Tuple[str, FileTypes]]]

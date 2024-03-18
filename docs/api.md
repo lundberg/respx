@@ -316,6 +316,17 @@ Matches request *form data*, excluding files, using [eq](#eq) as default lookup.
 respx.post("https://example.org/", data={"foo": "bar"})
 ```
 
+### Files
+Matches files within request *form data*, using [contains](#contains) as default lookup.
+> Key: `files`  
+> Lookups: [contains](#contains), [eq](#eq)
+``` python
+respx.post("https://example.org/", files={"some_file": b"..."})
+respx.post("https://example.org/", files={"some_file": ANY})
+respx.post("https://example.org/", files={"some_file": ("filename.txt", b"...")})
+respx.post("https://example.org/", files={"some_file": ("filename.txt", ANY)})
+```
+
 ### JSON
 Matches request *json* content, using [eq](#eq) as default lookup.
 > Key: `json`  

@@ -260,15 +260,9 @@ Use the router instance as decorator or context manager to patch `HTTPX` and act
 import httpx
 import respx
 
-from httpx import Response
-
-
-api_mock = respx.mock(assert_all_called=False)
-api_mock.route(
-    url="https://api.foo.bar/baz/",
-    name="baz",
-).mock(
-    return_value=Response(200, json={"name": "baz"}),
+api_mock = respx.mock(base_url="https://api.foo.bar/", assert_all_called=False)
+api_mock.get("/baz/", name="baz").mock(
+    return_value=httpx.Response(200, json={"name": "baz"}),
 )
 ...
 
@@ -286,6 +280,8 @@ def test_ctx_manager():
         ...
 ```
 
+!!! tip "Catch-all"
+    Add a *catch-all* route last as a fallback for any non-matching request, e.g. `api_mock.route().respond(404)`.
 !!! note "NOTE"
     Named routes in a *reusable router* can be directly accessed via `my_mock_router[<route name>]`
 

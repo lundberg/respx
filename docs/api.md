@@ -139,11 +139,11 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 >
 > * **status_code** - *(optional) int - default: `200`*  
 >   Response status code to mock.
-> * **headers** - *(optional) dict | sequence of pairs*  
+> * **headers** - *(optional) dict | Sequence[tuple[str, str]]*  
 >   Response headers to mock.
-> * **cookies** - *(optional) dict | sequence of pairs | sequence of `SetCookie`*  
+> * **cookies** - *(optional) dict | Sequence[tuple[str, str]] | Sequence[SetCookie]*  
 >   Response cookies to mock as `Set-Cookie` headers. See [SetCookie](#setcookie).
-> * **content** - *(optional) bytes | str | iterable bytes*  
+> * **content** - *(optional) bytes | str | Iterable[bytes]*  
 >   Response raw content to mock.
 > * **text** - *(optional) str*  
 >   Response *text* content to mock, with automatic content-type header added.

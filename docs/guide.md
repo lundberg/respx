@@ -522,6 +522,29 @@ def test_stacked_responses():
     assert route.call_count == 2
 ```
 
+Once the iterable is *exhausted*, the route will fallback and respond with the `return_value`, if set.
+
+``` python
+import httpx
+import respx
+
+
+@respx.mock
+def test_stacked_responses():
+    respx.post("https://example.org/").mock(
+        side_effect=[httpx.Response(201)],
+        return_value=httpx.Response(200) 
+    )
+
+    response1 = httpx.post("https://example.org/")
+    response2 = httpx.post("https://example.org/")
+    response3 = httpx.post("https://example.org/")
+
+    assert response1.status_code == 201
+    assert response2.status_code == 200
+    assert response3.status_code == 200
+```
+
 ### Shortcuts
 
 #### Respond

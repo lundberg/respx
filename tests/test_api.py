@@ -594,8 +594,8 @@ def test_mock_response_with_cookies():
     response = httpx.Response(
         200,
         headers=[
-            respx.SetCookie("foo", value="bar").header,
-            respx.SetCookie("ham", value="spam").header,
+            respx.SetCookie("foo", value="bar"),
+            respx.SetCookie("ham", value="spam"),
         ],
         request=request,
     )

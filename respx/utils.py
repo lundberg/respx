@@ -1,7 +1,7 @@
 import email
 from datetime import datetime
 from email.message import Message
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
 from urllib.parse import parse_qsl
 
 try:
@@ -82,8 +82,9 @@ def decode_data(request: httpx.Request) -> Tuple[MultiItems, MultiItems]:
 Self = TypeVar("Self", bound="SetCookie")
 
 
-class SetCookie(str):
-    __slots__ = ()
+class SetCookie(NamedTuple("SetCookieBase", [("key", str), ("value", str)])):
+    key: str
+    value: str
 
     def __new__(
         cls: Type[Self],
@@ -128,9 +129,5 @@ class SetCookie(str):
             _name if _value is True else f"{_name}={_value}"
             for _name, _value in attrs.items()
         )
-        self = super().__new__(cls, string)
+        self = super().__new__(cls, "Set-Cookie", string)
         return self
-
-    @property
-    def header(self) -> Tuple[Literal["Set-Cookie"], str]:
-        return "Set-Cookie", self

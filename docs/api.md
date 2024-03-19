@@ -202,18 +202,14 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 
 ## SetCookie
 
-A utility to render a `Set-Cookie` header value. See route [respond](#respond) shortcut for alternative use.
+A utility to render a `("Set-Cookie", <cookie header value>)` tuple. See route [respond](#respond) shortcut for alternative use.
 
 > <code>respx.<strong>SetCookie</strong>(*name, value, path=None, domain=None, expires=None, max_age=None, http_only=False, same_site=None, secure=False, partitioned=False*)</strong></code>
-
-### .header
-
-Returns a `("Set-Cookie", <cookie header value>)` name/value header pair.
 
 ``` python
 import respx
 respx.post("https://example.org/").mock(
-    return_value=httpx.Response(200, headers=[SetCookie("foo", "bar").header])
+    return_value=httpx.Response(200, headers=[SetCookie("foo", "bar")])
 )
 ```
 

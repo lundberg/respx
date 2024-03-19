@@ -16,7 +16,7 @@ def test_set_cookie_header():
         same_site="None",
         partitioned=True,
     )
-    assert cookie.header == (
+    assert cookie == (
         "Set-Cookie",
         (
             "foo=bar; "

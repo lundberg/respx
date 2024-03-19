@@ -121,9 +121,7 @@ class MockResponse(httpx.Response):
                 (
                     *self.headers.multi_items(),
                     *(
-                        cookie.header
-                        if isinstance(cookie, SetCookie)
-                        else SetCookie(*cookie).header
+                        cookie if isinstance(cookie, SetCookie) else SetCookie(*cookie)
                         for cookie in cookies
                     ),
                 )

@@ -564,7 +564,7 @@ def test_respond():
             route.respond(content=Exception())  # type: ignore[arg-type]
 
 
-def test_respond_with_cookies():
+def test_can_respond_with_cookies():
     with respx.mock:
         route = respx.get("https://foo.bar/").respond(
             json={}, headers={"X-Foo": "bar"}, cookies={"foo": "bar", "ham": "spam"}
@@ -589,7 +589,7 @@ def test_respond_with_cookies():
         assert response.cookies["foo"] == "bar"
 
 
-def test_mock_response_with_cookies():
+def test_can_mock_response_with_set_cookie_headers():
     request = httpx.Request("GET", "https://example.com/")
     response = httpx.Response(
         200,

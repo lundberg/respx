@@ -82,10 +82,15 @@ def decode_data(request: httpx.Request) -> Tuple[MultiItems, MultiItems]:
 Self = TypeVar("Self", bound="SetCookie")
 
 
-class SetCookie(NamedTuple("SetCookieBase", [("key", str), ("value", str)])):
-    key: str
-    value: str
-
+class SetCookie(
+    NamedTuple(
+        "SetCookie",
+        [
+            ("header_name", Literal["Set-Cookie"]),
+            ("header_value", str),
+        ],
+    )
+):
     def __new__(
         cls: Type[Self],
         name: str,

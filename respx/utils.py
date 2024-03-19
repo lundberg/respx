@@ -1,7 +1,13 @@
 import email
+from datetime import datetime
 from email.message import Message
-from typing import List, Tuple, cast
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
 from urllib.parse import parse_qsl
+
+try:
+    from typing import Literal  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover
+    from typing_extensions import Literal
 
 import httpx
 
@@ -71,3 +77,62 @@ def decode_data(request: httpx.Request) -> Tuple[MultiItems, MultiItems]:
         files = MultiItems()
 
     return data, files
+
+
+Self = TypeVar("Self", bound="SetCookie")
+
+
+class SetCookie(
+    NamedTuple(
+        "SetCookie",
+        [
+            ("header_name", Literal["Set-Cookie"]),
+            ("header_value", str),
+        ],
+    )
+):
+    def __new__(
+        cls: Type[Self],
+        name: str,
+        value: str,
+        *,
+        path: Optional[str] = None,
+        domain: Optional[str] = None,
+        expires: Optional[Union[str, datetime]] = None,
+        max_age: Optional[int] = None,
+        http_only: bool = False,
+        same_site: Optional[Literal["Strict", "Lax", "None"]] = None,
+        secure: bool = False,
+        partitioned: bool = False,
+    ) -> Self:
+        """
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#syntax
+        """
+        attrs: Dict[str, Union[str, bool]] = {name: value}
+        if path is not None:
+            attrs["Path"] = path
+        if domain is not None:
+            attrs["Domain"] = domain
+        if expires is not None:
+            if isinstance(expires, datetime):  # pragma: no branch
+                expires = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            attrs["Expires"] = expires
+        if max_age is not None:
+            attrs["Max-Age"] = str(max_age)
+        if http_only:
+            attrs["HttpOnly"] = True
+        if same_site is not None:
+            attrs["SameSite"] = same_site
+            if same_site == "None":  # pragma: no branch
+                secure = True
+        if secure:
+            attrs["Secure"] = True
+        if partitioned:
+            attrs["Partitioned"] = True
+
+        string = "; ".join(
+            _name if _value is True else f"{_name}={_value}"
+            for _name, _value in attrs.items()
+        )
+        self = super().__new__(cls, "Set-Cookie", string)
+        return self

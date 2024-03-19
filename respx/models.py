@@ -16,10 +16,13 @@ from warnings import warn
 
 import httpx
 
+from respx.utils import SetCookie
+
 from .patterns import M, Pattern
 from .types import (
     CallableSideEffect,
     Content,
+    CookieTypes,
     HeaderTypes,
     ResolvedResponseTypes,
     RouteResultTypes,
@@ -90,6 +93,7 @@ class MockResponse(httpx.Response):
         content: Optional[Content] = None,
         content_type: Optional[str] = None,
         http_version: Optional[str] = None,
+        cookies: Optional[Union[CookieTypes, Sequence[SetCookie]]] = None,
         **kwargs: Any,
     ) -> None:
         if not isinstance(content, (str, bytes)) and (
@@ -109,6 +113,19 @@ class MockResponse(httpx.Response):
 
         if content_type:
             self.headers["Content-Type"] = content_type
+
+        if cookies:
+            if isinstance(cookies, dict):
+                cookies = tuple(cookies.items())
+            self.headers = httpx.Headers(
+                (
+                    *self.headers.multi_items(),
+                    *(
+                        cookie if isinstance(cookie, SetCookie) else SetCookie(*cookie)
+                        for cookie in cookies
+                    ),
+                )
+            )
 
 
 class Route:
@@ -256,6 +273,7 @@ class Route:
         status_code: int = 200,
         *,
         headers: Optional[HeaderTypes] = None,
+        cookies: Optional[Union[CookieTypes, Sequence[SetCookie]]] = None,
         content: Optional[Content] = None,
         text: Optional[str] = None,
         html: Optional[str] = None,
@@ -268,6 +286,7 @@ class Route:
         response = MockResponse(
             status_code,
             headers=headers,
+            cookies=cookies,
             content=content,
             text=text,
             html=html,

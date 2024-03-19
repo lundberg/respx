@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2024-03-19
+
+### Fixed
+
+- Fix matching request data when files are provided, thanks @ziima for input (#252)
+
+### Added
+
+- Add support for data\_\_contains lookup (#252)
+- Add `files` pattern to support matching on uploads, thanks @ziima for input (#253)
+- Add `SetCookie` utility for easier mocking of response cookie headers (#254)
+
+### Changed
+
+- Enhance documentation on iterable side effects (#255)
+
 ## [0.20.2] - 2023-07-21
 
 ### Fixed

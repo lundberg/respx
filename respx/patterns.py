@@ -548,7 +548,9 @@ class Data(MultiItemsMixin, Pattern):
     value: MultiItems
 
     def clean(self, value: Dict) -> MultiItems:
-        return MultiItems(value)
+        return MultiItems(
+            (key, "" if value is None else str(value)) for key, value in value.items()
+        )
 
     def parse(self, request: httpx.Request) -> Any:
         data, _ = decode_data(request)

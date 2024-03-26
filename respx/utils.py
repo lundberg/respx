@@ -1,7 +1,18 @@
 import email
 from datetime import datetime
 from email.message import Message
-from typing import Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 from urllib.parse import parse_qsl
 
 try:
@@ -13,13 +24,13 @@ import httpx
 
 
 class MultiItems(dict):
-    def get_list(self, key: str) -> List[str]:
+    def get_list(self, key: str) -> List[Any]:
         try:
             return [self[key]]
         except KeyError:  # pragma: no cover
             return []
 
-    def multi_items(self) -> List[Tuple[str, str]]:
+    def multi_items(self) -> List[Tuple[str, Any]]:
         return list(self.items())
 
 

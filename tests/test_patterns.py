@@ -1,3 +1,4 @@
+import io
 import re
 from unittest.mock import ANY
 
@@ -445,6 +446,18 @@ def test_data_pattern(lookup, data, request_data, expected):
             False,
         ),
         (
+            Lookup.EQUAL,
+            {"file_1": ("filename.png", io.BytesIO(b"some..image..data"), "image/png")},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"file_1": ("filename.png", "some..image..data", "image/png")},  # str data
+            {"file_1": ("filename.png", io.BytesIO(b"some..image..data"), "image/png")},
+            True,
+        ),
+        (
             Lookup.CONTAINS,
             {
                 "file_1": ("filename_1.txt", b"foo..."),
@@ -472,6 +485,15 @@ def test_data_pattern(lookup, data, request_data, expected):
             {
                 "file_1": ("filename_1.txt", b"foo..."),
                 "file_2": ("filename_2.txt", b"bar..."),
+            },
+            True,
+        ),
+        (
+            Lookup.CONTAINS,
+            {"file_1": "foo..."},  # str data
+            {
+                "file_1": ("filename_1.txt", io.BytesIO(b"foo...")),
+                "file_2": ("filename_2.txt", io.BytesIO(b"bar...")),
             },
             True,
         ),

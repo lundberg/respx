@@ -353,6 +353,18 @@ def test_content_pattern(lookup, content, expected):
         ),
         (
             Lookup.EQUAL,
+            {"none_value": None},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
+            {"non_str": 123},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
             {"x": "a"},
             {"x": "b"},
             False,

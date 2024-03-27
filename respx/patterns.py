@@ -1,3 +1,4 @@
+import io
 import json as jsonlib
 import operator
 import pathlib
@@ -562,7 +563,7 @@ class Files(MultiItemsMixin, Pattern):
     key = "files"
     value: MultiItems
 
-    def _normalize_file_value(self, value: FileTypes) -> Tuple[Any, ...]:
+    def _normalize_file_value(self, value: FileTypes) -> Tuple[Any, Any]:
         # Mimic httpx `FileField` to normalize `files` kwarg to shortest tuple style
         if isinstance(value, tuple):
             filename, fileobj = value[:2]
@@ -572,6 +573,12 @@ class Files(MultiItemsMixin, Pattern):
             except AttributeError:
                 filename = ANY
             fileobj = value
+
+        # Normalize file-like objects and strings to bytes to allow equality check
+        if isinstance(fileobj, io.BytesIO):
+            fileobj = fileobj.read()
+        elif isinstance(fileobj, str):
+            fileobj = fileobj.encode()
 
         return filename, fileobj
 

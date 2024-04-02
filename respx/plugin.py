@@ -16,7 +16,7 @@ def pytest_configure(config):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def respx_mock(request):
     respx_marker = request.node.get_closest_marker("respx")
 

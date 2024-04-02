@@ -7,13 +7,13 @@ from respx.fixtures import session_event_loop as event_loop  # noqa: F401
 pytest_plugins = ["pytester"]
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client():
     async with httpx.AsyncClient() as client:
         yield client
 
 
-@pytest.fixture()
+@pytest.fixture
 async def my_mock():
     async with respx.mock(
         base_url="https://httpx.mock", using="httpcore"

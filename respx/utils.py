@@ -1,9 +1,11 @@
 import email
+from collections import defaultdict
 from datetime import datetime
 from email.message import Message
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Literal,
     NamedTuple,
@@ -19,15 +21,24 @@ from urllib.parse import parse_qsl
 import httpx
 
 
-class MultiItems(dict):
-    def get_list(self, key: str) -> List[Any]:
-        try:
-            return [self[key]]
-        except KeyError:  # pragma: no cover
-            return []
+class MultiItems(defaultdict):
+    def __init__(self, values: Optional[Iterable[Tuple[str, Any]]] = None) -> None:
+        super().__init__(tuple)
+        if values is not None:
+            for key, value in values:
+                if isinstance(value, (tuple, list)):
+                    self[key] += tuple(value)  # Convert list to tuple and extend
+                else:
+                    self[key] += (value,)  # Extend with value
 
-    def multi_items(self) -> List[Tuple[str, Any]]:
-        return list(self.items())
+    def get_list(self, key: str) -> List[Any]:
+        return list(self[key])
+
+    def multi_items(self) -> List[Tuple[str, str]]:
+        return [(key, value) for key, values in self.items() for value in values]
+
+    def append(self, key: str, value: Any) -> None:
+        self[key] += (value,)
 
 
 def _parse_multipart_form_data(
@@ -45,16 +56,17 @@ def _parse_multipart_form_data(
     for payload in email.message_from_bytes(form_data).get_payload():
         payload = cast(Message, payload)
         name = payload.get_param("name", header="Content-Disposition")
+        assert isinstance(name, str)
         filename = payload.get_filename()
         content_type = payload.get_content_type()
         value = payload.get_payload(decode=True)
         assert isinstance(value, bytes)
         if content_type.startswith("text/") and filename is None:
             # Text field
-            data[name] = value.decode(payload.get_content_charset() or "utf-8")
+            data.append(name, value.decode(payload.get_content_charset() or "utf-8"))
         else:
             # File field
-            files[name] = filename, value
+            files.append(name, (filename, value))
 
     return data, files
 

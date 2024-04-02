@@ -548,9 +548,17 @@ class Data(MultiItemsMixin, Pattern):
     key = "data"
     value: MultiItems
 
-    def clean(self, value: Dict) -> MultiItems:
+    def _normalize_value(self, value: Any) -> Union[str, List[str]]:
+        if value is None:
+            return ""
+        elif isinstance(value, (tuple, list)):
+            return [str(v) for v in value]
+        else:
+            return str(value)
+
+    def clean(self, value: Dict[str, Any]) -> MultiItems:
         return MultiItems(
-            (key, "" if value is None else str(value)) for key, value in value.items()
+            (key, self._normalize_value(value)) for key, value in value.items()
         )
 
     def parse(self, request: httpx.Request) -> Any:
@@ -563,7 +571,7 @@ class Files(MultiItemsMixin, Pattern):
     key = "files"
     value: MultiItems
 
-    def _normalize_file_value(self, value: FileTypes) -> Tuple[Any, Any]:
+    def _normalize_file_value(self, value: FileTypes) -> Tuple[Tuple[Any, Any]]:
         # Mimic httpx `FileField` to normalize `files` kwarg to shortest tuple style
         if isinstance(value, tuple):
             filename, fileobj = value[:2]
@@ -580,7 +588,7 @@ class Files(MultiItemsMixin, Pattern):
         elif isinstance(fileobj, str):
             fileobj = fileobj.encode()
 
-        return filename, fileobj
+        return ((filename, fileobj),)
 
     def clean(self, value: RequestFiles) -> MultiItems:
         if isinstance(value, Mapping):

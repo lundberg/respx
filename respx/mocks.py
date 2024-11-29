@@ -297,6 +297,11 @@ class HTTPCoreMocker(AbstractRequestMocker):
         Create a `HTTPX` request from transport request arg.
         """
         request = kwargs["request"]
+        method = (
+            request.method.decode("ascii").upper()
+            if isinstance(request.method, bytes)
+            else request.method.upper()
+        )
         raw_url = (
             request.url.scheme,
             request.url.host,
@@ -304,7 +309,7 @@ class HTTPCoreMocker(AbstractRequestMocker):
             request.url.target,
         )
         return httpx.Request(
-            request.method,
+            method,
             parse_url(raw_url),
             headers=request.headers,
             stream=request.stream,

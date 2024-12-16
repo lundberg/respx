@@ -214,7 +214,7 @@ async def test_content_variants(client, key, value, expected_content_type):
             {"X-Foo": "bar"},
             {
                 "Content-Type": "application/json",
-                "Content-Length": "14",
+                "Content-Length": "13",
                 "X-Foo": "bar",
             },
         ),
@@ -223,7 +223,7 @@ async def test_content_variants(client, key, value, expected_content_type):
             {"Content-Type": "application/json; charset=utf-8", "X-Foo": "bar"},
             {
                 "Content-Type": "application/json; charset=utf-8",
-                "Content-Length": "14",
+                "Content-Length": "13",
                 "X-Foo": "bar",
             },
         ),
@@ -322,19 +322,19 @@ async def test_callable_content(client):
         assert request.called is True
         assert async_response.status_code == 200
         assert async_response.text == "hello world."
-        assert request.calls[-1][0].content == b'{"x": "."}'
+        assert request.calls[-1][0].content == b'{"x":"."}'
 
         respx_mock.reset()
         sync_response = httpx.post("https://foo.bar/jonas/", json={"x": "!"})
         assert request.called is True
         assert sync_response.status_code == 200
         assert sync_response.text == "hello jonas!"
-        assert request.calls[-1][0].content == b'{"x": "!"}'
+        assert request.calls[-1][0].content == b'{"x":"!"}'
 
 
 async def test_request_callback(client):
     def callback(request, name):
-        if request.url.host == "foo.bar" and request.content == b'{"foo": "bar"}':
+        if request.url.host == "foo.bar" and request.content == b'{"foo":"bar"}':
             return respx.MockResponse(
                 202,
                 headers={"X-Foo": "bar"},

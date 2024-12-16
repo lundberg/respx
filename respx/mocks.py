@@ -298,9 +298,9 @@ class HTTPCoreMocker(AbstractRequestMocker):
         """
         request = kwargs["request"]
         method = (
-            request.method.decode("ascii").upper()
+            request.method.decode("ascii")
             if isinstance(request.method, bytes)
-            else request.method.upper()
+            else request.method
         )
         raw_url = (
             request.url.scheme,

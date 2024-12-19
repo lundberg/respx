@@ -38,6 +38,8 @@ jobs:
         fail_ci_if_error: true
         slug: lundberg/respx
         token: ${{ secrets.CODECOV_TOKEN }}
+      env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   check-types:
     name: Check Typing

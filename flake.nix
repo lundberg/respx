@@ -13,22 +13,22 @@
         pkgsUnstable = nixpkgsUnstable.legacyPackages.${system};
       in {
         packages = flakeUtils.lib.flattenTree {
+          python313 = pkgs.python313;
           python312 = pkgs.python312;
           python311 = pkgs.python311;
           python310 = pkgs.python310;
           python39 = pkgs.python39;
           python38 = pkgs22.python38;
-          python37 = pkgs22.python37;
           go-task = pkgsUnstable.go-task;
         };
         devShell = pkgs.mkShell {
           buildInputs = with self.packages.${system}; [
+            python313
             python312
             python311
             python310
             python39
             python38
-            python37
             go-task
           ];
           shellHook = ''

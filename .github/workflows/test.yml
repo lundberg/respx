@@ -36,6 +36,7 @@ jobs:
         name: Python ${{ matrix.python-version }}
         files: ./coverage.xml
         fail_ci_if_error: true
+        slug: lundberg/respx
         token: ${{ secrets.CODECOV_TOKEN }}
 
   check-types:

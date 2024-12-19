@@ -6,4 +6,4 @@ on:
 jobs:
   lint:
     name: Check Linting
-    uses: less-action/reusables/.github/workflows/pre-commit.yaml@v8
+    uses: less-action/reusables/.github/workflows/pre-commit.yaml@v10

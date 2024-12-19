@@ -366,7 +366,8 @@ class Route:
             raise SideEffectError(self, origin=effect)
 
         # Handle Exception `type` side effect
-        elif isinstance(effect, type) and issubclass(effect, Exception):
+        elif isinstance(effect, type):
+            assert issubclass(effect, Exception)
             raise SideEffectError(
                 self,
                 origin=(

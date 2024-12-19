@@ -476,15 +476,13 @@ def test_add_remove_targets():
 async def test_proxies():
     with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
-        with httpx.Client(proxies={"https://": "https://1.1.1.1:1"}) as client:
+        with httpx.Client(proxy="https://1.1.1.1:1") as client:
             response = client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 
     async with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
-        async with httpx.AsyncClient(
-            proxies={"https://": "https://1.1.1.1:1"}
-        ) as client:
+        async with httpx.AsyncClient(proxy="https://1.1.1.1:1") as client:
             response = await client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 

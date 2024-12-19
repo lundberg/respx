@@ -5,7 +5,7 @@ nox.options.reuse_existing_virtualenvs = True
 nox.options.keywords = "test + mypy"
 
 
-@nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"])
+@nox.session(python=["3.8", "3.9", "3.10", "3.11", "3.12"])
 def test(session):
     deps = ["pytest", "pytest-asyncio", "pytest-cov", "trio", "starlette", "flask"]
     session.install("--upgrade", *deps)
@@ -17,7 +17,7 @@ def test(session):
     session.run("pytest", *session.posargs)
 
 
-@nox.session(python="3.7")
+@nox.session(python="3.8")
 def mypy(session):
     session.install("--upgrade", "mypy")
     session.install("-e", ".")

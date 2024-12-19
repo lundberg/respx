@@ -5,6 +5,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Literal,
     NamedTuple,
     Optional,
     Tuple,
@@ -14,11 +15,6 @@ from typing import (
     cast,
 )
 from urllib.parse import parse_qsl
-
-try:
-    from typing import Literal  # type: ignore[attr-defined]
-except ImportError:  # pragma: no cover
-    from typing_extensions import Literal
 
 import httpx
 

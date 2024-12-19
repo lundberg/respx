@@ -26,31 +26,35 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - run: pip install nox
     - name: Test
       run: nox -N -s test-${{ matrix.python-version }} -- -v
     - name: Upload coverage report
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4.5.0
       with:
         name: Python ${{ matrix.python-version }}
         files: ./coverage.xml
         fail_ci_if_error: true
+        slug: lundberg/respx
+        token: ${{ secrets.CODECOV_TOKEN }}
+      env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   check-types:
     name: Check Typing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.7"
+          python-version: "3.8"
       - run: pip install nox
       - name: Run mypy
         run: nox -N -s mypy

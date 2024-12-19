@@ -16,14 +16,12 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Pattern as RegexPattern,
     Sequence,
     Set,
     Tuple,
     Type,
     Union,
-)
-from typing import (
-    Pattern as RegexPattern,
 )
 from unittest.mock import ANY
 from urllib.parse import urljoin
@@ -34,8 +32,6 @@ from respx.utils import MultiItems, decode_data
 
 from .types import (
     URL as RawURL,
-)
-from .types import (
     CookieTypes,
     FileTypes,
     HeaderTypes,

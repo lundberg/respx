@@ -473,7 +473,7 @@ def test_add_remove_targets():
         assert len(HTTPCoreMocker.targets) == pre_add_count
 
 
-async def test_proxies():
+async def test_proxy():
     with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
         with httpx.Client(proxy="https://1.1.1.1:1") as client:

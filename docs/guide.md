@@ -4,7 +4,7 @@ RESPX is a mock router, [capturing](#mock-httpx) requests sent by `HTTPX`, [mock
 
 Inspired by the flexible query API of the [Django](https://www.djangoproject.com/) ORM, requests are filtered and matched against routes and their request [patterns](api.md#patterns) and [lookups](api.md#lookups).
 
-Request [patterns](api.md#patterns) are *bits* of the request, like `host` `method` `path` etc, 
+Request [patterns](api.md#patterns) are *bits* of the request, like `host` `method` `path` etc,
 with given [lookup](api.md#lookups) values, combined using *bitwise* [operators](api.md#operators) to form a `Route`,
 i.e. `respx.route(path__regex=...)`
 
@@ -30,7 +30,6 @@ def test_decorator():
     assert my_route.called
     assert response.status_code == 200
 ```
-
 
 ### Using the Context Manager
 
@@ -66,7 +65,7 @@ The RESPX router can be configured with built-in assertion checks and an *option
 
 By configuring, an isolated router is created, and settings are *locally* bound to the routes added.
 
-Either of the decorator, context manager and fixture takes the same configuration arguments. 
+Either of the decorator, context manager and fixture takes the same configuration arguments.
 
 > See router [configuration](api.md#configuration) reference for more details.
 
@@ -98,6 +97,26 @@ To configure the router when using the `pytest` fixture, decorate the test case 
 def test_something(respx_mock):
     ...
 ```
+
+To configure the fixture router for an entire module, set the `pytestmark`.
+
+``` python
+pytestmark = pytest.mark.respx(...)
+
+def test_something(respx_mock):
+    ...
+```
+
+To configure the fixture router for all tests, add a `pytest_collection_modifyitems` function in `conftest.py`.
+
+``` python
+def pytest_collection_modifyitems(items: list[pytest.Function]):
+    for item in items:
+        if "respx_mock" in item.fixturenames and item.get_closest_marker("respx") is None:
+            item.add_marker(pytest.mark.respx(...))
+```
+
+...
 
 #### Base URL
 
@@ -150,7 +169,6 @@ def test_something(respx_mock):
     response = httpx.get("https://example.org/")
 ```
 
-
 ``` python
 @respx.mock(assert_all_called=False)
 def test_something(respx_mock):
@@ -181,6 +199,7 @@ response = httpx.get("https://example.org/", params={"foo": "bar"})
 assert my_route.called
 assert response.status_code == 200
 ```
+
 > See [.get(), .post(), ...](api.md#get-post) helpers reference for more details.
 
 ### Route API
@@ -195,9 +214,11 @@ response = httpx.get("https://example.org/foobar/")
 assert my_route.called
 assert response.status_code == 200
 ```
+
 > See [.route()](api.md#route) reference for more details.
 
 #### Lookups
+
 Each [pattern](api.md#patterns) has a *default* lookup. To specify what [lookup](api.md#lookups) to use, add a `__<lookup>` suffix.
 
 ``` python
@@ -339,7 +360,6 @@ async def test_baz(respx_mock):
     assert app_route.called
 ```
 
-
 ---
 
 ## Mocking Responses
@@ -359,6 +379,7 @@ Create a mocked `HTTPX` [Response](api.md#response) object and pass it as `retur
 ``` python
 respx.get("https://example.org/").mock(return_value=Response(204))
 ```
+
 > See [.mock()](api.md#mock) reference for more details.
 
 You can also use the `<route>.return_value` *setter*.
@@ -529,7 +550,7 @@ import respx
 def test_stacked_responses():
     respx.post("https://example.org/").mock(
         side_effect=[httpx.Response(201)],
-        return_value=httpx.Response(200) 
+        return_value=httpx.Response(200)
     )
 
     response1 = httpx.post("https://example.org/")
@@ -550,6 +571,7 @@ For convenience, `<route>.respond(...)` can be used as a shortcut to `return_val
 ``` python
 respx.post("https://example.org/").respond(201)
 ```
+
 > See [.respond()](api.md#respond) reference for more details.
 
 #### Modulo
@@ -559,6 +581,7 @@ For simple mocking, a quick way is to use the python modulo (`%`) operator to mo
 The *right-hand* modulo argument can either be ...
 
 An `int` representing the `status_code` to mock:
+
 ``` python
 respx.get("https://example.org/") % 204
 
@@ -567,6 +590,7 @@ assert response.status_code == 204
 ```
 
 A `dict` used as *kwargs* to create a mocked `HTTPX` [Response](api.md#response), with status code `200` by default:
+
 ``` python
 respx.get("https://example.org/") % dict(json={"foo": "bar"})
 
@@ -576,6 +600,7 @@ assert response.json() == {"foo": "bar"}
 ```
 
 A `HTTPX` [Response](api.md#response) object:
+
 ``` python
 respx.get("https://example.org/") % Response(418)
 
@@ -661,11 +686,10 @@ def test_client():
         ...
 ```
 
-
 !!! note "NOTE"
-    To assert all routes is called, you'll need to trigger 
-    `<router>.assert_all_called()` manually, e.g. in a test case or after yielding the 
-    router in a *pytest* fixture, since there's no auto post assertion done like 
+    To assert all routes is called, you'll need to trigger
+    `<router>.assert_all_called()` manually, e.g. in a test case or after yielding the
+    router in a *pytest* fixture, since there's no auto post assertion done like
     when using [respx.mock](#assert-all-called).
 
 !!! Hint
@@ -678,6 +702,7 @@ def test_client():
 The `respx` API includes a `.calls` object, containing captured (`request`, `response`) named tuples and MagicMock's *bells and whistles*, i.e. `call_count`, `assert_called` etc.
 
 ### Asserting calls
+
 ``` python
 assert respx.calls.called
 assert respx.calls.call_count == 1
@@ -708,7 +733,7 @@ assert last_response.status_code == 200
 
 ### Local route calls
 
-Each `Route` object has its own `.calls`, along with `.called` and `.call_count ` shortcuts.
+Each `Route` object has its own `.calls`, along with `.called` and `.call_count` shortcuts.
 
 ``` python
 import httpx

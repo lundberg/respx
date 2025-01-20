@@ -1,3 +1,6 @@
+from textwrap import dedent
+
+
 def test_respx_mock_fixture(testdir):
     testdir.makepyfile(
         """
@@ -35,6 +38,15 @@ def test_respx_mock_fixture(testdir):
             assert isinstance(respx_mock, respx.Router)
             assert some_fixture == "foobar"
         """
+    )
+    testdir.makeini(
+        dedent(
+            """
+            [pytest]
+            asyncio-mode = auto
+            asyncio_default_fixture_loop_scope = session
+            """
+        )
     )
     result = testdir.runpytest("-p", "respx")
     result.assert_outcomes(passed=4)

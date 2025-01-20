@@ -335,6 +335,12 @@ def test_content_pattern(lookup, content, expected):
         ),
         (
             Lookup.EQUAL,
+            {"foo": "bar", "ham": ["spam", "egg"]},
+            None,
+            True,
+        ),
+        (
+            Lookup.EQUAL,
             {"foo": "bar", "ham": "spam"},
             {"ham": "spam", "foo": "bar"},
             True,

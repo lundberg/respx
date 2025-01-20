@@ -518,9 +518,10 @@ def test_stacked_responses():
     assert route.call_count == 2
 ```
 
-Once the iterable is *exhausted*, the route will fallback and respond with the `return_value`, if set.
+Like python `Mock` side effects, `StopIteration` will be raised once the iterable is *exhausted*. A more practical use case is to have the last entry infinitely repeated, which can be done by utilizing `itertools`.
 
 ``` python
+from itertools import chain, repeat
 import httpx
 import respx
 
@@ -528,8 +529,10 @@ import respx
 @respx.mock
 def test_stacked_responses():
     respx.post("https://example.org/").mock(
-        side_effect=[httpx.Response(201)],
-        return_value=httpx.Response(200) 
+        side_effect=chain(
+            [httpx.Response(201)],
+            repeat(httpx.Response(200)),
+        )
     )
 
     response1 = httpx.post("https://example.org/")

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2024-12-19
+
+### Fixed
+
+- Support HTTPX 0.28.0, thanks @ndhansen (#278)
+
+### Removed
+
+- Drop support for Python 3.7, to align with HTTPX 0.25.0 (#280)
+
+### CI
+
+- Update CI test to not fail fast and cancel workflows, thanks @flaeppe (#269)
+- Add dependabot to check GitHub actions packages, thanks @flaeppe (#268)
+- Add Python 3.13 to test suite, thanks @jairhenrique (#283)
+
 ## [0.21.1] - 2024-03-27
 
 ### Fixed

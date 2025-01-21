@@ -289,13 +289,19 @@ class MultiItemsMixin:
     value: Any
 
     def _multi_items(
-        self, value: Any, *, parse_any: bool = False
+        self, value: Any, *, parse_any: bool = False, encode_any: bool = False
     ) -> Tuple[Tuple[str, Tuple[Any, ...]], ...]:
         return tuple(
             (
                 key,
                 tuple(
-                    ANY if parse_any and v == str(ANY) else v
+                    (
+                        ANY
+                        if parse_any and v == str(ANY)
+                        else str(ANY)
+                        if encode_any and v == ANY
+                        else v
+                    )
                     for v in value.get_list(key)
                 ),
             )
@@ -303,7 +309,13 @@ class MultiItemsMixin:
         )
 
     def __hash__(self):
-        return hash((self.__class__, self.lookup, self._multi_items(self.value)))
+        return hash(
+            (
+                self.__class__,
+                self.lookup,
+                self._multi_items(self.value, encode_any=True),
+            )
+        )
 
     def _eq(self, value: Any) -> Match:
         value_items = self._multi_items(self.value, parse_any=True)

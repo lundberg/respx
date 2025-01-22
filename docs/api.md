@@ -149,7 +149,7 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 >   Response *text* content to mock, with automatic content-type header added.
 > * **html** - *(optional) str*  
 >   Response *HTML* content to mock, with automatic content-type header added.
-> * **json** - *(optional) str | list | dict*  
+> * **json** - *(optional) str | list | dict | tuple | float*  
 >   Response *JSON* content to mock, with automatic content-type header added.
 > * **stream** - *(optional) Iterable[bytes]*  
 >   Response *stream* to mock.
@@ -190,7 +190,7 @@ Shortcut for creating and mocking a `HTTPX` [Response](#response).
 >   Text content, with automatic content-type header added.
 > * **html** - *(optional) str*  
 >   HTML content, with automatic content-type header added.
-> * **json** - *(optional) str | list | dict*  
+> * **json** - *(optional) str | list | dict | tuple | float*  
 >   JSON content, with automatic content-type header added.
 > * **stream** - *(optional) Iterable[bytes]*  
 >   Content *stream*.

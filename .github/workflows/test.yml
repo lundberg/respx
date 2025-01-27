@@ -37,7 +37,7 @@ jobs:
     - name: Test
       run: nox -N -s test-${{ matrix.python-version }} -- -v
     - name: Upload coverage report
-      uses: codecov/codecov-action@v4.5.0
+      uses: codecov/codecov-action@v5.3.1
       with:
         name: Python ${{ matrix.python-version }}
         files: ./coverage.xml

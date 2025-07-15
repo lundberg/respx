@@ -277,7 +277,7 @@ class Route:
         content: Optional[Content] = None,
         text: Optional[str] = None,
         html: Optional[str] = None,
-        json: Optional[Any] = None,
+        json: Any = None,
         stream: Optional[Union[httpx.SyncByteStream, httpx.AsyncByteStream]] = None,
         content_type: Optional[str] = None,
         http_version: Optional[str] = None,

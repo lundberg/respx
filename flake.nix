@@ -13,6 +13,7 @@
         pkgsUnstable = nixpkgsUnstable.legacyPackages.${system};
       in {
         packages = flakeUtils.lib.flattenTree {
+          python314 = pkgs.python314;
           python313 = pkgs.python313;
           python312 = pkgs.python312;
           python311 = pkgs.python311;
@@ -23,6 +24,7 @@
         };
         devShell = pkgs.mkShell {
           buildInputs = with self.packages.${system}; [
+            python314
             python313
             python312
             python311

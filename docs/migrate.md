@@ -174,4 +174,61 @@ respx.route(url="https://example.org/").pass_through()
 
 ## requests-mock
 
-*todo ... contribution welcome* ;-)
+### Decorator
+
+```python
+@requests_mock.mock()
+def test_some_call(self, m: requests_mock.mock):
+    m.get(requests_mock.ANY, json={})
+```
+```python
+@respx.mock
+def test_some_call(self):
+    respx.mock.get().respond(json={})
+```
+
+### Context manager
+
+```python
+with requests_mock.mock() as m:
+    m.get(requests_mock.ANY, json=json)
+```
+```python
+with respx.mock:
+    respx.mock.get().respond(json=json)
+```
+
+### Raising an exception
+
+```python
+m.post(requests_mock.ANY, exc=JSONDecodeError("nope", "ok", 1))
+```
+```python
+respx.mock.post().side_effect = JSONDecodeError("nope", "ok", 1)
+```
+
+### Specifying a list of responses
+
+```python
+m.get(requests_mock.ANY, responses)
+```
+```python
+respx.get().side_effect = responses
+```
+
+### Assertions
+
+```python
+self.assertTrue(m.called_once)
+self.assertEqual(m.last_request.url, "https://api.io/example/endpoint")
+self.assertEqual(m.last_request.json(), {"key": "value"})
+```
+
+```python
+self.assertEqual(respx.calls.call_count, 1)
+self.assertEqual(
+    str(respx.calls.last.request.url),
+    "https://api.io/example/endpoint",
+)
+self.assertEqual(json.loads(respx.calls.last.request.content), {"key": "value"})
+```

@@ -225,7 +225,7 @@ self.assertEqual(m.last_request.json(), {"key": "value"})
 ```
 
 ```python
-self.assertEqual(respx.calls.call_count, 1)
+respx.calls.assert_called_once()
 self.assertEqual(
     str(respx.calls.last.request.url),
     "https://api.io/example/endpoint",

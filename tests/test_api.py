@@ -419,6 +419,33 @@ async def test_pass_through(client, using, route, expected):
         assert request.is_pass_through is expected
 
 
+async def test_pass_through_with_proxy():
+    # Sync
+    with respx.mock:
+        route = respx.get("https://foo.bar/").pass_through()
+        with mock.patch(
+            "socket.create_connection", side_effect=socket.error("test request blocked")
+        ) as connect:
+            with pytest.raises(httpx.NetworkError):
+                with httpx.Client(proxy="https://1.1.1.1:1") as client:
+                    client.get("https://foo.bar/")
+        assert connect.called is True
+        assert route.called is True
+
+    # Async
+    async with respx.mock:
+        route = respx.get("https://foo.bar/").pass_through()
+        with mock.patch(
+            "anyio.connect_tcp",
+            side_effect=ConnectionRefusedError("test request blocked"),
+        ) as open_connection:
+            with pytest.raises(httpx.NetworkError):
+                async with httpx.AsyncClient(proxy="https://1.1.1.1:1") as client:
+                    await client.get("https://foo.bar/")
+        assert open_connection.called is True
+        assert route.called is True
+
+
 @respx.mock
 async def test_parallel_requests(client):
     def content(request, page):

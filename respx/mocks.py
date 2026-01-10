@@ -167,6 +167,10 @@ class HTTPXMocker(Mocker):
 
 class AbstractRequestMocker(Mocker):
     @classmethod
+    def _should_bypass(cls, **kwargs) -> bool:
+        return False
+
+    @classmethod
     def mock(cls, spec):
         if spec.__name__ not in cls.target_methods:
             # Prevent mocking mock
@@ -176,6 +180,8 @@ class AbstractRequestMocker(Mocker):
 
         def mock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            if cls._should_bypass(**kwargs):
+                return spec(self, **kwargs)
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = cls.prepare_sync_request(request, **kwargs)
             response = cls._send_sync_request(
@@ -185,6 +191,8 @@ class AbstractRequestMocker(Mocker):
 
         async def amock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
+            if cls._should_bypass(**kwargs):
+                return await spec(self, **kwargs)
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = await cls.prepare_async_request(request, **kwargs)
             response = await cls._send_async_request(
@@ -270,6 +278,17 @@ class HTTPCoreMocker(AbstractRequestMocker):
         "httpcore._async.http_proxy.AsyncHTTPProxy",
     ]
     target_methods = ["handle_request", "handle_async_request"]
+
+    @classmethod
+    def _should_bypass(cls, **kwargs) -> bool:
+        # Bypass CONNECT requests because we cannot mock proxy tunnels:
+        # 1. CONNECT URLs lack a scheme, crashing our URL parser.
+        # 2. Tunnels require a live socket, not a static mock response.
+        request = kwargs.get("request")
+        if request is not None:
+            if request.method in (b"CONNECT", "CONNECT"):
+                return True
+        return False
 
     @classmethod
     def prepare_sync_request(cls, httpx_request, **kwargs):

@@ -167,10 +167,6 @@ class HTTPXMocker(Mocker):
 
 class AbstractRequestMocker(Mocker):
     @classmethod
-    def _should_bypass(cls, **kwargs) -> bool:
-        return False
-
-    @classmethod
     def mock(cls, spec):
         if spec.__name__ not in cls.target_methods:
             # Prevent mocking mock
@@ -180,8 +176,6 @@ class AbstractRequestMocker(Mocker):
 
         def mock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
-            if cls._should_bypass(**kwargs):
-                return spec(self, **kwargs)
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = cls.prepare_sync_request(request, **kwargs)
             response = cls._send_sync_request(
@@ -191,8 +185,6 @@ class AbstractRequestMocker(Mocker):
 
         async def amock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)
-            if cls._should_bypass(**kwargs):
-                return await spec(self, **kwargs)
             request = cls.to_httpx_request(**kwargs)
             request, kwargs = await cls.prepare_async_request(request, **kwargs)
             response = await cls._send_async_request(
@@ -280,17 +272,6 @@ class HTTPCoreMocker(AbstractRequestMocker):
     target_methods = ["handle_request", "handle_async_request"]
 
     @classmethod
-    def _should_bypass(cls, **kwargs) -> bool:
-        # Bypass CONNECT requests because we cannot mock proxy tunnels:
-        # 1. CONNECT URLs lack a scheme, crashing our URL parser.
-        # 2. Tunnels require a live socket, not a static mock response.
-        request = kwargs.get("request")
-        if request is not None:
-            if request.method in (b"CONNECT", "CONNECT"):
-                return True
-        return False
-
-    @classmethod
     def prepare_sync_request(cls, httpx_request, **kwargs):
         """
         Sync pre-read request body, and update transport request arg.
@@ -321,15 +302,27 @@ class HTTPCoreMocker(AbstractRequestMocker):
             if isinstance(request.method, bytes)
             else request.method
         )
-        raw_url = (
-            request.url.scheme,
-            request.url.host,
-            request.url.port,
-            request.url.target,
-        )
+
+        if method == "CONNECT":
+            # CONNECT uses authority-form targets (host:port) for tunnel
+            # establishment. Build URL from the target so route matching
+            # works on the remote host.
+            target = request.url.target
+            if isinstance(target, bytes):
+                target = target.decode("ascii")
+            url = httpx.URL(f"https://{target}/")
+        else:
+            raw_url = (
+                request.url.scheme,
+                request.url.host,
+                request.url.port,
+                request.url.target,
+            )
+            url = parse_url(raw_url)
+
         return httpx.Request(
             method,
-            parse_url(raw_url),
+            url,
             headers=request.headers,
             stream=request.stream,
             extensions=request.extensions,

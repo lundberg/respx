@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-04-07
+
+### Fixed
+
+- Fix `data` pattern with list value (#264)
+- Fix and enhance incorrect documentations about iterable side effects (#287)
+- Fix documentation typo, thanks @markhobson (#298)
+- Fix support for multiple slashes `//` in URL path by not using `urljoin` when
+  prepending path, thanks @lewiscollard and @Skeen (#302)
+- Type Route.respond json as `Any` to align with HTTPX, thanks @JacobHayes (#284)
+- Properly handle `ANY` in `MuitiItems` patterns (#289)
+
+### CI
+
+- Fix test warnings (#267)
+- Add Python 3.14 to test matrix, thanks @carlosdorneles-mb (#300)
+- Update nix flake, mypy target and workflows (#306, #282)
+
 ## [0.22.0] - 2024-12-19
 
 ### Fixed

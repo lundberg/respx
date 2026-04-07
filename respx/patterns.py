@@ -24,7 +24,6 @@ from typing import (
     Union,
 )
 from unittest.mock import ANY
-from urllib.parse import urljoin
 
 import httpx
 
@@ -429,7 +428,11 @@ class Path(Pattern):
                 else "".join(f"%{byte:02x}" for byte in char.encode("utf-8")).upper()
                 for char in value
             )
-            path = urljoin("/", path)  # Ensure leading slash
+            # Ensure a leading slash. Note we don't use urljoin because its
+            # behaviour with multiple slashes in the path is incorrect - see
+            # https://github.com/lundberg/respx/issues/273
+            if not path.startswith("/"):
+                path = f"/{path}"
             value = httpx.URL(path).path
         elif self.lookup is Lookup.REGEX and isinstance(value, str):
             value = re.compile(value)

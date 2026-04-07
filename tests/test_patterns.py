@@ -224,6 +224,9 @@ def test_path_pattern():
     path.base = Path("/foo/")
     assert path.strip_base("/foo/bar/") == "/bar/"
 
+    # Regression test for https://github.com/lundberg/respx/issues/273
+    assert Path("foo//bar").clean("foo//bar") == "/foo//bar"
+
 
 @pytest.mark.parametrize(
     ("lookup", "params", "url", "expected"),

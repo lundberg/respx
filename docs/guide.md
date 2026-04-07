@@ -640,7 +640,7 @@ def test_remote_response():
 
 ## Mock without patching HTTPX
 
-If you don't *need* to patch `HTTPX`, use `httpx.MockTransport` with a REPX router as handler, when instantiating your client.
+If you don't *need* to patch `HTTPX`, use `httpx.MockTransport` with a RESPX router as handler, when instantiating your client.
 
 ``` python
 import httpx

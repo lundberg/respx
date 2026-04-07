@@ -24,7 +24,8 @@ tasks:
     desc: Statically type check python files
     silent: true
     deps: [tools]
-    cmds: [.venv/bin/nox -R -s mypy]
+    cmds:
+      - .venv/bin/nox {{.CLI_ARGS | default "-R"}} -s mypy
 
   lint:
     desc: Lint project files

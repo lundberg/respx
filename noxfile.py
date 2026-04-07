@@ -17,7 +17,7 @@ def test(session):
     session.run("pytest", *session.posargs)
 
 
-@nox.session(python="3.8")
+@nox.session(python="3.10")
 def mypy(session):
     session.install("--upgrade", "mypy")
     session.install("-e", ".")

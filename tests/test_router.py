@@ -338,7 +338,7 @@ def test_rollback():
     _route = router.get("https://foo.bar/baz/", name="foobar")
     assert _route is route
     assert route.name == "foobar"
-    assert route.pattern != pattern
+    assert route.pattern != pattern  # type: ignore[unreachable]
     route.return_value = httpx.Response(418)
     request = httpx.Request("GET", "https://foo.bar/baz/")
     response = router.handler(request)

@@ -276,6 +276,7 @@ def test_files_post_body():
     with respx.mock:
         url = "https://foo.bar/"
         file = ("file", ("filename.txt", b"...", "text/plain", {"X-Foo": "bar"}))
+        respx.post(url + "other", files={"file": mock.ANY})  # Non-matching ANY
         route = respx.post(url, files={"file": mock.ANY}) % 201
         response = httpx.post(url, files=[file])
         assert response.status_code == 201

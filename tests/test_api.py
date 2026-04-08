@@ -501,6 +501,10 @@ def test_pop():
 )
 async def test_params_match(client, url, params, call_url, call_params):
     respx.get(url, params=params) % dict(content="spam spam")
+
+    # Add an extra competing param but with non-matching value, reproduces #311 issue
+    respx.get(url, params={"foo": "<non-matching>"})
+
     response = await client.get(call_url, params=call_params)
     assert response.text == "spam spam"
 

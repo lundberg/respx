@@ -9,8 +9,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
-- Fix regression causing `params` pattern to stop working under some conditions,
-  by doing a strict detection of `ANY` in multi items patterns (#313)
+- Fix regression causing `params` pattern to stop working under some conditions, by
+  doing a strict detection of `ANY` in multi items patterns (#313)
 
 ### CI
 

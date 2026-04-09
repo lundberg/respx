@@ -535,10 +535,7 @@ class Content(ContentMixin, Pattern):
 class JSON(ContentMixin, PathPattern):
     lookups = (Lookup.EQUAL,)
     key = "json"
-    value: str
-
-    def clean(self, value: Union[str, List, Dict]) -> str:
-        return self.hash(value)
+    value: Union[str, List, Dict, Any]
 
     def parse(self, request: httpx.Request) -> str:
         content = super().parse(request)
@@ -557,10 +554,23 @@ class JSON(ContentMixin, PathPattern):
         else:
             value = json
 
-        return self.hash(value)
+        return value
 
-    def hash(self, value: Union[str, List, Dict]) -> str:
-        return jsonlib.dumps(value, sort_keys=True)
+    def __hash__(self):
+        return hash(
+            (
+                self.__class__,
+                self.lookup,
+                jsonlib.dumps(self.value, sort_keys=True, default=self._encode_any),
+            )
+        )
+
+    def _encode_any(self, o: Any) -> Any:
+        if o is ANY:
+            return str(ANY)
+        raise TypeError(  # pragma: no cover
+            f"Object of type {type(o)} is not JSON serializable"
+        )
 
 
 class Data(MultiItemsMixin, Pattern):

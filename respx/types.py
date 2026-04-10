@@ -40,12 +40,19 @@ CookieTypes = Union[Dict[str, str], Sequence[Tuple[str, str]]]
 
 DefaultType = TypeVar("DefaultType", bound=Any)
 
+
+class Default:
+    ...
+
+
+DEFAULT = Default()
+
 URLPatternTypes = Union[str, Pattern[str], URL, httpx.URL]
 QueryParamTypes = Union[
     bytes, str, List[Tuple[str, Any]], Dict[str, Any], Tuple[Tuple[str, Any], ...]
 ]
 
-ResolvedResponseTypes = Optional[Union[httpx.Request, httpx.Response]]
+ResolvedResponseTypes = Optional[Union[httpx.Request, httpx.Response, Default]]
 RouteResultTypes = Union[ResolvedResponseTypes, Awaitable[ResolvedResponseTypes]]
 CallableSideEffect = Callable[..., RouteResultTypes]
 SideEffectListTypes = Union[httpx.Response, Exception, Type[Exception]]

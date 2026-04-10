@@ -352,12 +352,14 @@ class MockRouter(Router):
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> None:
         super().__init__(
             assert_all_called=assert_all_called,
             assert_all_mocked=assert_all_mocked,
             base_url=base_url,
+            default=default,
         )
         self.Mocker: Optional[Type[Mocker]] = None
         self._using = using
@@ -370,6 +372,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> "MockRouter":
         ...  # pragma: nocover
@@ -382,6 +385,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> Callable:
         ...  # pragma: nocover
@@ -393,6 +397,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> Union["MockRouter", Callable]:
         """
@@ -414,6 +419,9 @@ class MockRouter(Router):
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
                 settings["assert_all_mocked"] = assert_all_mocked
+            if default is not None:
+                settings["default"] = default
+                settings.setdefault("assert_all_mocked", False)
             respx_mock = self.__class__(**settings)
             return respx_mock
 

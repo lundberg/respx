@@ -302,27 +302,15 @@ class HTTPCoreMocker(AbstractRequestMocker):
             if isinstance(request.method, bytes)
             else request.method
         )
-
-        if method == "CONNECT":
-            # CONNECT uses authority-form targets (host:port) for tunnel
-            # establishment. Build URL from the target so route matching
-            # works on the remote host.
-            target = request.url.target
-            if isinstance(target, bytes):
-                target = target.decode("ascii")
-            url = httpx.URL(f"https://{target}/")
-        else:
-            raw_url = (
-                request.url.scheme,
-                request.url.host,
-                request.url.port,
-                request.url.target,
-            )
-            url = parse_url(raw_url)
-
+        raw_url = (
+            request.url.scheme,
+            request.url.host,
+            request.url.port,
+            request.url.target if method != "CONNECT" else b"/",
+        )
         return httpx.Request(
             method,
-            url,
+            parse_url(raw_url),
             headers=request.headers,
             stream=request.stream,
             extensions=request.extensions,

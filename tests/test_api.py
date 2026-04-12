@@ -419,62 +419,6 @@ async def test_pass_through(client, using, route, expected):
         assert request.is_pass_through is expected
 
 
-async def test_pass_through_with_proxy():
-    # Sync
-    with respx.mock:
-        connect_route = respx.route(method="CONNECT").pass_through()
-        route = respx.get("https://foo.bar/").pass_through()
-        with mock.patch(
-            "socket.create_connection", side_effect=socket.error("test request blocked")
-        ) as connect:
-            with pytest.raises(httpx.NetworkError):
-                with httpx.Client(proxy="https://1.1.1.1:1") as client:
-                    client.get("https://foo.bar/")
-        assert connect.called is True
-        assert connect_route.called is True
-        assert route.called is True
-
-    # Async
-    async with respx.mock:
-        connect_route = respx.route(method="CONNECT").pass_through()
-        route = respx.get("https://foo.bar/").pass_through()
-        with mock.patch(
-            "anyio.connect_tcp",
-            side_effect=ConnectionRefusedError("test request blocked"),
-        ) as open_connection:
-            with pytest.raises(httpx.NetworkError):
-                async with httpx.AsyncClient(proxy="https://1.1.1.1:1") as client:
-                    await client.get("https://foo.bar/")
-        assert open_connection.called is True
-        assert connect_route.called is True
-        assert route.called is True
-
-
-async def test_mocked_connect_proxy_response():
-    # Sync - mock a 407 Proxy Authentication Required on CONNECT
-    # GET must pass through so the real proxy code sends CONNECT internally.
-    with respx.mock:
-        connect_route = respx.route(method="CONNECT").mock(
-            return_value=httpx.Response(407)
-        )
-        respx.get("https://foo.bar/").pass_through()
-        with pytest.raises(httpx.ProxyError):
-            with httpx.Client(proxy="https://1.1.1.1:1") as client:
-                client.get("https://foo.bar/")
-        assert connect_route.called is True
-
-    # Async - mock a 407 Proxy Authentication Required on CONNECT
-    async with respx.mock:
-        connect_route = respx.route(method="CONNECT").mock(
-            return_value=httpx.Response(407)
-        )
-        respx.get("https://foo.bar/").pass_through()
-        with pytest.raises(httpx.ProxyError):
-            async with httpx.AsyncClient(proxy="https://1.1.1.1:1") as client:
-                await client.get("https://foo.bar/")
-        assert connect_route.called is True
-
-
 @respx.mock
 async def test_parallel_requests(client):
     def content(request, page):

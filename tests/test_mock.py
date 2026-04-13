@@ -515,7 +515,9 @@ async def test_proxies(proxy_url):
         assert route.calls.last.request.method == "CONNECT"
 
     with respx.mock:
-        connect_route = respx.route(method="CONNECT", url=f"{proxy_url}/").pass_through()
+        connect_route = respx.route(
+            method="CONNECT", url=f"{proxy_url}/"
+        ).pass_through()
         route = respx.get("https://foo.bar/").pass_through()
         with mock.patch(
             "socket.create_connection", side_effect=socket.error("test request blocked")
@@ -528,7 +530,9 @@ async def test_proxies(proxy_url):
         assert route.called is True
 
     async with respx.mock:
-        connect_route = respx.route(method="CONNECT", url=f"{proxy_url}/").pass_through()
+        connect_route = respx.route(
+            method="CONNECT", url=f"{proxy_url}/"
+        ).pass_through()
         route = respx.get("https://foo.bar/").pass_through()
         with mock.patch(
             "anyio.connect_tcp",

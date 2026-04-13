@@ -495,7 +495,7 @@ async def test_proxies(proxy_url):
             "socket.create_connection", side_effect=socket.error("test request blocked")
         ) as connect:
             with httpx.Client(proxy=proxy_url) as client:
-                with pytest.raises(httpx.NetworkError):
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
                     client.get("https://foo.bar/")
         assert connect.called is True
         assert route.called is True
@@ -508,7 +508,7 @@ async def test_proxies(proxy_url):
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
             async with httpx.AsyncClient(proxy=proxy_url) as client:
-                with pytest.raises(httpx.NetworkError):
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
                     await client.get("https://foo.bar/")
         assert open_connection.called is True
         assert route.called is True
@@ -523,7 +523,7 @@ async def test_proxies(proxy_url):
             "socket.create_connection", side_effect=socket.error("test request blocked")
         ) as connect:
             with httpx.Client(proxy=proxy_url) as client:
-                with pytest.raises(httpx.NetworkError):
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
                     client.get("https://foo.bar/")
         assert connect.called is True
         assert connect_route.called is True
@@ -539,7 +539,7 @@ async def test_proxies(proxy_url):
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
             async with httpx.AsyncClient(proxy=proxy_url) as client:
-                with pytest.raises(httpx.NetworkError):
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
                     await client.get("https://foo.bar/")
         assert open_connection.called is True
         assert connect_route.called is True

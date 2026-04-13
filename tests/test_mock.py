@@ -1,5 +1,5 @@
-from contextlib import ExitStack as does_not_raise
 import socket
+from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import httpcore
@@ -494,8 +494,8 @@ async def test_proxies(proxy_url):
         with mock.patch(
             "socket.create_connection", side_effect=socket.error("test request blocked")
         ) as connect:
-            with pytest.raises(httpx.NetworkError):
-                with httpx.Client(proxy=proxy_url) as client:
+            with httpx.Client(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):
                     client.get("https://foo.bar/")
         assert connect.called is True
         assert route.called is True
@@ -507,8 +507,8 @@ async def test_proxies(proxy_url):
             "anyio.connect_tcp",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
-            with pytest.raises(httpx.NetworkError):
-                async with httpx.AsyncClient(proxy=proxy_url) as client:
+            async with httpx.AsyncClient(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):
                     await client.get("https://foo.bar/")
         assert open_connection.called is True
         assert route.called is True
@@ -520,8 +520,8 @@ async def test_proxies(proxy_url):
         with mock.patch(
             "socket.create_connection", side_effect=socket.error("test request blocked")
         ) as connect:
-            with pytest.raises(httpx.NetworkError):
-                with httpx.Client(proxy=proxy_url) as client:
+            with httpx.Client(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):
                     client.get("https://foo.bar/")
         assert connect.called is True
         assert connect_route.called is True
@@ -534,8 +534,8 @@ async def test_proxies(proxy_url):
             "anyio.connect_tcp",
             side_effect=ConnectionRefusedError("test request blocked"),
         ) as open_connection:
-            with pytest.raises(httpx.NetworkError):
-                async with httpx.AsyncClient(proxy=proxy_url) as client:
+            async with httpx.AsyncClient(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):
                     await client.get("https://foo.bar/")
         assert open_connection.called is True
         assert connect_route.called is True
@@ -546,8 +546,8 @@ async def test_proxies(proxy_url):
             return_value=httpx.Response(407)
         )
         respx.get("https://foo.bar/").pass_through()
-        with pytest.raises(httpx.ProxyError):
-            with httpx.Client(proxy=proxy_url) as client:
+        with httpx.Client(proxy=proxy_url) as client:
+            with pytest.raises(httpx.ProxyError):
                 client.get("https://foo.bar/")
         assert connect_route.called is True
 
@@ -556,8 +556,8 @@ async def test_proxies(proxy_url):
             return_value=httpx.Response(407)
         )
         respx.get("https://foo.bar/").pass_through()
-        with pytest.raises(httpx.ProxyError):
-            async with httpx.AsyncClient(proxy=proxy_url) as client:
+        async with httpx.AsyncClient(proxy=proxy_url) as client:
+            with pytest.raises(httpx.ProxyError):
                 await client.get("https://foo.bar/")
         assert connect_route.called is True
 

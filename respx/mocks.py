@@ -306,7 +306,7 @@ class HTTPCoreMocker(AbstractRequestMocker):
             request.url.scheme,
             request.url.host,
             request.url.port,
-            request.url.target,
+            request.url.target if method != "CONNECT" else b"/",
         )
         return httpx.Request(
             method,

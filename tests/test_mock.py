@@ -1,4 +1,6 @@
+import socket
 from contextlib import ExitStack as does_not_raise
+from unittest import mock
 
 import httpcore
 import httpx
@@ -473,18 +475,95 @@ def test_add_remove_targets():
         assert len(HTTPCoreMocker.targets) == pre_add_count
 
 
-async def test_proxies():
+@pytest.mark.parametrize("proxy_url", ["http://1.1.1.1:1", "https://1.1.1.1:1"])
+async def test_proxies(proxy_url):
     with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
-        with httpx.Client(proxy="https://1.1.1.1:1") as client:
+        with httpx.Client(proxy=proxy_url) as client:
             response = client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
 
     async with respx.mock:
         respx.get("https://foo.bar/") % dict(json={"foo": "bar"})
-        async with httpx.AsyncClient(proxy="https://1.1.1.1:1") as client:
+        async with httpx.AsyncClient(proxy=proxy_url) as client:
             response = await client.get("https://foo.bar/")
         assert response.json() == {"foo": "bar"}
+
+    with respx.mock:
+        route = respx.route().pass_through()
+        with mock.patch(
+            "socket.create_connection", side_effect=socket.error("test request blocked")
+        ) as connect:
+            with httpx.Client(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
+                    client.get("https://foo.bar/")
+        assert connect.called is True
+        assert route.called is True
+        assert route.calls.last.request.method == "CONNECT"
+
+    async with respx.mock:
+        route = respx.route().pass_through()
+        with mock.patch(
+            "anyio.connect_tcp",
+            side_effect=ConnectionRefusedError("test request blocked"),
+        ) as open_connection:
+            async with httpx.AsyncClient(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
+                    await client.get("https://foo.bar/")
+        assert open_connection.called is True
+        assert route.called is True
+        assert route.calls.last.request.method == "CONNECT"
+
+    with respx.mock:
+        connect_route = respx.route(
+            method="CONNECT", url=f"{proxy_url}/"
+        ).pass_through()
+        route = respx.get("https://foo.bar/").pass_through()
+        with mock.patch(
+            "socket.create_connection", side_effect=socket.error("test request blocked")
+        ) as connect:
+            with httpx.Client(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
+                    client.get("https://foo.bar/")
+        assert connect.called is True
+        assert connect_route.called is True
+        assert route.called is True
+
+    async with respx.mock:
+        connect_route = respx.route(
+            method="CONNECT", url=f"{proxy_url}/"
+        ).pass_through()
+        route = respx.get("https://foo.bar/").pass_through()
+        with mock.patch(
+            "anyio.connect_tcp",
+            side_effect=ConnectionRefusedError("test request blocked"),
+        ) as open_connection:
+            async with httpx.AsyncClient(proxy=proxy_url) as client:
+                with pytest.raises(httpx.NetworkError):  # pragma: no branch
+                    await client.get("https://foo.bar/")
+        assert open_connection.called is True
+        assert connect_route.called is True
+        assert route.called is True
+
+    with respx.mock:
+        connect_route = respx.route(method="CONNECT", url=f"{proxy_url}/").mock(
+            return_value=httpx.Response(407)
+        )
+        respx.get("https://foo.bar/").pass_through()
+        with httpx.Client(proxy=proxy_url) as client:
+            with pytest.raises(httpx.ProxyError):
+                client.get("https://foo.bar/")
+        assert connect_route.called is True
+
+    async with respx.mock:
+        connect_route = respx.route(method="CONNECT", url=f"{proxy_url}/").mock(
+            return_value=httpx.Response(407)
+        )
+        respx.get("https://foo.bar/").pass_through()
+        async with httpx.AsyncClient(proxy=proxy_url) as client:
+            with pytest.raises(httpx.ProxyError):
+                await client.get("https://foo.bar/")
+        assert connect_route.called is True
 
 
 async def test_uds():

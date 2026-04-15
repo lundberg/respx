@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from respx import Route, Router
-from respx.models import AllMockedAssertionError, PassThrough, RouteList
+from respx.models import AllMockedAssertionError, MockResponse, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
@@ -20,7 +20,7 @@ async def test_empty_router():
         await router.aresolve(request)
 
 
-async def test_empty_router__auto_mocked():
+async def test_empty_router__auto_mock_success():
     router = Router(assert_all_mocked=False)
 
     request = httpx.Request("GET", "https://example.org/")
@@ -35,6 +35,45 @@ async def test_empty_router__auto_mocked():
     assert resolved.route is None
     assert isinstance(resolved.response, httpx.Response)
     assert resolved.response.status_code == 200
+
+
+async def test_empty_router__auto_mock_default_response():
+    router = Router(assert_all_mocked=False, default=MockResponse(404))
+
+    request = httpx.Request("GET", "https://example.org/")
+    resolved = router.resolve(request)
+
+    assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
+    assert resolved.response.status_code == 404
+
+    resolved = await router.aresolve(request)
+
+    assert resolved.route is None
+    assert isinstance(resolved.response, httpx.Response)
+    assert resolved.response.status_code == 404
+
+
+async def test_empty_router__auto_mock_default_exception():
+    router = Router(assert_all_mocked=False, default=httpx.NetworkError)
+
+    request = httpx.Request("GET", "https://example.org/")
+    with pytest.raises(httpx.NetworkError):
+        router.resolve(request)
+
+    with pytest.raises(httpx.NetworkError):
+        await router.aresolve(request)
+
+
+async def test_empty_router__raises_with_default_callable_side_effect():
+    router = Router(
+        assert_all_mocked=False,
+        default=lambda r: r,  # type: ignore[arg-type]
+    )
+
+    request = httpx.Request("GET", "https://example.org/")
+    with pytest.raises(AssertionError, match="Unsupported default mock"):
+        router.resolve(request)
 
 
 @pytest.mark.parametrize(

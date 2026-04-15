@@ -20,6 +20,7 @@ from respx.utils import SetCookie
 
 from .patterns import M, Pattern
 from .types import (
+    DEFAULT,
     CallableSideEffect,
     Content,
     CookieTypes,
@@ -397,8 +398,8 @@ class Route:
             result = self._return_value
 
         else:
-            # Auto mock a new response
-            result = httpx.Response(200, request=request)
+            # Auto mock a router default response
+            return DEFAULT
 
         if isinstance(result, httpx.Response) and not result._request:
             # Clone reused Response for immutability

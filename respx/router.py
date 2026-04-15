@@ -8,7 +8,6 @@ from typing import (
     Dict,
     Generator,
     List,
-    NewType,
     Optional,
     Tuple,
     Type,
@@ -30,10 +29,15 @@ from .models import (
     SideEffectError,
 )
 from .patterns import Pattern, merge_patterns, parse_url_patterns
-from .types import DefaultType, ResolvedResponseTypes, RouteResultTypes, URLPatternTypes
-
-Default = NewType("Default", object)
-DEFAULT = Default(...)
+from .types import (
+    DEFAULT,
+    Default,
+    DefaultType,
+    ResolvedResponseTypes,
+    RouteResultTypes,
+    SideEffectListTypes,
+    URLPatternTypes,
+)
 
 
 class Router:
@@ -43,10 +47,18 @@ class Router:
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
     ) -> None:
         self._assert_all_called = assert_all_called
         self._assert_all_mocked = assert_all_mocked
         self._bases = parse_url_patterns(base_url, exact=False)
+
+        if default is None:
+            self._default_route = Route().respond(200)
+        elif isinstance(default, httpx.Response):
+            self._default_route = Route().mock(return_value=default)
+        else:
+            self._default_route = Route().mock(side_effect=default)
 
         self.routes = RouteList()
         self.calls = CallList()
@@ -237,6 +249,11 @@ class Router:
         if route:
             route.calls.append(call)
 
+    def default_response(self, request: httpx.Request) -> httpx.Response:
+        response = self._default_route.resolve(request)
+        assert isinstance(response, httpx.Response), "Unsupported default mock"
+        return response
+
     @contextmanager
     def resolver(self, request: httpx.Request) -> Generator[ResolvedRoute, None, None]:
         resolved = ResolvedRoute()
@@ -249,8 +266,12 @@ class Router:
                 if self._assert_all_mocked:
                     raise AllMockedAssertionError(f"RESPX: {request!r} not mocked!")
 
-                # Auto mock a successful empty response
-                resolved.response = httpx.Response(200)
+                # No route found .. Auto mock default
+                resolved.response = self.default_response(request)
+
+            elif resolved.response is DEFAULT:
+                # Route has no mocked response or side effect .. Auto mock default
+                resolved.response = self.default_response(request)
 
             elif resolved.response == request:
                 # Pass-through request
@@ -282,7 +303,9 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):
+        if isinstance(resolved.response, httpx.Response) and isinstance(
+            resolved.response.stream, httpx.ByteStream
+        ):
             resolved.response.read()  # Pre-read stream
 
         return resolved
@@ -304,7 +327,9 @@ class Router:
                     resolved.response = cast(ResolvedResponseTypes, prospect)
                     break
 
-        if resolved.response and isinstance(resolved.response.stream, httpx.ByteStream):
+        if isinstance(resolved.response, httpx.Response) and isinstance(
+            resolved.response.stream, httpx.ByteStream
+        ):
             await resolved.response.aread()  # Pre-read stream
 
         return resolved
@@ -327,12 +352,14 @@ class MockRouter(Router):
         assert_all_called: bool = True,
         assert_all_mocked: bool = True,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> None:
         super().__init__(
             assert_all_called=assert_all_called,
             assert_all_mocked=assert_all_mocked,
             base_url=base_url,
+            default=default,
         )
         self.Mocker: Optional[Type[Mocker]] = None
         self._using = using
@@ -345,6 +372,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> "MockRouter":
         ...  # pragma: nocover
@@ -357,6 +385,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> Callable:
         ...  # pragma: nocover
@@ -368,6 +397,7 @@ class MockRouter(Router):
         assert_all_called: Optional[bool] = None,
         assert_all_mocked: Optional[bool] = None,
         base_url: Optional[str] = None,
+        default: Optional[SideEffectListTypes] = None,
         using: Optional[Union[str, Default]] = DEFAULT,
     ) -> Union["MockRouter", Callable]:
         """
@@ -389,6 +419,9 @@ class MockRouter(Router):
                 settings["assert_all_called"] = assert_all_called
             if assert_all_mocked is not None:
                 settings["assert_all_mocked"] = assert_all_mocked
+            if default is not None:
+                settings["default"] = default
+                settings.setdefault("assert_all_mocked", False)
             respx_mock = self.__class__(**settings)
             return respx_mock
 

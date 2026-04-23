@@ -182,9 +182,10 @@ def test_some_call(self, m: requests_mock.mock):
     m.get(requests_mock.ANY, json={})
 ```
 ```python
-@respx.mock
-def test_some_call(self):
-    respx.mock.get().respond(json={})
+@respx.mock()
+def test_some_call(self, respx_mock: respx.Router):
+    respx_mock.get().respond(json={})
+
 ```
 
 ### Context manager
@@ -194,8 +195,8 @@ with requests_mock.mock() as m:
     m.get(requests_mock.ANY, json=json)
 ```
 ```python
-with respx.mock:
-    respx.mock.get().respond(json=json)
+with respx.mock() as respx_mock:
+    respx_mock.get().respond(json=json)
 ```
 
 ### Raising an exception
@@ -204,7 +205,7 @@ with respx.mock:
 m.post(requests_mock.ANY, exc=JSONDecodeError("nope", "ok", 1))
 ```
 ```python
-respx.mock.post().side_effect = JSONDecodeError("nope", "ok", 1)
+respx.post().side_effect = JSONDecodeError("nope", "ok", 1)
 ```
 
 ### Specifying a list of responses

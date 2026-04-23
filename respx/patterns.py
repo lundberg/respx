@@ -288,21 +288,38 @@ class MultiItemsMixin:
     value: Any
 
     def _multi_items(
-        self, value: Any, *, parse_any: bool = False
+        self, value: Any, *, parse_any: bool = False, encode_any: bool = False
     ) -> Tuple[Tuple[str, Tuple[Any, ...]], ...]:
         return tuple(
             (
                 key,
                 tuple(
-                    ANY if parse_any and v == str(ANY) else v
+                    self._item_value(v, parse_any=parse_any, encode_any=encode_any)
                     for v in value.get_list(key)
                 ),
             )
             for key in sorted(value.keys())
         )
 
+    def _item_value(
+        self, value: Any, parse_any: bool = False, encode_any: bool = False
+    ) -> Any:
+        return (
+            ANY
+            if parse_any and value == str(ANY)
+            else str(ANY)
+            if encode_any and value is ANY
+            else value
+        )
+
     def __hash__(self):
-        return hash((self.__class__, self.lookup, self._multi_items(self.value)))
+        return hash(
+            (
+                self.__class__,
+                self.lookup,
+                self._multi_items(self.value, encode_any=True),
+            )
+        )
 
     def _eq(self, value: Any) -> Match:
         value_items = self._multi_items(self.value, parse_any=True)
@@ -592,6 +609,15 @@ class Files(MultiItemsMixin, Pattern):
             fileobj = fileobj.encode()
 
         return ((filename, fileobj),)
+
+    def _item_value(
+        self, value: Tuple[Any, Any], parse_any: bool = False, encode_any: bool = False
+    ) -> Tuple[Any, Any]:
+        filename, data = value
+        return (
+            super()._item_value(filename, parse_any=parse_any, encode_any=encode_any),
+            super()._item_value(data, parse_any=parse_any, encode_any=encode_any),
+        )
 
     def clean(self, value: RequestFiles) -> MultiItems:
         if isinstance(value, Mapping):

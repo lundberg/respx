@@ -276,6 +276,7 @@ def test_files_post_body():
     with respx.mock:
         url = "https://foo.bar/"
         file = ("file", ("filename.txt", b"...", "text/plain", {"X-Foo": "bar"}))
+        respx.post(url + "other", files={"file": mock.ANY})  # Non-matching ANY
         route = respx.post(url, files={"file": mock.ANY}) % 201
         response = httpx.post(url, files=[file])
         assert response.status_code == 201
@@ -500,6 +501,10 @@ def test_pop():
 )
 async def test_params_match(client, url, params, call_url, call_params):
     respx.get(url, params=params) % dict(content="spam spam")
+
+    # Add an extra competing param but with non-matching value, reproduces #311 issue
+    respx.get(url, params={"foo": "<non-matching>"})
+
     response = await client.get(call_url, params=call_params)
     assert response.text == "spam spam"
 

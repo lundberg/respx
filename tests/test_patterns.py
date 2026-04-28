@@ -567,6 +567,9 @@ def test_files_pattern(lookup, files, request_files, expected):
             False,
         ),
         (Lookup.EQUAL, "json-string", "json-string", True),
+        (Lookup.EQUAL, {"foo": ANY}, {"foo": "bar"}, True),
+        (Lookup.EQUAL, {"foo": ANY}, {"ham": "spam"}, False),
+        (Lookup.EQUAL, ANY, "any-value", True),
     ],
 )
 def test_json_pattern(lookup, value, json, expected):
@@ -585,6 +588,11 @@ def test_json_pattern(lookup, value, json, expected):
         ({"pk": 123}, "pk", 123, True),
         ({"foo": {"bar": "baz"}}, "foo__ham", "spam", False),
         ([{"name": "lundberg"}], "1__name", "lundberg", False),
+        ([{"name": "lundberg"}], "0__name", ANY, True),
+        ([{"name": "lundberg"}], "1__name", ANY, False),
+        ({"ham": [{"spam": "spam"}, {"egg": "yolk"}]}, "ham__1", ANY, True),
+        ({"ham": [{"spam": "spam"}, {"egg": "yolk"}]}, "ham__1__egg", ANY, True),
+        ({"ham": [{"spam": "spam"}, {"egg": "yolk"}]}, "ham__1__foo", ANY, False),
     ],
 )
 def test_json_pattern_path(json, path, value, expected):
@@ -592,6 +600,21 @@ def test_json_pattern_path(json, path, value, expected):
     pattern = M(**{f"json__{path}": value})
     match = pattern.match(request)
     assert bool(match) is expected
+
+
+@pytest.mark.parametrize(
+    ("value", "other", "expected"),
+    [
+        ({"foo": "bar"}, {"foo": "bar"}, True),
+        ({"foo": "bar", "ham": "spam"}, {"ham": "spam", "foo": "bar"}, True),
+        (["foobar", ANY], ["foobar", ANY], True),
+        (["foobar", "hamspam"], ["foobar", ANY], False),
+        (ANY, ANY, True),
+        ("foobar", ANY, False),
+    ],
+)
+def test_json_pattern_hash(value, other, expected):
+    assert (JSON(value) == JSON(other)) is expected
 
 
 def test_invalid_pattern():

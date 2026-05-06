@@ -329,6 +329,13 @@ async def test_configured_router_reuse(client):
     assert respx.calls.call_count == 0
 
 
+def test_configured_router_with_default_mock():
+    router = respx.mock(default=httpx.Response(404))
+    with router:
+        response = httpx.get("https://example.com/")
+        assert response.status_code == 404
+
+
 async def test_router_return_type_misuse():
     router = respx.mock(assert_all_called=False)
     route = router.get("https://hot.dog/")

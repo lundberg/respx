@@ -76,6 +76,7 @@ class Mocker(ABC):
             return
 
         # Start patching target transports
+        patched = 0
         for target in cls.targets:
             for method in cls.target_methods:
                 try:
@@ -85,6 +86,13 @@ class Mocker(ABC):
                     cls._patches.append(patch)
                 except AttributeError:
                     pass
+                except ModuleNotFoundError:  # pragma: no cover
+                    pass
+                else:
+                    patched += 1
+
+        if not patched:
+            raise ModuleNotFoundError("No http tool found to patch")  # pragma: no cover
 
     @classmethod
     def stop(cls, force: bool = False) -> None:
@@ -268,6 +276,13 @@ class HTTPCoreMocker(AbstractRequestMocker):
         "httpcore._async.connection.AsyncHTTPConnection",
         "httpcore._async.connection_pool.AsyncConnectionPool",
         "httpcore._async.http_proxy.AsyncHTTPProxy",
+        # Pydantic's httpx2 fork
+        "httpcore2._sync.connection.HTTPConnection",
+        "httpcore2._sync.connection_pool.ConnectionPool",
+        "httpcore2._sync.http_proxy.HTTPProxy",
+        "httpcore2._async.connection.AsyncHTTPConnection",
+        "httpcore2._async.connection_pool.AsyncConnectionPool",
+        "httpcore2._async.http_proxy.AsyncHTTPProxy",
     ]
     target_methods = ["handle_request", "handle_async_request"]
 

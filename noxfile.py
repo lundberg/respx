@@ -8,6 +8,8 @@ nox.options.keywords = "test + mypy"
 @nox.session(python=["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"])
 def test(session):
     deps = ["pytest", "pytest-asyncio", "pytest-cov", "trio", "starlette", "flask"]
+    if tuple(map(int, session.python.split("."))) >= (3, 10):
+        deps.append("httpx2")
     session.install("--upgrade", *deps)
     session.install("-e", ".")
 

@@ -89,6 +89,79 @@ def test_pass_through():
     assert resolved.response is not None
 
 
+def test_pass_through_dedupes_internal_retries():
+    """Same user-initiated call should only increment call_count once even
+    when the underlying transport retries internally (issue #126).
+
+    We simulate the retry by feeding the resolver two distinct httpx.Request
+    objects with the same method, URL, and body. httpcore rebuilds the
+    request on each retry, so id() does not survive the retry — only a
+    content-based key does.
+    """
+
+    router = Router(assert_all_mocked=False)
+    route = router.get("https://foo.bar/baz/").pass_through()
+
+    def _resolve_and_record():
+        # Resolve raises PassThrough; router.record runs from the resolver's
+        # __exit__, which is exactly the path the real retry path takes.
+        request = httpx.Request("GET", "https://foo.bar/baz/")
+        try:
+            router.resolve(request)
+        except PassThrough:
+            pass  # resolver.__exit__ already called router.record()
+
+    _resolve_and_record()
+    _resolve_and_record()  # simulates httpcore retrying the same call
+
+    assert route.call_count == 1
+
+
+def test_pass_through_distinguishes_different_bodies():
+    """Two POSTs with different bodies must NOT be deduplicated."""
+
+    router = Router(assert_all_mocked=False)
+    route = router.post("https://foo.bar/api").pass_through()
+
+    for body in (b'{"a": 1}', b'{"a": 2}'):
+        request = httpx.Request(
+            "POST", "https://foo.bar/api", content=body
+        )
+        try:
+            router.resolve(request)
+        except PassThrough:
+            pass
+
+    assert route.call_count == 2
+
+
+def test_pass_through_dedup_clears_on_reset():
+    """reset() must clear the pass-through dedup set so a fresh session
+    starts counting from zero again."""
+    router = Router(assert_all_mocked=False)
+    route = router.get("https://foo.bar/baz/").pass_through()
+
+    request = httpx.Request("GET", "https://foo.bar/baz/")
+    try:
+        router.resolve(request)
+    except PassThrough:
+        pass
+    try:
+        router.resolve(request)
+    except PassThrough:
+        pass
+    assert route.call_count == 1
+
+    router.reset()
+
+    request = httpx.Request("GET", "https://foo.bar/baz/")
+    try:
+        router.resolve(request)
+    except PassThrough:
+        pass
+    assert route.call_count == 1  # dedup key was cleared
+
+
 @pytest.mark.parametrize(
     ("url", "lookups", "expected"),
     [

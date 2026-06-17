@@ -10,6 +10,7 @@ from typing import (
     List,
     NewType,
     Optional,
+    Set,
     Tuple,
     Type,
     Union,
@@ -36,6 +37,22 @@ Default = NewType("Default", object)
 DEFAULT = Default(...)
 
 
+def _pass_through_request_key(request: httpx.Request) -> Tuple[str, str, bytes]:
+    """Return a stable key for deduplicating pass-through requests across
+    transport retries.
+
+    httpcore rebuilds the ``httpx.Request`` on each retry, so ``id(request)``
+    is not stable. The (method, url, body) tuple survives retries but is
+    still cheap to compute. See Router.resolver's ``except PassThrough``
+    branch and issue #126.
+
+    The body is always readable here because the abstract mocker calls
+    ``prepare_sync_request`` (which calls ``request.read()``) before invoking
+    ``_send_sync_request``.
+    """
+    return (request.method, str(request.url), request.content)
+
+
 class Router:
     def __init__(
         self,
@@ -50,6 +67,12 @@ class Router:
 
         self.routes = RouteList()
         self.calls = CallList()
+
+        # Tracks pass-through requests (by (method, url, body) tuple) so an
+        # internal retry by the underlying transport (e.g. httpcore re-opening
+        # a new HTTPConnection on connection failure) doesn't double-count the
+        # same logical call. Reset on every reset() call. See issue #126.
+        self._seen_pass_through_request_keys: Set[Tuple[str, str, bytes]] = set()
 
         self._snapshots: List[Tuple] = []
         self.snapshot()
@@ -94,6 +117,7 @@ class Router:
         Resets call stats.
         """
         self.calls.clear()
+        self._seen_pass_through_request_keys.clear()
         for route in self.routes:
             route.reset()
 
@@ -268,7 +292,22 @@ class Router:
             self.record(request, response=None, route=error.route)
             raise error.origin from error
         except PassThrough:
-            self.record(request, response=None, route=resolved.route)
+            # Dedupe pass-through recording: the underlying transport
+            # (httpcore) may retry by re-invoking the same request through
+            # this router when a network operation fails, which would
+            # otherwise inflate `route.call_count` for what is logically
+            # a single user-initiated HTTP call. See issue #126.
+            #
+            # httpcore rebuilds the httpx.Request on retry, so id(request)
+            # is not stable; we use (method, url, body) instead. Two
+            # distinct user-initiated calls with the same method, URL, and
+            # body would also be deduplicated, which is the conservative
+            # trade-off — the over-count from a single failed retry is the
+            # much more common surprise than two rapid-fire identical GETs.
+            request_key = _pass_through_request_key(request)
+            if request_key not in self._seen_pass_through_request_keys:
+                self._seen_pass_through_request_keys.add(request_key)
+                self.record(request, response=None, route=resolved.route)
             raise
         else:
             self.record(request, response=resolved.response, route=resolved.route)

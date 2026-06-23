@@ -1,4 +1,6 @@
+import functools
 import socket
+import sys
 from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
@@ -150,6 +152,58 @@ def test_local_decorator_with_reference():
         assert respx_mock is router
 
     test()
+
+
+def test_decorator_follows_wrapped_function():
+    router = respx.mock()
+
+    def passthrough(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    @router
+    @passthrough
+    def test(respx_mock):
+        assert respx_mock is router
+
+    test()
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 14),
+    reason="Deferred annotations (PEP 649) only apply on Python 3.14+. On older "
+    "versions a bare annotation referencing a TYPE_CHECKING-only name raises "
+    "NameError at function definition time, so the scenario cannot be reproduced.",
+)
+def test_decorating_with_type_checking_only_annotation():
+    # Regression for https://github.com/lundberg/respx -- decorating a function
+    # whose parameter is annotated with a name imported only under
+    # `if TYPE_CHECKING:`. On Python 3.14 (PEP 649) the annotation is evaluated
+    # lazily; `inspect.getfullargspec` used to force that evaluation and raise
+    # `TypeError: unsupported callable` (root cause `NameError`).
+    #
+    # The function is built via `exec` so this test module still imports on
+    # Python < 3.14, where the bare annotation would otherwise raise NameError
+    # at definition time.
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n"
+        "    import this_module_is_only_imported_for_typing as typing_only\n"
+        "def func(arg: typing_only.Thing = None, respx_mock=None):\n"
+        "    return arg, respx_mock\n"
+    )
+    namespace: dict = {}
+    exec(compile(source, __file__, "exec"), namespace)
+    func = namespace["func"]
+
+    decorated = respx.mock(func)
+
+    # `respx_mock` is detected and injected despite the unresolved annotation,
+    # and the annotated parameter's default is preserved.
+    assert decorated() == (None, respx.mock)
 
 
 def test_local_decorator_without_reference():

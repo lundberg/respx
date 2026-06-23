@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Fix `TypeError: unsupported callable` when decorating a function whose parameter is
+  annotated with a name imported only under `if TYPE_CHECKING:`, on Python 3.14 where
+  annotations are evaluated lazily (PEP 649) (#315)
+- Detect `respx_mock` and `route` parameters declared on functions wrapped with
+  `functools.wraps` by following the `__wrapped__` chain when introspecting decorated
+  callables (#315)
+
 ## [0.23.1] - 2026-04-08
 
 ### Fixed

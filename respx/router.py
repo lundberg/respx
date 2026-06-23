@@ -31,6 +31,7 @@ from .models import (
 )
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, ResolvedResponseTypes, RouteResultTypes, URLPatternTypes
+from .utils import get_arg_spec
 
 Default = NewType("Default", object)
 DEFAULT = Default(...)
@@ -394,7 +395,7 @@ class MockRouter(Router):
 
         # Determine if decorated function needs a `respx_mock` instance
         is_async = inspect.iscoroutinefunction(func)
-        argspec = inspect.getfullargspec(func)
+        argspec = get_arg_spec(func)
         needs_mock_reference = "respx_mock" in argspec.args
 
         if needs_mock_reference:

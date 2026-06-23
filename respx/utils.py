@@ -1,9 +1,12 @@
 import email
+import inspect
+import sys
 from collections import defaultdict
 from datetime import datetime
 from email.message import Message
 from typing import (
     Any,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -155,3 +158,45 @@ class SetCookie(
         )
         self = super().__new__(cls, "Set-Cookie", string)
         return self
+
+
+class ArgSpec(NamedTuple):
+    args: List[str]
+    defaults: Optional[Tuple[Any, ...]]
+
+
+def get_arg_spec(func: Callable[..., Any]) -> ArgSpec:
+    """
+    Return the positional parameter names and defaults of a callable.
+
+    Since PEP 649 (Python 3.14) annotations are evaluated lazily, and
+    ``inspect.getfullargspec`` forces that evaluation. A parameter annotated
+    with a name only imported under ``if TYPE_CHECKING:`` then raises
+    ``NameError``, which ``getfullargspec`` re-raises as
+    ``TypeError: unsupported callable``. On Python 3.14+ we therefore read the
+    signature with ``ForwardRef`` placeholders, which never evaluates the
+    annotations.
+    """
+    kwargs: Dict[str, Any] = {}
+    if sys.version_info >= (3, 14):  # pragma: no cover
+        import annotationlib
+
+        kwargs["annotation_format"] = annotationlib.Format.FORWARDREF
+
+    signature = inspect.signature(func, **kwargs)
+    positional_kinds = (
+        inspect.Parameter.POSITIONAL_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    )
+    args = [
+        name
+        for name, parameter in signature.parameters.items()
+        if parameter.kind in positional_kinds
+    ]
+    defaults = tuple(
+        parameter.default
+        for parameter in signature.parameters.values()
+        if parameter.kind in positional_kinds
+        and parameter.default is not inspect.Parameter.empty
+    )
+    return ArgSpec(args, defaults or None)

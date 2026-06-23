@@ -16,7 +16,7 @@ from warnings import warn
 
 import httpx
 
-from respx.utils import SetCookie
+from respx.utils import SetCookie, get_arg_spec
 
 from .patterns import M, Pattern
 from .types import (
@@ -330,7 +330,7 @@ class Route:
         self, effect: CallableSideEffect, request: httpx.Request, **kwargs: Any
     ) -> RouteResultTypes:
         # Add route kwarg if the side effect wants it
-        argspec = inspect.getfullargspec(effect)
+        argspec = get_arg_spec(effect)
         if "route" in kwargs:
             warn(f"Matched context contains reserved word `route`: {self.pattern!r}")
         if "route" in argspec.args:

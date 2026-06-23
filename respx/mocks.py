@@ -8,6 +8,7 @@ import httpcore
 import httpx
 
 from respx.patterns import parse_url
+from respx.utils import get_arg_spec
 
 from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
@@ -172,7 +173,7 @@ class AbstractRequestMocker(Mocker):
             # Prevent mocking mock
             return spec
 
-        argspec = inspect.getfullargspec(spec)
+        argspec = get_arg_spec(spec)
 
         def mock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)

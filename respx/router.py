@@ -20,6 +20,7 @@ from typing import (
 import httpx
 
 from .mocks import Mocker
+from .utils import getfuncargspec
 from .models import (
     AllMockedAssertionError,
     CallList,
@@ -394,7 +395,7 @@ class MockRouter(Router):
 
         # Determine if decorated function needs a `respx_mock` instance
         is_async = inspect.iscoroutinefunction(func)
-        argspec = inspect.getfullargspec(func)
+        argspec = getfuncargspec(func)
         needs_mock_reference = "respx_mock" in argspec.args
 
         if needs_mock_reference:

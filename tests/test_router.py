@@ -1,12 +1,34 @@
 import warnings
+from typing import TYPE_CHECKING
 
 import httpcore
 import httpx
 import pytest
+import respx
 
 from respx import Route, Router
 from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
+
+if TYPE_CHECKING:
+    # Only bound under TYPE_CHECKING, so it is not present in the module
+    # globals at runtime -- this is what used to crash getfullargspec.
+    from collections.abc import Sequence
+
+
+def test_decorator_with_type_checking_only_annotation():
+    """Regression test for #322.
+
+    On Python 3.14 (PEP 649) decorating a callable whose annotation references
+    a ``TYPE_CHECKING``-only name raised ``TypeError: unsupported callable``
+    because ``inspect.getfullargspec`` forced annotation evaluation.
+    """
+
+    @respx.mock
+    def test_thing(respx_mock, db: Sequence = None) -> None:
+        assert respx_mock is not None
+
+    test_thing()
 
 
 async def test_empty_router():

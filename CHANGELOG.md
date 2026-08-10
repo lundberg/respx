@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Fix `TypeError: unsupported callable` on Python 3.14 (PEP 649) when a mocked
+  callable's annotations reference names only available under `TYPE_CHECKING`
+  (e.g. typing a SQLAlchemy `AsyncSession` fixture without importing it at
+  runtime). respx now reads parameter names via `inspect.signature` with
+  annotations degraded to `ForwardRef` instead of forcing their evaluation
+  (#322)
+
 ## [0.23.1] - 2026-04-08
 
 ### Fixed

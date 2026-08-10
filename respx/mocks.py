@@ -11,6 +11,7 @@ from respx.patterns import parse_url
 
 from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
+from .utils import getfuncargspec
 
 if TYPE_CHECKING:
     from .router import Router  # pragma: nocover
@@ -172,7 +173,7 @@ class AbstractRequestMocker(Mocker):
             # Prevent mocking mock
             return spec
 
-        argspec = inspect.getfullargspec(spec)
+        argspec = getfuncargspec(spec)
 
         def mock(self, *args, **kwargs):
             kwargs = cls._merge_args_and_kwargs(argspec, args, kwargs)

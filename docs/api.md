@@ -422,7 +422,7 @@ Combines two `Pattern`s using `and` operator.
 M(scheme="http") & M(host="example.org")
 ```
 
-### OR (&)
+### OR (|)
 Combines two `Pattern`s using `or` operator.
 ``` python
 M(method="PUT") | M(method="PATCH")

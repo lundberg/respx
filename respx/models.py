@@ -31,6 +31,14 @@ from .types import (
 )
 
 
+def is_response(value: Any) -> bool:
+    """Return whether a value provides the response interface RESPX needs."""
+    return isinstance(value, httpx.Response) or all(
+        hasattr(value, attribute)
+        for attribute in ("status_code", "headers", "stream", "extensions")
+    )
+
+
 def clone_response(response: httpx.Response, request: httpx.Request) -> httpx.Response:
     """
     Clones a httpx Response for given request.
@@ -164,7 +172,7 @@ class Route:
             response.setdefault("status_code", 200)
             self.return_value = httpx.Response(**response)
 
-        elif isinstance(response, httpx.Response):
+        elif is_response(response):
             self.return_value = response
 
         else:
@@ -196,7 +204,7 @@ class Route:
 
     @return_value.setter
     def return_value(self, return_value: Optional[httpx.Response]) -> None:
-        if return_value is not None and not isinstance(return_value, httpx.Response):
+        if return_value is not None and not is_response(return_value):
             raise TypeError(f"{return_value!r} is not an instance of httpx.Response")
         self.pass_through(False)
         self._return_value = return_value
@@ -346,7 +354,7 @@ class Route:
         if (
             result
             and not inspect.isawaitable(result)
-            and not isinstance(result, (httpx.Response, httpx.Request))
+            and not (is_response(result) or isinstance(result, httpx.Request))
         ):
             raise TypeError(
                 f"Side effects must return; either a `httpx.Response`,"

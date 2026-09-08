@@ -27,6 +27,7 @@ from .models import (
     ResolvedRoute,
     Route,
     RouteList,
+    is_response,
     SideEffectError,
 )
 from .patterns import Pattern, merge_patterns, parse_url_patterns
@@ -262,7 +263,7 @@ class Router:
 
             else:
                 # Mocked response
-                assert isinstance(resolved.response, httpx.Response)
+                assert is_response(resolved.response)
 
         except SideEffectError as error:
             self.record(request, response=None, route=error.route)
@@ -311,13 +312,13 @@ class Router:
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         resolved = self.resolve(request)
-        assert isinstance(resolved.response, httpx.Response)
-        return resolved.response
+        assert is_response(resolved.response)
+        return cast(httpx.Response, resolved.response)
 
     async def async_handler(self, request: httpx.Request) -> httpx.Response:
         resolved = await self.aresolve(request)
-        assert isinstance(resolved.response, httpx.Response)
-        return resolved.response
+        assert is_response(resolved.response)
+        return cast(httpx.Response, resolved.response)
 
 
 class MockRouter(Router):

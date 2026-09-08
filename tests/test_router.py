@@ -9,6 +9,13 @@ from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
+class ResponseLike:
+    status_code = 204
+    headers = httpx.Headers()
+    stream = object()
+    extensions = {}
+
+
 async def test_empty_router():
     router = Router()
 
@@ -174,6 +181,27 @@ def test_mod_response():
 
     with pytest.raises(TypeError, match="Route can only"):
         router.route() % []  # type: ignore[operator]
+
+
+def test_response_like_return_value():
+    router = Router()
+    response = ResponseLike()
+    router.get("https://foo.bar/").mock(return_value=response)  # type: ignore[arg-type]
+
+    request = httpx.Request("GET", "https://foo.bar/")
+    resolved = router.resolve(request)
+
+    assert resolved.response is response
+    assert router.handler(request) is response
+
+
+def test_response_like_side_effect():
+    router = Router()
+    response = ResponseLike()
+    router.get("https://foo.bar/").mock(side_effect=lambda request: response)  # type: ignore[arg-type]
+
+    request = httpx.Request("GET", "https://foo.bar/")
+    assert router.handler(request) is response
 
 
 async def test_async_side_effect():

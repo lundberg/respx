@@ -101,6 +101,23 @@ class Router:
         not_called_routes = [route for route in self.routes if not route.called]
         assert not_called_routes == [], "RESPX: some routes were not called!"
 
+    @contextmanager
+    def assert_call_count(self, **counts: int) -> Generator[None, None, None]:
+        """
+        Asserts named route call counts within this context, preserving call history.
+        """
+        routes = {name: self[name] for name in counts}
+        initial_counts = {name: route.call_count for name, route in routes.items()}
+
+        yield
+
+        for name, expected in counts.items():
+            actual = routes[name].call_count - initial_counts[name]
+            assert actual == expected, (
+                f"RESPX: route {name!r} was called {actual} times, "
+                f"expected {expected}!"
+            )
+
     def __getitem__(self, name: str) -> Route:
         return self.routes[name]
 

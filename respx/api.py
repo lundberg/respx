@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union, overload
+from typing import Any, ContextManager, Optional, Union, overload
 
 from .models import CallList, Route
 from .patterns import Pattern
@@ -29,6 +29,11 @@ def clear() -> None:
 def reset() -> None:
     global mock
     mock.reset()
+
+
+def assert_call_count(**counts: int) -> ContextManager[None]:
+    global mock
+    return mock.assert_call_count(**counts)
 
 
 @overload

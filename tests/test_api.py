@@ -14,6 +14,24 @@ from respx.patterns import M
 from respx.router import MockRouter
 
 
+@respx.mock
+async def test_assert_call_count(client):
+    foobar = respx.get("https://example.com/foobar", name="foobar")
+    hamspam = respx.get("https://example.com/hamspam", name="hamspam")
+
+    with respx.assert_call_count(foobar=1, hamspam=0):
+        response = httpx.get("https://example.com/foobar")
+        assert response.status_code == 200
+
+    with respx.assert_call_count(foobar=1, hamspam=0):
+        response = await client.get("https://example.com/foobar")
+        assert response.status_code == 200
+
+    assert foobar.call_count == 2
+    assert hamspam.call_count == 0
+    assert respx.calls.call_count == 2
+
+
 async def test_http_methods(client):
     async with respx.mock:
         url = "https://foo.bar"

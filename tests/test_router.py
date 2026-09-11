@@ -9,6 +9,98 @@ from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 
 
+def test_assert_call_count():
+    router = Router()
+    foobar = router.get("https://foo.bar/", name="foobar")
+    hamspam = router.get("https://ham.spam/", name="hamspam")
+    request = httpx.Request("GET", "https://foo.bar/")
+    router.handler(request)
+    first_call = foobar.calls[0]
+
+    with router.assert_call_count(foobar=2, hamspam=0):
+        router.handler(request)
+        router.handler(request)
+
+    assert foobar.call_count == 3
+    assert hamspam.call_count == 0
+    assert router.calls.call_count == 3
+    assert foobar.calls[0] is first_call
+    assert router.calls[0] is first_call
+
+    with pytest.raises(AssertionError, match="some routes were not called"):
+        router.assert_all_called()
+
+
+@pytest.mark.parametrize(("expected", "actual"), [(1, 0), (1, 2), (0, 1)])
+def test_assert_call_count_mismatch(expected, actual):
+    router = Router()
+    route = router.get("https://foo.bar/", name="foobar")
+    request = httpx.Request("GET", "https://foo.bar/")
+
+    def call_route():
+        with router.assert_call_count(foobar=expected):
+            for _ in range(actual):
+                router.handler(request)
+
+    with pytest.raises(AssertionError, match="RESPX: route") as exc_info:
+        call_route()
+
+    assert str(exc_info.value) == (
+        f"RESPX: route 'foobar' was called {actual} times, expected {expected}!"
+    )
+    assert route.call_count == actual
+    assert router.calls.call_count == actual
+
+
+def test_assert_call_count_nested():
+    router = Router()
+    route = router.get("https://foo.bar/", name="foobar")
+    request = httpx.Request("GET", "https://foo.bar/")
+
+    with router.assert_call_count(foobar=3):
+        router.handler(request)
+        with router.assert_call_count(foobar=1):
+            router.handler(request)
+        router.handler(request)
+
+    assert route.call_count == 3
+
+
+def test_assert_call_count_unknown_route():
+    router = Router()
+
+    with pytest.raises(KeyError, match="missing"):
+        router.assert_call_count(missing=0).__enter__()
+
+
+def test_assert_call_count_preserves_exception():
+    router = Router()
+    route = router.get("https://foo.bar/", name="foobar")
+    error = ValueError("original error")
+
+    def raise_from_context():
+        with router.assert_call_count(foobar=1):
+            raise error
+
+    with pytest.raises(ValueError, match="original error") as exc_info:
+        raise_from_context()
+
+    assert exc_info.value is error
+    assert route.call_count == 0
+
+
+def test_assert_call_count_empty():
+    router = Router()
+    route = router.get("https://foo.bar/", name="foobar")
+    request = httpx.Request("GET", "https://foo.bar/")
+
+    with router.assert_call_count():
+        router.handler(request)
+
+    assert route.call_count == 1
+    assert router.calls.call_count == 1
+
+
 async def test_empty_router():
     router = Router()
 

@@ -41,8 +41,15 @@ nav:
       - Mock HTTPX: "versions/0.14.0/mocking.md"
       - Developer Interface: "versions/0.14.0/api.md"
 
+not_in_nav: |
+  /objects.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      enable_inventory: true
+
 markdown_extensions:
   - admonition
   - codehilite:
       css_class: highlight
-  - mkautodoc

@@ -26,8 +26,17 @@ def mypy(session):
 
 @nox.session(python="3.10")
 def docs(session):
-    deps = ["mkdocs", "mkdocs-material", "mkautodoc>=0.1.0"]
+    deps = [
+        "mkdocs",
+        "mkdocs-material",
+        "mkdocstrings[python]>=1.0",
+    ]
     session.install("--upgrade", *deps)
     session.install("-e", ".")
     args = session.posargs if session.posargs else ["build"]
     session.run("mkdocs", *args)
+
+
+@nox.session(python="3.10", requires=["docs"])
+def docs_test(session):
+    session.run("python", "scripts/check_docs_inventory.py")

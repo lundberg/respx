@@ -361,6 +361,12 @@ The `json` pattern also supports path traversing, *i.e.* `json__<path>=<value>`.
 respx.post("https://example.org/", json__foobar__0__ham="spam")
 httpx.post("https://example.org/", json={"foobar": [{"ham": "spam"}]})
 ```
+Object keys keep their exact spelling, including numeric keys. Numeric path segments
+select array indices when traversing arrays.
+``` python
+respx.post("https://example.org/", json__foobar__0__01="spam")
+httpx.post("https://example.org/", json={"foobar": [{"01": "spam"}]})
+```
 
 ### Headers
 Matches request *headers*, using [contains](#contains) as default lookup.

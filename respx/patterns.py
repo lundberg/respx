@@ -547,7 +547,7 @@ class JSON(ContentMixin, PathPattern):
         if self.path:
             value = json
             for bit in self.path.split("__"):
-                key = int(bit) if bit.isdigit() else bit
+                key = int(bit) if bit.isdigit() and not isinstance(value, dict) else bit
                 try:
                     value = value[key]
                 except KeyError as e:

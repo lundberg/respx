@@ -28,6 +28,7 @@ from .models import (
     Route,
     RouteList,
     SideEffectError,
+    clone_response,
 )
 from .patterns import Pattern, merge_patterns, parse_url_patterns
 from .types import DefaultType, ResolvedResponseTypes, RouteResultTypes, URLPatternTypes
@@ -298,6 +299,9 @@ class Router:
                         prospect = await prospect
                     except Exception as error:
                         raise SideEffectError(route, origin=error) from error
+
+                    if isinstance(prospect, httpx.Response) and not prospect._request:
+                        prospect = clone_response(prospect, request)
 
                 if prospect is not None:
                     resolved.route = route

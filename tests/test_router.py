@@ -189,6 +189,49 @@ async def test_async_side_effect():
     assert response.status_code == 204
 
 
+@pytest.mark.parametrize("with_request", [True, False])
+async def test_async_side_effect_response_request(with_request):
+    router = Router()
+    request = httpx.Request("GET", "https://foo.bar/")
+    original_request = httpx.Request("GET", "https://foo.bar/original/")
+    response = httpx.Response(
+        200, text="hello", request=original_request if with_request else None
+    )
+
+    async def effect(request):
+        return response
+
+    route = router.get("https://foo.bar/").mock(side_effect=effect)
+    result = await router.async_handler(request)
+
+    assert result.text == "hello"
+    assert result.request is (original_request if with_request else request)
+    assert (result is response) is with_request
+    assert route.calls.last.response is result
+
+
+async def test_async_side_effect_reused_response():
+    router = Router()
+    response = httpx.Response(200, text="hello")
+
+    async def effect(request):
+        return response
+
+    route = router.get(host="foo.bar").mock(side_effect=effect)
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(router.async_handler)
+    ) as client:
+        first = await client.get("https://foo.bar/first/")
+        second = await client.get("https://foo.bar/second/")
+
+    assert first is not second
+    assert first.request.url == "https://foo.bar/first/"
+    assert second.request.url == "https://foo.bar/second/"
+    assert route.calls[0].response is first
+    assert route.calls[1].response is second
+    assert first.text == second.text == "hello"
+
+
 def test_side_effect_no_match():
     router = Router()
 

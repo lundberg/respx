@@ -18,7 +18,7 @@ from typing import (
     Union,
 )
 
-import httpx
+from .httpxlib import httpx
 
 URL = Tuple[
     bytes,  # scheme

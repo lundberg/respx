@@ -2,9 +2,9 @@ import io
 import re
 from unittest.mock import ANY
 
-import httpx
 import pytest
 
+from respx.httpxlib import httpx
 from respx.patterns import (
     JSON,
     URL,

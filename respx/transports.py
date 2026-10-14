@@ -12,9 +12,7 @@ from typing import (
 )
 from warnings import warn
 
-import httpx
-from httpx import AsyncBaseTransport, BaseTransport
-
+from .httpxlib import httpx
 from .models import PassThrough
 
 if TYPE_CHECKING:
@@ -66,16 +64,16 @@ class MockTransport(httpx.MockTransport):
         self.__exit__(*args)
 
 
-class TryTransport(BaseTransport, AsyncBaseTransport):
+class TryTransport(httpx.BaseTransport, httpx.AsyncBaseTransport):
     def __init__(
-        self, transports: List[Union[BaseTransport, AsyncBaseTransport]]
+        self, transports: List[Union[httpx.BaseTransport, httpx.AsyncBaseTransport]]
     ) -> None:
         self.transports = transports
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         for transport in self.transports:
             try:
-                transport = cast(BaseTransport, transport)
+                transport = cast(httpx.BaseTransport, transport)
                 return transport.handle_request(request)
             except PassThrough:
                 continue
@@ -85,7 +83,7 @@ class TryTransport(BaseTransport, AsyncBaseTransport):
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         for transport in self.transports:
             try:
-                transport = cast(AsyncBaseTransport, transport)
+                transport = cast(httpx.AsyncBaseTransport, transport)
                 return await transport.handle_async_request(request)
             except PassThrough:
                 continue

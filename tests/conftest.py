@@ -1,8 +1,8 @@
-import httpx
 import pytest
 
 import respx
 from respx.fixtures import *  # noqa: F401, F403
+from respx.httpxlib import httpx
 
 pytest_plugins = ["pytester"]
 

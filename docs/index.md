@@ -70,3 +70,22 @@ $ pip install respx
 
 Requires Python 3.8+ and HTTPX 0.25+.
 See [Changelog](https://github.com/lundberg/respx/blob/master/CHANGELOG.md) for older HTTPX compatibility.
+
+### HTTPX2
+
+RESPX also supports [HTTPX2](https://github.com/pydantic/httpx2), on Python 3.10+.
+
+``` console
+$ pip install respx[httpx2]
+```
+
+By default, requests are mocked whether sent by `httpx` or `httpx2`, but RESPX works with the `Request` and `Response` types of *one* of them, e.g. accepting `httpx2.Response(204)` as `return_value`.
+
+`httpx` is picked when installed, otherwise `httpx2`. Since RESPX still depends on `httpx`, pick `httpx2` by setting the `RESPX_HTTPX` environment variable, *before* running your tests.
+
+``` console
+$ RESPX_HTTPX=httpx2 pytest
+```
+
+!!! tip "Type Checking"
+    Type checkers assume `httpx`. Make them assume `httpx2` by defining `RESPX_HTTPX2` as *always true*, e.g. `always_true = RESPX_HTTPX2` in your [mypy](https://mypy.readthedocs.io/en/stable/config_file.html#confval-always_true) config, or `defineConstant = { RESPX_HTTPX2 = true }` for [pyright](https://microsoft.github.io/pyright/#/configuration?id=main-configuration-options).

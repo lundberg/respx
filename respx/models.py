@@ -14,10 +14,9 @@ from typing import (
 from unittest import mock
 from warnings import warn
 
-import httpx
-
 from respx.utils import SetCookie
 
+from .httpxlib import httpx
 from .patterns import M, Pattern
 from .types import (
     CallableSideEffect,

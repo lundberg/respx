@@ -1,9 +1,9 @@
 import re
 
-import httpx
 import pytest
 
 import respx
+from respx.httpxlib import httpx
 from respx.router import MockRouter
 
 

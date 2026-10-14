@@ -1,10 +1,9 @@
 import warnings
 
-import httpcore
-import httpx
 import pytest
 
 from respx import Route, Router
+from respx.httpxlib import httpcore, httpx
 from respx.models import AllMockedAssertionError, PassThrough, RouteList
 from respx.patterns import Host, M, Method
 

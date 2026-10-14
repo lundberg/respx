@@ -1,8 +1,8 @@
 import warnings
 
-import httpx
 import pytest
 
+from respx.httpxlib import httpx
 from respx.models import PassThrough
 from respx.router import Router
 from respx.transports import MockTransport

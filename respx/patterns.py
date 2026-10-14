@@ -25,10 +25,9 @@ from typing import (
 )
 from unittest.mock import ANY
 
-import httpx
-
 from respx.utils import MultiItems, decode_data
 
+from .httpxlib import httpx
 from .types import (
     URL as RawURL,
     CookieTypes,

@@ -4,11 +4,10 @@ import re
 import socket
 from unittest import mock
 
-import httpcore
-import httpx
 import pytest
 
 import respx
+from respx.httpxlib import httpcore, httpx
 from respx.models import Route
 from respx.patterns import M
 from respx.router import MockRouter

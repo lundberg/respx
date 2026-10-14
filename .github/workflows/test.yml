@@ -20,13 +20,23 @@ env:
 
 jobs:
   test:
-    name: Test Python ${{ matrix.python-version }}
+    name: Test Python ${{ matrix.python-version }} (${{ matrix.tool }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        tool: ["httpx", "httpx2", "both"]
+        exclude:
+          - python-version: "3.8"
+            tool: "httpx2"
+          - python-version: "3.8"
+            tool: "both"
+          - python-version: "3.9"
+            tool: "httpx2"
+          - python-version: "3.9"
+            tool: "both"
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
@@ -35,11 +45,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - run: pip install nox
     - name: Test
-      run: nox -N -s test-${{ matrix.python-version }} -- -v
+      run: nox -N -s "test-${{ matrix.python-version }}(tool='${{ matrix.tool }}')" -- -v
     - name: Upload coverage report
       uses: codecov/codecov-action@v4.5.0
       with:
-        name: Python ${{ matrix.python-version }}
+        name: Python ${{ matrix.python-version }} ${{ matrix.tool }}
         files: ./coverage.xml
         fail_ci_if_error: true
         slug: lundberg/respx

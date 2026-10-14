@@ -2,12 +2,11 @@ import socket
 from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
-import httpcore
-import httpx
 import pytest
 
 import respx
 from respx import ASGIHandler, WSGIHandler
+from respx.httpxlib import httpcore, httpx
 from respx.mocks import Mocker
 from respx.models import AllMockedAssertionError
 from respx.router import MockRouter
@@ -452,7 +451,7 @@ async def test_assert_all_mocked(client, assert_all_mocked, raises):
 def test_add_remove_targets():
     from respx.mocks import HTTPCoreMocker
 
-    target = "httpcore._sync.connection.HTTPConnection"
+    target = f"{httpcore.__name__}._sync.connection.HTTPConnection"
     assert HTTPCoreMocker.targets.count(target) == 1
     HTTPCoreMocker.add_targets(target)
     assert HTTPCoreMocker.targets.count(target) == 1

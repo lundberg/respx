@@ -4,8 +4,9 @@ from textwrap import dedent
 def test_respx_mock_fixture(testdir):
     testdir.makepyfile(
         """
-        import httpx
         import pytest
+
+        from respx.httpxlib import httpx
 
         @pytest.fixture
         def some_fixture():

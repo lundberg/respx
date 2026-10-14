@@ -43,4 +43,8 @@ setup(
     zip_safe=False,
     python_requires=">=3.8",
     install_requires=["httpx>=0.25.0"],
+    extras_require={
+        "httpx": ["httpx>=0.25.0"],
+        "httpx2": ["httpx2>=2.0.0"],
+    },
 )

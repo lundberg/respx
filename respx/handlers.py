@@ -1,6 +1,6 @@
 from typing import Any, Callable
 
-import httpx
+from .httpxlib import httpx
 
 
 class TransportHandler:

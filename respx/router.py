@@ -17,8 +17,7 @@ from typing import (
     overload,
 )
 
-import httpx
-
+from .httpxlib import httpx
 from .mocks import Mocker
 from .models import (
     AllMockedAssertionError,

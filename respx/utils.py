@@ -18,7 +18,7 @@ from typing import (
 )
 from urllib.parse import parse_qsl
 
-import httpx
+from .httpxlib import httpx
 
 
 class MultiItems(defaultdict):

@@ -1,14 +1,13 @@
 import inspect
+import sys
 from abc import ABC
 from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Type
 from unittest import mock
 
-import httpcore
-import httpx
-
 from respx.patterns import parse_url
 
+from .httpxlib import httpx
 from .models import AllMockedAssertionError, PassThrough
 from .transports import TryTransport
 
@@ -152,8 +151,8 @@ class Mocker(ABC):
 class HTTPXMocker(Mocker):
     name = "httpx"
     targets = [
-        "httpx._client.Client",
-        "httpx._client.AsyncClient",
+        f"{httpx.__name__}._client.Client",
+        f"{httpx.__name__}._client.AsyncClient",
     ]
     target_methods = ["_transport_for_url"]
 
@@ -336,7 +335,9 @@ class HTTPCoreMocker(AbstractRequestMocker):
         """
         Create a `httpcore` response from a `HTTPX` response.
         """
-        return httpcore.Response(
+        # Respond with the httpcore flavour of the request, i.e. httpcore or httpcore2
+        core = sys.modules[type(kwargs["request"]).__module__.partition(".")[0]]
+        return core.Response(
             status=httpx_response.status_code,
             headers=httpx_response.headers.raw,
             content=httpx_response.stream,

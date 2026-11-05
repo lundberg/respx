@@ -1,6 +1,6 @@
 import email
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from email.message import Message
 from typing import (
     Any,
@@ -134,6 +134,8 @@ class SetCookie(
             attrs["Domain"] = domain
         if expires is not None:
             if isinstance(expires, datetime):  # pragma: no branch
+                if expires.utcoffset() is not None:
+                    expires = expires.astimezone(timezone.utc)
                 expires = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
             attrs["Expires"] = expires
         if max_age is not None:

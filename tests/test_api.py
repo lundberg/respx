@@ -2,6 +2,7 @@ import asyncio
 import json as jsonlib
 import re
 import socket
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import httpcore
@@ -592,6 +593,19 @@ def test_can_respond_with_cookies():
         response = httpx.get("https://foo.bar/")
         assert len(response.cookies) == 1
         assert response.cookies["foo"] == "bar"
+
+
+def test_cookie_jar_preserves_timezone_aware_expiry():
+    expires = datetime(
+        2100, 1, 1, 5, 30, tzinfo=timezone(timedelta(hours=5, minutes=30))
+    )
+    with respx.mock, httpx.Client() as client:
+        respx.get("https://foo.bar/").respond(
+            cookies=[respx.SetCookie("foo", "bar", expires=expires)]
+        )
+        client.get("https://foo.bar/")
+        (cookie,) = client.cookies.jar
+        assert cookie.expires == int(expires.timestamp())
 
 
 def test_can_mock_response_with_set_cookie_headers():

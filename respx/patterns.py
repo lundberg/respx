@@ -379,7 +379,7 @@ class Cookies(Pattern):
         return {(cookie.key, cookie.value) for cookie in cookies.values()}
 
     def _contains(self, value: Set[Tuple[str, str]]) -> Match:
-        return Match(bool(self.value & value))
+        return Match(self.value <= value)
 
 
 class Scheme(Pattern):

@@ -132,6 +132,37 @@ def test_headers_pattern_hash():
     [
         (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam", "foo": "bar"}, True),
         (Lookup.CONTAINS, {"foo": "bar"}, {"ham": "spam"}, False),
+        (Lookup.CONTAINS, {"foo": "bar", "ham": "spam"}, {"foo": "bar"}, False),
+        (
+            Lookup.CONTAINS,
+            {"foo": "bar", "ham": "spam"},
+            {"foo": "bar", "ham": "wrong"},
+            False,
+        ),
+        (
+            Lookup.CONTAINS,
+            {"foo": "bar", "ham": "spam"},
+            {"foo": "wrong", "ham": "spam"},
+            False,
+        ),
+        (
+            Lookup.CONTAINS,
+            [("foo", "bar"), ("ham", "spam")],
+            {"ham": "spam"},
+            False,
+        ),
+        (
+            Lookup.CONTAINS,
+            {"foo": "bar", "ham": "spam"},
+            {"ham": "spam", "foo": "bar"},
+            True,
+        ),
+        (
+            Lookup.CONTAINS,
+            {"foo": "bar", "ham": "spam"},
+            {"ham": "spam", "foo": "bar", "extra": "value"},
+            True,
+        ),
         (Lookup.EQUAL, {"foo": "bar"}, {"foo": "bar"}, True),
         (Lookup.EQUAL, [("foo", "bar")], {"foo": "bar"}, True),
         (Lookup.EQUAL, {}, {}, True),

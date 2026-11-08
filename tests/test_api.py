@@ -72,6 +72,32 @@ async def test_http_methods(client):
         assert respx.calls.call_count == 8 * 2
 
 
+@pytest.mark.parametrize("using", ["httpx", "httpcore"])
+@pytest.mark.parametrize(
+    ("cookie_header", "status_code"),
+    [
+        ("session=token", 403),
+        ("tenant=voice", 403),
+        ("session=token; tenant=wrong", 403),
+        ("session=token; tenant=voice", 200),
+        ("extra=value; tenant=voice; session=token", 200),
+    ],
+)
+async def test_cookie_containment_routing(client, using, cookie_header, status_code):
+    url = "https://example.org/"
+    async with respx.mock(using=using, assert_all_called=False) as router:
+        matched = router.get(url, cookies={"session": "token", "tenant": "voice"})
+        matched.respond(200)
+        fallback = router.get(url).respond(403)
+
+        response = httpx.get(url, headers={"Cookie": cookie_header})
+        assert response.status_code == status_code
+        response = await client.get(url, headers={"Cookie": cookie_header})
+        assert response.status_code == status_code
+        assert matched.call_count == (2 if status_code == 200 else 0)
+        assert fallback.call_count == (2 if status_code == 403 else 0)
+
+
 @pytest.mark.parametrize(
     ("url", "pattern"),
     [

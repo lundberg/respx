@@ -58,10 +58,9 @@ def _parse_multipart_form_data(
         name = payload.get_param("name", header="Content-Disposition")
         assert isinstance(name, str)
         filename = payload.get_filename()
-        content_type = payload.get_content_type()
         value = payload.get_payload(decode=True)
         assert isinstance(value, bytes)
-        if content_type.startswith("text/") and filename is None:
+        if filename is None:
             # Text field
             data.append(name, value.decode(payload.get_content_charset() or "utf-8"))
         else:

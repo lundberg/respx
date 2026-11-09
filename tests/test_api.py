@@ -283,6 +283,39 @@ def test_files_post_body():
         assert route.called
 
 
+@pytest.mark.parametrize("using", ["httpx", "httpcore"])
+@pytest.mark.parametrize(
+    "content_type", ["application/json", "application/xml", "text/plain"]
+)
+async def test_multipart_metadata_routing(client, using, content_type):
+    url = "https://example.org/upload"
+    metadata = '{"language":"한국어"}'
+    files = {
+        "metadata": (None, metadata.encode("utf-8"), content_type),
+        "audio": ("speech.wav", b"RIFF", "audio/wav"),
+    }
+    async with respx.mock(using=using, assert_all_called=False) as router:
+        matched = router.post(
+            url,
+            data={"metadata": metadata},
+            files={"audio": ("speech.wav", b"RIFF")},
+        ).respond(201)
+        fallback = router.post(url).respond(422)
+
+        response = httpx.post(url, files=files)
+        assert response.status_code == 201
+        response = await client.post(url, files=files)
+        assert response.status_code == 201
+
+        files["metadata"] = (None, b"wrong", content_type)
+        response = httpx.post(url, files=files)
+        assert response.status_code == 422
+        response = await client.post(url, files=files)
+        assert response.status_code == 422
+        assert matched.call_count == 2
+        assert fallback.call_count == 2
+
+
 async def test_raising_content(client):
     async with MockRouter() as respx_mock:
         url = "https://foo.bar/"
